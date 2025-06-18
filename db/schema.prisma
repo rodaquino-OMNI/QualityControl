@@ -1,0 +1,607 @@
+// This is your Prisma schema file for AUSTA Cockpit
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["auth", "medical", "ai", "audit", "analytics", "public"]
+  extensions = [uuidOssp(map: "uuid-ossp"), pgcrypto, pgTrgm(map: "pg_trgm")]
+}
+
+// =====================================================
+// AUTHENTICATION AND USER MANAGEMENT
+// =====================================================
+
+model Organization {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name          String   @db.VarChar(255)
+  type          OrganizationType
+  taxId         String?  @unique @map("tax_id") @db.VarChar(50)
+  status        OrganizationStatus @default(active)
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  users                 User[]
+  authorizationRequests AuthorizationRequest[] @relation("RequestingProvider")
+  claims               Claim[]
+  providerMetrics      ProviderMetrics[]
+  activityLogs         ActivityLog[]
+  
+  @@map("organizations")
+  @@schema("auth")
+}
+
+model User {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId      String?   @map("organization_id") @db.Uuid
+  email               String    @unique @db.VarChar(255)
+  passwordHash        String    @map("password_hash") @db.VarChar(255)
+  fullName            String    @map("full_name") @db.VarChar(255)
+  role                UserRole
+  licenseNumber       String?   @map("license_number") @db.VarChar(100)
+  specialization      String?   @db.VarChar(100)
+  status              UserStatus @default(active)
+  lastLogin           DateTime? @map("last_login") @db.Timestamptz(6)
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
+  metadata            Json      @default("{}")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  sessions              Session[]
+  authorizationRequests AuthorizationRequest[] @relation("RequestingDoctor")
+  authorizationDecisions AuthorizationDecision[]
+  fraudInvestigations   FraudDetection[]
+  activityLogs          ActivityLog[]
+  decisionTrails        DecisionTrail[]
+  userActivitySummaries UserActivitySummary[]
+  
+  @@index([email])
+  @@index([organizationId])
+  @@map("users")
+  @@schema("auth")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash") @db.VarChar(255)
+  ipAddress String?  @map("ip_address") @db.Inet
+  userAgent String?  @map("user_agent") @db.Text
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([tokenHash])
+  @@index([userId])
+  @@map("sessions")
+  @@schema("auth")
+}
+
+model Permission {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  resource    String   @db.VarChar(100)
+  action      String   @db.VarChar(50)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  rolePermissions RolePermission[]
+  
+  @@unique([resource, action])
+  @@map("permissions")
+  @@schema("auth")
+}
+
+model RolePermission {
+  role         String   @db.VarChar(50)
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@id([role, permissionId])
+  @@map("role_permissions")
+  @@schema("auth")
+}
+
+// =====================================================
+// MEDICAL CASES AND AUTHORIZATIONS
+// =====================================================
+
+model Patient {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  patientCode       String    @unique @map("patient_code") @db.VarChar(100)
+  birthYear         Int?      @map("birth_year")
+  gender            String?   @db.VarChar(20)
+  insuranceType     String?   @map("insurance_type") @db.VarChar(50)
+  riskCategory      RiskCategory? @map("risk_category")
+  chronicConditions Json      @default("[]") @map("chronic_conditions")
+  metadata          Json      @default("{}")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  authorizationRequests AuthorizationRequest[]
+  claims               Claim[]
+  
+  @@map("patients")
+  @@schema("medical")
+}
+
+model Procedure {
+  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code                  String   @unique @db.VarChar(50)
+  name                  String   @db.VarChar(255)
+  category              String   @db.VarChar(100)
+  subcategory           String?  @db.VarChar(100)
+  typicalDurationMinutes Int?     @map("typical_duration_minutes")
+  requiresPreauth       Boolean  @default(false) @map("requires_preauth")
+  riskLevel             RiskLevel @default(low) @map("risk_level")
+  guidelines            Json     @default("{}")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  authorizationRequests AuthorizationRequest[]
+  claims               Claim[]
+  
+  @@map("procedures")
+  @@schema("medical")
+}
+
+model AuthorizationRequest {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  requestNumber         String    @unique @map("request_number") @db.VarChar(100)
+  patientId             String    @map("patient_id") @db.Uuid
+  requestingProviderId  String    @map("requesting_provider_id") @db.Uuid
+  requestingDoctorId    String    @map("requesting_doctor_id") @db.Uuid
+  procedureId           String    @map("procedure_id") @db.Uuid
+  urgencyLevel          UrgencyLevel @map("urgency_level")
+  clinicalJustification String    @map("clinical_justification") @db.Text
+  diagnosisCodes        Json      @default("[]") @map("diagnosis_codes")
+  supportingDocuments   Json      @default("[]") @map("supporting_documents")
+  status                AuthorizationStatus @default(pending)
+  submittedAt           DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  dueDate               DateTime? @map("due_date") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  patient             Patient              @relation(fields: [patientId], references: [id])
+  requestingProvider  Organization         @relation("RequestingProvider", fields: [requestingProviderId], references: [id])
+  requestingDoctor    User                 @relation("RequestingDoctor", fields: [requestingDoctorId], references: [id])
+  procedure           Procedure            @relation(fields: [procedureId], references: [id])
+  decisions           AuthorizationDecision[]
+  claims              Claim[]
+  
+  @@index([patientId])
+  @@index([requestingProviderId])
+  @@index([status])
+  @@index([submittedAt])
+  @@map("authorization_requests")
+  @@schema("medical")
+}
+
+model AuthorizationDecision {
+  id                     String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  authorizationRequestId String   @map("authorization_request_id") @db.Uuid
+  decisionType           DecisionType @map("decision_type")
+  decision               Decision
+  reviewerId             String?  @map("reviewer_id") @db.Uuid
+  decisionRationale      String   @map("decision_rationale") @db.Text
+  conditionsApplied      Json     @default("[]") @map("conditions_applied")
+  validFrom              DateTime @map("valid_from") @db.Timestamptz(6)
+  validUntil             DateTime @map("valid_until") @db.Timestamptz(6)
+  appealDeadline         DateTime? @map("appeal_deadline") @db.Timestamptz(6)
+  decidedAt              DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  authorizationRequest AuthorizationRequest @relation(fields: [authorizationRequestId], references: [id])
+  reviewer             User?                @relation(fields: [reviewerId], references: [id])
+  
+  @@map("authorization_decisions")
+  @@schema("medical")
+}
+
+model Claim {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  claimNumber     String    @unique @map("claim_number") @db.VarChar(100)
+  authorizationId String?   @map("authorization_id") @db.Uuid
+  patientId       String    @map("patient_id") @db.Uuid
+  providerId      String    @map("provider_id") @db.Uuid
+  procedureId     String    @map("procedure_id") @db.Uuid
+  serviceDate     DateTime  @map("service_date") @db.Date
+  billedAmount    Decimal   @map("billed_amount") @db.Decimal(10, 2)
+  allowedAmount   Decimal?  @map("allowed_amount") @db.Decimal(10, 2)
+  paidAmount      Decimal?  @map("paid_amount") @db.Decimal(10, 2)
+  status          ClaimStatus @default(submitted)
+  denialReason    String?   @map("denial_reason") @db.VarChar(255)
+  processedAt     DateTime? @map("processed_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  authorization AuthorizationRequest? @relation(fields: [authorizationId], references: [id])
+  patient       Patient               @relation(fields: [patientId], references: [id])
+  provider      Organization          @relation(fields: [providerId], references: [id])
+  procedure     Procedure             @relation(fields: [procedureId], references: [id])
+  
+  @@index([authorizationId])
+  @@index([status])
+  @@map("claims")
+  @@schema("medical")
+}
+
+// =====================================================
+// AI ANALYSIS AND INSIGHTS
+// =====================================================
+
+model AIModel {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String    @db.VarChar(255)
+  version        String    @db.VarChar(50)
+  type           AIModelType
+  status         AIModelStatus @default(active)
+  accuracyScore  Decimal?  @map("accuracy_score") @db.Decimal(5, 2)
+  configuration  Json      @default("{}")
+  deployedAt     DateTime? @map("deployed_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  analysisResults AnalysisResult[]
+  
+  @@unique([name, version])
+  @@map("models")
+  @@schema("ai")
+}
+
+model AnalysisResult {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  modelId         String   @map("model_id") @db.Uuid
+  entityType      EntityType @map("entity_type")
+  entityId        String   @map("entity_id") @db.Uuid
+  analysisType    String   @map("analysis_type") @db.VarChar(50)
+  confidenceScore Decimal  @map("confidence_score") @db.Decimal(5, 2)
+  riskScore       Decimal? @map("risk_score") @db.Decimal(5, 2)
+  recommendations Json     @default("[]")
+  findings        Json     @default("{}")
+  processingTimeMs Int?     @map("processing_time_ms")
+  analyzedAt      DateTime @default(now()) @map("analyzed_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  model AIModel @relation(fields: [modelId], references: [id])
+  
+  @@index([entityType, entityId])
+  @@map("analysis_results")
+  @@schema("ai")
+}
+
+model FraudIndicator {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String    @unique @db.VarChar(255)
+  category       String    @db.VarChar(100)
+  severity       Severity
+  detectionLogic Json      @map("detection_logic")
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  fraudDetections FraudDetection[]
+  
+  @@map("fraud_indicators")
+  @@schema("ai")
+}
+
+model FraudDetection {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entityType       EntityType @map("entity_type")
+  entityId         String    @map("entity_id") @db.Uuid
+  indicatorId      String    @map("indicator_id") @db.Uuid
+  confidenceScore  Decimal   @map("confidence_score") @db.Decimal(5, 2)
+  evidence         Json
+  status           FraudStatus @default(pending)
+  investigatorId   String?   @map("investigator_id") @db.Uuid
+  resolutionNotes  String?   @map("resolution_notes") @db.Text
+  detectedAt       DateTime  @default(now()) @map("detected_at") @db.Timestamptz(6)
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  indicator     FraudIndicator @relation(fields: [indicatorId], references: [id])
+  investigator  User?          @relation(fields: [investigatorId], references: [id])
+  
+  @@index([entityType, entityId])
+  @@index([status])
+  @@map("fraud_detections")
+  @@schema("ai")
+}
+
+// =====================================================
+// AUDIT AND COMPLIANCE
+// =====================================================
+
+model ActivityLog {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  action         String   @db.VarChar(100)
+  entityType     String   @map("entity_type") @db.VarChar(50)
+  entityId       String?  @map("entity_id") @db.Uuid
+  ipAddress      String?  @map("ip_address") @db.Inet
+  userAgent      String?  @map("user_agent") @db.Text
+  requestId      String?  @map("request_id") @db.Uuid
+  changes        Json     @default("{}")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  user         User?         @relation(fields: [userId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("activity_logs")
+  @@schema("audit")
+}
+
+model DecisionTrail {
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  decisionId         String   @map("decision_id") @db.Uuid
+  decisionType       String   @map("decision_type") @db.VarChar(50)
+  decisionMakerId    String?  @map("decision_maker_id") @db.Uuid
+  decisionMakerType  DecisionMakerType? @map("decision_maker_type")
+  factorsConsidered  Json     @map("factors_considered")
+  rulesApplied       Json     @default("[]") @map("rules_applied")
+  overrideReason     String?  @map("override_reason") @db.Text
+  complianceChecks   Json     @default("[]") @map("compliance_checks")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  decisionMaker User? @relation(fields: [decisionMakerId], references: [id])
+  
+  @@map("decision_trails")
+  @@schema("audit")
+}
+
+model ComplianceViolation {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  violationType         String    @map("violation_type") @db.VarChar(100)
+  severity              Severity
+  entityType            String    @map("entity_type") @db.VarChar(50)
+  entityId              String    @map("entity_id") @db.Uuid
+  description           String    @db.Text
+  regulatoryReference   String?   @map("regulatory_reference") @db.VarChar(255)
+  detectedBy            DetectionMethod? @map("detected_by")
+  status                ViolationStatus @default(open)
+  resolutionRequiredBy  DateTime? @map("resolution_required_by") @db.Date
+  resolutionNotes       String?   @map("resolution_notes") @db.Text
+  detectedAt            DateTime  @default(now()) @map("detected_at") @db.Timestamptz(6)
+  resolvedAt            DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  @@map("compliance_violations")
+  @@schema("audit")
+}
+
+// =====================================================
+// ANALYTICS AND METRICS
+// =====================================================
+
+model PerformanceMetric {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  metricType   String   @map("metric_type") @db.VarChar(100)
+  metricName   String   @map("metric_name") @db.VarChar(255)
+  metricValue  Decimal  @map("metric_value") @db.Decimal(20, 4)
+  dimensions   Json     @default("{}")
+  periodStart  DateTime @map("period_start") @db.Timestamptz(6)
+  periodEnd    DateTime @map("period_end") @db.Timestamptz(6)
+  calculatedAt DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  @@index([metricType, periodStart, periodEnd])
+  @@map("performance_metrics")
+  @@schema("analytics")
+}
+
+model ProviderMetrics {
+  id                          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  providerId                  String   @map("provider_id") @db.Uuid
+  metricDate                  DateTime @map("metric_date") @db.Date
+  totalAuthorizations         Int      @default(0) @map("total_authorizations")
+  approvedAuthorizations      Int      @default(0) @map("approved_authorizations")
+  deniedAuthorizations        Int      @default(0) @map("denied_authorizations")
+  approvalRate                Decimal? @map("approval_rate") @db.Decimal(5, 2)
+  averageProcessingTimeHours  Decimal? @map("average_processing_time_hours") @db.Decimal(10, 2)
+  fraudIncidents              Int      @default(0) @map("fraud_incidents")
+  complianceScore             Decimal? @map("compliance_score") @db.Decimal(5, 2)
+  qualityScore                Decimal? @map("quality_score") @db.Decimal(5, 2)
+  createdAt                   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  provider Organization @relation(fields: [providerId], references: [id])
+  
+  @@unique([providerId, metricDate])
+  @@index([providerId, metricDate])
+  @@map("provider_metrics")
+  @@schema("analytics")
+}
+
+model UserActivitySummary {
+  id                         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                     String   @map("user_id") @db.Uuid
+  activityDate               DateTime @map("activity_date") @db.Date
+  totalDecisions             Int      @default(0) @map("total_decisions")
+  approvals                  Int      @default(0)
+  denials                    Int      @default(0)
+  averageDecisionTimeMinutes Decimal? @map("average_decision_time_minutes") @db.Decimal(10, 2)
+  overrides                  Int      @default(0)
+  aiAgreementRate            Decimal? @map("ai_agreement_rate") @db.Decimal(5, 2)
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, activityDate])
+  @@map("user_activity_summary")
+  @@schema("analytics")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum OrganizationType {
+  provider
+  insurer
+  administrator
+  auditor
+  @@map("organization_type")
+}
+
+enum OrganizationStatus {
+  active
+  suspended
+  inactive
+  @@map("organization_status")
+}
+
+enum UserRole {
+  admin
+  doctor
+  nurse
+  auditor
+  analyst
+  reviewer
+  @@map("user_role")
+}
+
+enum UserStatus {
+  active
+  suspended
+  inactive
+  pending
+  @@map("user_status")
+}
+
+enum RiskCategory {
+  low
+  medium
+  high
+  critical
+  @@map("risk_category")
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+  @@map("risk_level")
+}
+
+enum UrgencyLevel {
+  routine
+  urgent
+  emergency
+  @@map("urgency_level")
+}
+
+enum AuthorizationStatus {
+  pending
+  in_review
+  approved
+  denied
+  expired
+  cancelled
+  @@map("authorization_status")
+}
+
+enum DecisionType {
+  automatic
+  manual
+  ai_assisted
+  @@map("decision_type")
+}
+
+enum Decision {
+  approved
+  denied
+  partial
+  deferred
+  @@map("decision")
+}
+
+enum ClaimStatus {
+  submitted
+  processing
+  approved
+  denied
+  appealed
+  paid
+  @@map("claim_status")
+}
+
+enum AIModelType {
+  authorization
+  fraud_detection
+  risk_assessment
+  pattern_analysis
+  @@map("ai_model_type")
+}
+
+enum AIModelStatus {
+  active
+  training
+  deprecated
+  inactive
+  @@map("ai_model_status")
+}
+
+enum EntityType {
+  authorization
+  claim
+  provider
+  patient
+  @@map("entity_type")
+}
+
+enum Severity {
+  low
+  medium
+  high
+  critical
+  @@map("severity")
+  
+  minor
+  moderate
+  major
+  @@map("violation_severity")
+}
+
+enum FraudStatus {
+  pending
+  investigating
+  confirmed
+  dismissed
+  @@map("fraud_status")
+}
+
+enum DecisionMakerType {
+  human
+  ai
+  system
+  @@map("decision_maker_type")
+}
+
+enum DetectionMethod {
+  system
+  ai
+  manual
+  @@map("detection_method")
+}
+
+enum ViolationStatus {
+  open
+  investigating
+  resolved
+  escalated
+  @@map("violation_status")
+}

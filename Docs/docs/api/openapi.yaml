@@ -1,0 +1,1475 @@
+openapi: 3.0.3
+info:
+  title: AUSTA Cockpit API
+  description: |
+    Medical Audit Platform API with AI-powered decision support.
+    
+    This API provides endpoints for managing medical authorization cases, 
+    AI-assisted analysis, audit decisions, and comprehensive analytics.
+    
+    ## Authentication
+    
+    The API uses JWT tokens for authentication. Obtain a token through the 
+    `/auth/login` endpoint and include it in the Authorization header:
+    
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Rate Limiting
+    
+    API calls are rate limited to ensure fair usage:
+    - Anonymous: 100 requests/hour
+    - Authenticated: 1000 requests/hour
+    - Premium: 10000 requests/hour
+    
+    ## Environments
+    
+    - Development: `http://localhost:3000/api/v1`
+    - Staging: `https://staging-api.austa.com.br/v1`
+    - Production: `https://api.austa.com.br/v1`
+    
+  version: 1.0.0
+  contact:
+    name: AUSTA Support
+    email: suporte@austa.com.br
+    url: https://docs.austa.com.br
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: https://staging-api.austa.com.br/v1
+    description: Staging server
+  - url: https://api.austa.com.br/v1
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Cases
+    description: Medical authorization case management
+  - name: AI Analysis
+    description: AI-powered case analysis
+  - name: Decisions
+    description: Audit decision management
+  - name: Analytics
+    description: Analytics and reporting
+  - name: Users
+    description: User management
+  - name: Webhooks
+    description: Webhook subscriptions
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: ana.silva@austa.com.br
+                password:
+                  type: string
+                  format: password
+                  example: SecurePassword123!
+                mfaCode:
+                  type: string
+                  description: Optional MFA code if enabled
+                  example: "123456"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    description: JWT access token
+                  refreshToken:
+                    type: string
+                    description: JWT refresh token
+                  expiresIn:
+                    type: integer
+                    description: Token expiration time in seconds
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Exchange refresh token for new access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  expiresIn:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate current session tokens
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /cases:
+    get:
+      tags:
+        - Cases
+      summary: List cases
+      description: Get paginated list of medical authorization cases
+      operationId: listCases
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: status
+          in: query
+          description: Filter by case status
+          schema:
+            type: string
+            enum: [pending, in_review, approved, denied, partial]
+        - name: priority
+          in: query
+          description: Filter by priority
+          schema:
+            type: string
+            enum: [low, medium, high, urgent]
+        - name: assignedTo
+          in: query
+          description: Filter by assigned auditor ID
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Search in case description and patient info
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cases retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Case'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Cases
+      summary: Create new case
+      description: Submit a new medical authorization case for review
+      operationId: createCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCaseRequest'
+      responses:
+        '201':
+          description: Case created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /cases/{caseId}:
+    get:
+      tags:
+        - Cases
+      summary: Get case details
+      description: Retrieve detailed information about a specific case
+      operationId: getCase
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CaseIdParam'
+      responses:
+        '200':
+          description: Case details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Cases
+      summary: Update case
+      description: Update case information or status
+      operationId: updateCase
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CaseIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCaseRequest'
+      responses:
+        '200':
+          description: Case updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/assign:
+    post:
+      tags:
+        - Cases
+      summary: Assign case to auditor
+      description: Assign or reassign a case to an auditor
+      operationId: assignCase
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CaseIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - auditorId
+              properties:
+                auditorId:
+                  type: string
+                  format: uuid
+                  description: ID of the auditor to assign
+      responses:
+        '200':
+          description: Case assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ai/analyze/{caseId}:
+    post:
+      tags:
+        - AI Analysis
+      summary: Analyze case with AI
+      description: Request AI analysis for a specific case
+      operationId: analyzeCase
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CaseIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                analysisType:
+                  type: string
+                  enum: [full, medical, fraud, pattern]
+                  default: full
+                  description: Type of analysis to perform
+                includeHistory:
+                  type: boolean
+                  default: true
+                  description: Include patient history in analysis
+                urgency:
+                  type: string
+                  enum: [normal, high]
+                  default: normal
+                  description: Analysis urgency
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAnalysis'
+        '202':
+          description: Analysis started, results will be available soon
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysisId:
+                    type: string
+                    format: uuid
+                  estimatedTime:
+                    type: integer
+                    description: Estimated completion time in seconds
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /ai/chat:
+    post:
+      tags:
+        - AI Analysis
+      summary: Chat with AI assistant
+      description: Send a message to the AI assistant for case-related questions
+      operationId: chatWithAI
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+                - caseId
+              properties:
+                message:
+                  type: string
+                  description: User's question or message
+                  example: "What are the clinical guidelines for this procedure?"
+                caseId:
+                  type: string
+                  format: uuid
+                  description: Related case ID for context
+                conversationId:
+                  type: string
+                  format: uuid
+                  description: Optional conversation ID to continue a chat
+      responses:
+        '200':
+          description: AI response generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIChatResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /decisions:
+    post:
+      tags:
+        - Decisions
+      summary: Create audit decision
+      description: Record an audit decision for a case
+      operationId: createDecision
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDecisionRequest'
+      responses:
+        '201':
+          description: Decision recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Decision already exists for this case
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /decisions/{decisionId}:
+    get:
+      tags:
+        - Decisions
+      summary: Get decision details
+      description: Retrieve details of a specific audit decision
+      operationId: getDecision
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Decision retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /analytics/dashboard:
+    get:
+      tags:
+        - Analytics
+      summary: Get dashboard metrics
+      description: Retrieve key performance metrics for the dashboard
+      operationId: getDashboardMetrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          description: Time period for metrics
+          schema:
+            type: string
+            enum: [today, week, month, quarter, year]
+            default: month
+        - name: auditorId
+          in: query
+          description: Filter by specific auditor
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardMetrics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /analytics/reports:
+    post:
+      tags:
+        - Analytics
+      summary: Generate custom report
+      description: Generate a custom analytics report
+      operationId: generateReport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '202':
+          description: Report generation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reportId:
+                    type: string
+                    format: uuid
+                  estimatedTime:
+                    type: integer
+                    description: Estimated completion time in seconds
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/profile:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      description: Retrieve current user's profile information
+      operationId: getUserProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      tags:
+        - Users
+      summary: Update user profile
+      description: Update current user's profile information
+      operationId: updateUserProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /webhooks:
+    get:
+      tags:
+        - Webhooks
+      summary: List webhook subscriptions
+      description: Get list of active webhook subscriptions
+      operationId: listWebhooks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Webhooks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Webhooks
+      summary: Create webhook subscription
+      description: Subscribe to webhook events
+      operationId: createWebhook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '201':
+          description: Webhook created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoint
+
+  parameters:
+    CaseIdParam:
+      name: caseId
+      in: path
+      required: true
+      description: Unique case identifier
+      schema:
+        type: string
+        format: uuid
+    
+    PageParam:
+      name: page
+      in: query
+      description: Page number for pagination
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    
+    SortParam:
+      name: sort
+      in: query
+      description: Sort field and order (e.g., "createdAt:desc")
+      schema:
+        type: string
+        pattern: '^[a-zA-Z]+:(asc|desc)$'
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [auditor, supervisor, admin, viewer]
+        avatar:
+          type: string
+          format: uri
+        mfaEnabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            phone:
+              type: string
+            department:
+              type: string
+            specialties:
+              type: array
+              items:
+                type: string
+            preferences:
+              type: object
+              properties:
+                theme:
+                  type: string
+                  enum: [light, dark, system]
+                language:
+                  type: string
+                  enum: [pt-BR, en-US, es]
+                notifications:
+                  type: object
+                  properties:
+                    email:
+                      type: boolean
+                    push:
+                      type: boolean
+                    sms:
+                      type: boolean
+
+    Case:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseNumber:
+          type: string
+          example: "AUT-2024-7834"
+        patientId:
+          type: string
+          format: uuid
+        patientName:
+          type: string
+        procedureCode:
+          type: string
+        procedureDescription:
+          type: string
+        requestedValue:
+          type: number
+          format: float
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [pending, in_review, approved, denied, partial]
+        assignedTo:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+
+    CaseDetail:
+      allOf:
+        - $ref: '#/components/schemas/Case'
+        - type: object
+          properties:
+            medicalHistory:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  diagnosis:
+                    type: string
+                  treatment:
+                    type: string
+            documents:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  type:
+                    type: string
+                    enum: [prescription, exam, report, authorization]
+                  url:
+                    type: string
+                    format: uri
+                  uploadedAt:
+                    type: string
+                    format: date-time
+            timeline:
+              type: array
+              items:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  event:
+                    type: string
+                  user:
+                    type: string
+                  details:
+                    type: string
+
+    CreateCaseRequest:
+      type: object
+      required:
+        - patientId
+        - procedureCode
+        - requestedValue
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        procedureCode:
+          type: string
+        procedureDescription:
+          type: string
+        requestedValue:
+          type: number
+          format: float
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          default: medium
+        documents:
+          type: array
+          items:
+            type: string
+            format: uuid
+            description: Document IDs to attach
+        notes:
+          type: string
+          description: Additional notes or context
+
+    UpdateCaseRequest:
+      type: object
+      properties:
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [pending, in_review, approved, denied, partial]
+        notes:
+          type: string
+
+    AIAnalysis:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        analysisType:
+          type: string
+          enum: [full, medical, fraud, pattern]
+        recommendation:
+          type: string
+          enum: [approve, deny, partial, review]
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        medicalAnalysis:
+          type: object
+          properties:
+            clinicalJustification:
+              type: string
+            guidelineCompliance:
+              type: boolean
+            similarCases:
+              type: array
+              items:
+                type: object
+                properties:
+                  caseId:
+                    type: string
+                  similarity:
+                    type: number
+                  decision:
+                    type: string
+        fraudAnalysis:
+          type: object
+          properties:
+            riskScore:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+            riskFactors:
+              type: array
+              items:
+                type: string
+            anomalies:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  description:
+                    type: string
+                  severity:
+                    type: string
+                    enum: [low, medium, high]
+        patternAnalysis:
+          type: object
+          properties:
+            patterns:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  frequency:
+                    type: integer
+                  description:
+                    type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AIChatResponse:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        message:
+          type: string
+        confidence:
+          type: number
+          format: float
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [guideline, precedent, regulation, knowledge]
+              reference:
+                type: string
+              relevance:
+                type: number
+                format: float
+        suggestedQuestions:
+          type: array
+          items:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Decision:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        auditorId:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum: [approved, denied, partial]
+        justification:
+          type: string
+        authorizedValue:
+          type: number
+          format: float
+        aiConfidence:
+          type: number
+          format: float
+        aiRecommendation:
+          type: string
+          enum: [approve, deny, partial, review]
+        processingTime:
+          type: integer
+          description: Processing time in seconds
+        createdAt:
+          type: string
+          format: date-time
+        blockchainTx:
+          type: string
+          description: Blockchain transaction hash
+
+    DecisionDetail:
+      allOf:
+        - $ref: '#/components/schemas/Decision'
+        - type: object
+          properties:
+            case:
+              $ref: '#/components/schemas/Case'
+            auditor:
+              $ref: '#/components/schemas/User'
+            aiAnalysis:
+              $ref: '#/components/schemas/AIAnalysis'
+            auditTrail:
+              type: array
+              items:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  action:
+                    type: string
+                  user:
+                    type: string
+                  details:
+                    type: string
+
+    CreateDecisionRequest:
+      type: object
+      required:
+        - caseId
+        - decision
+        - justification
+      properties:
+        caseId:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum: [approved, denied, partial]
+        justification:
+          type: string
+          minLength: 10
+        authorizedValue:
+          type: number
+          format: float
+          description: Required if decision is partial
+        aiAnalysisId:
+          type: string
+          format: uuid
+          description: Optional AI analysis to link
+
+    DashboardMetrics:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            totalCases:
+              type: integer
+            pendingCases:
+              type: integer
+            completedCases:
+              type: integer
+            averageProcessingTime:
+              type: number
+              description: Average time in minutes
+            approvalRate:
+              type: number
+              format: float
+            aiAccuracy:
+              type: number
+              format: float
+        casesByStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+                format: float
+        casesByPriority:
+          type: array
+          items:
+            type: object
+            properties:
+              priority:
+                type: string
+              count:
+                type: integer
+        performanceTrend:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              casesProcessed:
+                type: integer
+              averageTime:
+                type: number
+              approvalRate:
+                type: number
+                format: float
+
+    ReportRequest:
+      type: object
+      required:
+        - reportType
+        - startDate
+        - endDate
+      properties:
+        reportType:
+          type: string
+          enum: [performance, audit, fraud, financial, compliance]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        filters:
+          type: object
+          properties:
+            auditorIds:
+              type: array
+              items:
+                type: string
+                format: uuid
+            procedureCodes:
+              type: array
+              items:
+                type: string
+            departments:
+              type: array
+              items:
+                type: string
+        format:
+          type: string
+          enum: [pdf, excel, csv]
+          default: pdf
+        includeCharts:
+          type: boolean
+          default: true
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+            enum: [case.created, case.updated, decision.made, fraud.detected]
+        active:
+          type: boolean
+        secret:
+          type: string
+          description: Webhook signing secret
+        createdAt:
+          type: string
+          format: date-time
+        lastDelivery:
+          type: string
+          format: date-time
+        failureCount:
+          type: integer
+
+    CreateWebhookRequest:
+      type: object
+      required:
+        - url
+        - events
+      properties:
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [case.created, case.updated, decision.made, fraud.detected]
+        secret:
+          type: string
+          description: Optional webhook signing secret
+
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        department:
+          type: string
+        specialties:
+          type: array
+          items:
+            type: string
+        preferences:
+          type: object
+          properties:
+            theme:
+              type: string
+              enum: [light, dark, system]
+            language:
+              type: string
+              enum: [pt-BR, en-US, es]
+            notifications:
+              type: object
+              properties:
+                email:
+                  type: boolean
+                push:
+                  type: boolean
+                sms:
+                  type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+            timestamp:
+              type: string
+              format: date-time
+            path:
+              type: string
+            requestId:
+              type: string
+              format: uuid
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+  responses:
+    BadRequest:
+      description: Bad request - Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized - Invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Forbidden:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Not found - Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    UnprocessableEntity:
+      description: Unprocessable entity - Validation errors
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    TooManyRequests:
+      description: Too many requests - Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          description: Request limit per hour
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Remaining requests
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          description: Time when rate limit resets
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+# Webhook Event Schemas
+webhooks:
+  caseCreated:
+    post:
+      requestBody:
+        description: New case created event
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  enum: [case.created]
+                timestamp:
+                  type: string
+                  format: date-time
+                data:
+                  $ref: '#/components/schemas/Case'
+  
+  caseUpdated:
+    post:
+      requestBody:
+        description: Case updated event
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  enum: [case.updated]
+                timestamp:
+                  type: string
+                  format: date-time
+                data:
+                  type: object
+                  properties:
+                    case:
+                      $ref: '#/components/schemas/Case'
+                    changes:
+                      type: object
+                      description: Fields that were changed
+  
+  decisionMade:
+    post:
+      requestBody:
+        description: Audit decision made event
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  enum: [decision.made]
+                timestamp:
+                  type: string
+                  format: date-time
+                data:
+                  $ref: '#/components/schemas/Decision'
+  
+  fraudDetected:
+    post:
+      requestBody:
+        description: Fraud detected event
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  enum: [fraud.detected]
+                timestamp:
+                  type: string
+                  format: date-time
+                data:
+                  type: object
+                  properties:
+                    caseId:
+                      type: string
+                      format: uuid
+                    riskScore:
+                      type: number
+                      format: float
+                    riskFactors:
+                      type: array
+                      items:
+                        type: string
+                    severity:
+                      type: string
+                      enum: [low, medium, high, critical]

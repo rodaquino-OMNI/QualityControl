@@ -1,0 +1,101 @@
+{
+  "index_patterns": ["austa-logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.refresh_interval": "5s",
+      "index.lifecycle.name": "austa-logs-policy",
+      "index.lifecycle.rollover_alias": "austa-logs"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text",
+          "analyzer": "standard"
+        },
+        "service": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "logger": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "request_id": {
+          "type": "keyword"
+        },
+        "trace_id": {
+          "type": "keyword"
+        },
+        "span_id": {
+          "type": "keyword"
+        },
+        "response_time": {
+          "type": "float"
+        },
+        "status_code": {
+          "type": "integer"
+        },
+        "method": {
+          "type": "keyword"
+        },
+        "url": {
+          "type": "keyword"
+        },
+        "user_agent": {
+          "type": "text"
+        },
+        "ip_address": {
+          "type": "ip"
+        },
+        "event_type": {
+          "type": "keyword"
+        },
+        "alert_level": {
+          "type": "keyword"
+        },
+        "performance_alert": {
+          "type": "keyword"
+        },
+        "error_code": {
+          "type": "keyword"
+        },
+        "stack_trace": {
+          "type": "text"
+        },
+        "case_id": {
+          "type": "keyword"
+        },
+        "fraud_score": {
+          "type": "float"
+        },
+        "ai_model": {
+          "type": "keyword"
+        },
+        "prediction_confidence": {
+          "type": "float"
+        }
+      }
+    }
+  }
+}

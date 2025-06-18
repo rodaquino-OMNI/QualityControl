@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "austa-cockpit.fullname" . }}-ai-service
+  labels:
+    {{- include "austa-cockpit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-service
+spec:
+  {{- if not .Values.aiService.autoscaling.enabled }}
+  replicas: {{ .Values.aiService.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "austa-cockpit.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai-service
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "austa-cockpit.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ai-service
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "austa-cockpit.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: model-downloader
+          image: "{{ .Values.aiService.image.registry }}/{{ .Values.aiService.image.repository }}:{{ .Values.aiService.image.tag | default .Chart.AppVersion }}"
+          command: ['python', '-c', 'import nltk; nltk.download("punkt"); print("Models downloaded")']
+          volumeMounts:
+            - name: models-cache
+              mountPath: /app/models
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      containers:
+        - name: ai-service
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.aiService.image.registry }}/{{ .Values.aiService.image.repository }}:{{ .Values.aiService.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.aiService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.aiService.service.targetPort }}
+              protocol: TCP
+          env:
+            {{- toYaml .Values.aiService.env | nindent 12 }}
+          {{- if .Values.aiService.livenessProbe }}
+          livenessProbe:
+            {{- toYaml .Values.aiService.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.aiService.readinessProbe }}
+          readinessProbe:
+            {{- toYaml .Values.aiService.readinessProbe | nindent 12 }}
+          {{- end }}
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 30
+          resources:
+            {{- toYaml .Values.aiService.resources | nindent 12 }}
+          volumeMounts:
+            - name: temp-volume
+              mountPath: /tmp
+            - name: models-cache
+              mountPath: /app/models
+            {{- if .Values.aiService.persistence.enabled }}
+            - name: ai-service-storage
+              mountPath: {{ .Values.aiService.persistence.mountPath }}
+            {{- end }}
+      volumes:
+        - name: temp-volume
+          emptyDir: {}
+        - name: models-cache
+          emptyDir:
+            sizeLimit: 5Gi
+        {{- if .Values.aiService.persistence.enabled }}
+        - name: ai-service-storage
+          persistentVolumeClaim:
+            claimName: {{ include "austa-cockpit.fullname" . }}-ai-service-pvc
+        {{- end }}
+      {{- with .Values.aiService.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.aiService.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.aiService.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

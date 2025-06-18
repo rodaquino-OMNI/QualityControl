@@ -1,0 +1,21 @@
+http.host: "0.0.0.0"
+xpack.monitoring.enabled: false
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+path.config: "/usr/share/logstash/pipeline"
+path.logs: "/usr/share/logstash/logs"
+
+# Performance tuning
+pipeline.workers: 2
+pipeline.output.workers: 1
+
+# Persistent queue for reliability
+queue.type: persisted
+path.queue: "/usr/share/logstash/data/queue"
+queue.page_capacity: 64mb
+queue.max_events: 0
+queue.max_bytes: 1gb
+
+# Dead letter queue
+dead_letter_queue.enable: true
+path.dead_letter_queue: "/usr/share/logstash/data/dead_letter_queue"

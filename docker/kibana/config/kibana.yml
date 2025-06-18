@@ -1,0 +1,113 @@
+# Kibana Configuration for AUSTA Cockpit
+
+# Server Configuration
+server.name: austa-kibana
+server.host: "0.0.0.0"
+server.port: 5601
+server.publicBaseUrl: "http://localhost:5601"
+
+# Elasticsearch Configuration
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: "elastic"
+elasticsearch.password: "austa123"
+elasticsearch.requestTimeout: 30000
+elasticsearch.shardTimeout: 30000
+elasticsearch.pingTimeout: 1500
+
+# Security Configuration
+xpack.security.enabled: true
+xpack.security.encryptionKey: "austa123456789012345678901234567890"
+xpack.encryptedSavedObjects.encryptionKey: "austa123456789012345678901234567890"
+xpack.reporting.encryptionKey: "austa123456789012345678901234567890"
+
+# Monitoring Configuration
+xpack.monitoring.enabled: true
+xpack.monitoring.kibana.collection.enabled: true
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+
+# Logging Configuration
+logging.level: info
+logging.root.level: info
+
+# Dashboard and Visualization Configuration
+xpack.canvas.enabled: true
+xpack.graph.enabled: true
+xpack.ml.enabled: true
+xpack.spaces.enabled: true
+
+# APM Configuration
+xpack.apm.enabled: true
+xpack.apm.ui.enabled: true
+
+# Maps Configuration
+xpack.maps.enabled: true
+
+# Reporting Configuration
+xpack.reporting.enabled: true
+xpack.reporting.csv.maxSizeBytes: 104857600
+
+# Index Pattern Configuration
+kibana.defaultAppId: "dashboard"
+kibana.index: ".kibana-austa"
+
+# Console Configuration
+console.enabled: true
+
+# Advanced Settings
+map.includeElasticMapsService: true
+timelion.enabled: true
+visualize.enabled: true
+
+# Data Views
+data.search.aggs.shardDelay.enabled: true
+data.search.sessions.enabled: true
+
+# Dashboard Settings
+dashboard.allowByValueEmbeddables: true
+
+# Dev Tools
+devTools.enabled: true
+
+# Telemetry
+telemetry.enabled: false
+telemetry.optIn: false
+
+# Newsfeed
+newsfeed.enabled: false
+
+# Home
+home.disableWelcomeScreen: true
+
+# Saved Objects
+savedObjects.maxImportPayloadBytes: 26214400
+savedObjects.maxImportExportSize: 10000
+
+# UI Settings
+uiSettings.overrides:
+  "theme:darkMode": false
+  "defaultIndex": "austa-*"
+  "timepicker:timeDefaults": "{\"from\":\"now-15m\",\"to\":\"now\"}"
+  "timepicker:refreshIntervalDefaults": "{\"pause\":false,\"value\":10000}"
+  "discover:sampleSize": 500
+  "discover:maxDocFieldsDisplayed": 200
+  "histogram:barTarget": 50
+  "visualization:colorMapping": "{}"
+  "csv:separator": ","
+  "csv:quoteValues": true
+  "dateFormat": "MMM D, YYYY @ HH:mm:ss.SSS"
+  "dateFormat:tz": "Browser"
+  "format:defaultTypeMap": "{\"ip\":{\"id\":\"ip\",\"params\":{}},\"_source\":{\"id\":\"_source\",\"params\":{}},\"_id\":{\"id\":\"string\",\"params\":{}},\"*\":{\"id\":\"string\",\"params\":{}}}"
+  "format:number:defaultPattern": "0,0.[000]"
+  "history:limit": 10
+  "shortDots:enable": false
+  "truncate:maxHeight": 115
+
+# Custom branding
+server.customResponseHeaders:
+  "X-Frame-Options": "SAMEORIGIN"
+  "X-Content-Type-Options": "nosniff"
+  "X-XSS-Protection": "1; mode=block"
+
+# Performance tuning
+elasticsearch.maxConcurrentShardRequests: 5
+elasticsearch.requestHeadersWhitelist: ["authorization", "x-forwarded-for", "x-forwarded-proto", "x-proxy-user", "x-proxy-roles", "x-forwarded-server"]

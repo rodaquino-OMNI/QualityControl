@@ -1,0 +1,91 @@
+# Backend Network Policy - Controls access to backend services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-network-policy
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: backend
+spec:
+  podSelector:
+    matchLabels:
+      app: austa-backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from frontend
+  - from:
+    - podSelector:
+        matchLabels:
+          app: austa-frontend
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Allow traffic from nginx load balancer
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nginx-lb
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Allow health checks from monitoring
+  - from:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  # Allow DNS
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow communication with PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow communication with Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow communication with MongoDB
+  - to:
+    - podSelector:
+        matchLabels:
+          app: mongodb
+    ports:
+    - protocol: TCP
+      port: 27017
+  # Allow communication with AI service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: austa-ai-service
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow HTTPS egress for external APIs (Claude/Anthropic)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow AWS S3 access
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443

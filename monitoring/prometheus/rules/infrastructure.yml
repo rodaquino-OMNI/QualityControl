@@ -1,0 +1,101 @@
+groups:
+  - name: austa_infrastructure_alerts
+    rules:
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # Low Disk Space
+      - alert: LowDiskSpace
+        expr: 100 - ((node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes) > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # High Container CPU Usage
+      - alert: HighContainerCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "High container CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value }}%"
+
+      # High Container Memory Usage
+      - alert: HighContainerMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "High container memory usage"
+          description: "Container {{ $labels.name }} memory usage is {{ $value }}%"
+
+      # Container Restart
+      - alert: ContainerRestart
+        expr: increase(container_start_time_seconds[1h]) > 1
+        for: 1m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container restart detected"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last hour"
+
+      # High Network Traffic
+      - alert: HighNetworkTraffic
+        expr: rate(node_network_receive_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 5m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "High network traffic"
+          description: "Network receive rate is {{ $value | humanize }}B/s on {{ $labels.instance }}"
+
+      # Database Connection Pool Exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Database connection pool is {{ $value | humanizePercentage }} full"
+
+      # High Database Query Time
+      - alert: HighDatabaseQueryTime
+        expr: pg_stat_activity_max_tx_duration > 30
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Long running database query"
+          description: "Database query running for {{ $value }}s"

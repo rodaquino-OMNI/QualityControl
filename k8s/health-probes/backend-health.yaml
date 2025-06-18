@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-service
+  labels:
+    app: backend-service
+    component: api
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend-service
+  template:
+    metadata:
+      labels:
+        app: backend-service
+        component: api
+        tier: backend
+    spec:
+      containers:
+      - name: backend-service
+        image: austa-cockpit/backend:latest
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: PORT
+          value: "3000"
+        - name: NODE_ENV
+          value: "production"
+        - name: HEALTH_CHECK_TIMEOUT
+          value: "30"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # Liveness probe - checks if Node.js process is running
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        # Readiness probe - checks if service can handle requests
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        # Startup probe for database migrations and initialization
+        startupProbe:
+          httpGet:
+            path: /health/
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+        # Graceful shutdown
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - sleep 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  labels:
+    app: backend-service
+    component: api
+    tier: backend
+spec:
+  selector:
+    app: backend-service
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: backend-service-monitor
+  labels:
+    app: backend-service
+spec:
+  selector:
+    matchLabels:
+      app: backend-service
+  endpoints:
+  - port: http
+    path: /health/detailed
+    interval: 30s
+    scrapeTimeout: 10s

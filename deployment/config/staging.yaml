@@ -1,0 +1,156 @@
+# Staging Environment Configuration
+environment: staging
+version: "1.0.0"
+
+# Application Configuration
+app:
+  name: "austa-cockpit-staging"
+  domain: "staging.austa-cockpit.com"
+  port: 3000
+  debug: false
+  log_level: "info"
+
+# Database Configuration
+database:
+  host: "${DB_HOST}"
+  port: 5432
+  name: "austa_cockpit_staging"
+  ssl: true
+  pool_size: 20
+  timeout: 30
+  migrations:
+    auto_run: true
+    backup_before: true
+
+# Redis Configuration
+redis:
+  host: "${REDIS_HOST}"
+  port: 6379
+  db: 0
+  password: "${REDIS_PASSWORD}"
+  ssl: true
+
+# MongoDB Configuration
+mongodb:
+  host: "${MONGODB_HOST}"
+  port: 27017
+  database: "austa_cockpit_staging"
+  auth_source: "admin"
+  ssl: true
+  username: "${MONGODB_USERNAME}"
+  password: "${MONGODB_PASSWORD}"
+
+# AI Service Configuration
+ai_service:
+  host: "ai-service-staging"
+  port: 8000
+  models:
+    - name: "bert-medical"
+      enabled: true
+      memory_limit: "4GB"
+    - name: "gpt4-medical"
+      enabled: true
+      api_key_required: true
+    - name: "lstm-patterns"
+      enabled: true
+      memory_limit: "2GB"
+    - name: "xgboost-fraud"
+      enabled: true
+      memory_limit: "1GB"
+
+# Security Configuration
+security:
+  jwt:
+    secret: "${JWT_SECRET}"
+    expiry: "8h"
+  cors:
+    origins: ["https://staging.austa-cockpit.com"]
+    credentials: true
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+  ssl:
+    enabled: true
+    cert_path: "/etc/ssl/certs/staging.crt"
+    key_path: "/etc/ssl/private/staging.key"
+
+# Features Configuration
+features:
+  audit_logging: true
+  performance_monitoring: true
+  real_time_analytics: true
+  blockchain_integration: true
+  advanced_ml_models: true
+
+# Deployment Configuration
+deployment:
+  strategy: "blue-green"
+  replicas: 3
+  health_check:
+    enabled: true
+    endpoint: "/health"
+    timeout: 30
+    retries: 5
+  resources:
+    cpu: "1"
+    memory: "2Gi"
+    storage: "50Gi"
+  autoscaling:
+    enabled: true
+    min_replicas: 2
+    max_replicas: 10
+    cpu_threshold: 70
+
+# Load Balancer Configuration
+load_balancer:
+  type: "application"
+  scheme: "internet-facing"
+  ssl_policy: "ELBSecurityPolicy-TLS-1-2-2019-07"
+  health_check:
+    path: "/health"
+    interval: 30
+    timeout: 5
+    healthy_threshold: 2
+    unhealthy_threshold: 5
+
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    retention: "30d"
+  grafana:
+    enabled: true
+    port: 3001
+    admin_password: "${GRAFANA_ADMIN_PASSWORD}"
+  alerts:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channels: ["#alerts-staging"]
+
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention: "30d"
+  encryption: true
+  destinations:
+    - type: "s3"
+      bucket: "austa-cockpit-staging-backups"
+      region: "us-east-1"
+    - type: "gcs"
+      bucket: "austa-cockpit-staging-backups"
+      project: "austa-cockpit-staging"
+
+# Network Configuration
+network:
+  vpc_cidr: "10.1.0.0/16"
+  public_subnets:
+    - "10.1.1.0/24"
+    - "10.1.2.0/24"
+  private_subnets:
+    - "10.1.10.0/24"
+    - "10.1.11.0/24"
+  availability_zones:
+    - "us-east-1a"
+    - "us-east-1b"

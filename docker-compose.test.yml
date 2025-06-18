@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: austa_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.backend
+      target: test
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test:test@postgres-test:5432/austa_test
+      REDIS_URL: redis://redis-test:6379
+      JWT_SECRET: test-jwt-secret
+      PORT: 8000
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: npm run test:watch
+
+  ai-service-test:
+    build:
+      context: ./ai-service
+      dockerfile: ../Dockerfile.ai-service
+      target: test
+    environment:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql://test:test@postgres-test:5432/austa_test
+      REDIS_URL: redis://redis-test:6379/0
+      JWT_SECRET: test-jwt-secret
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-test-key}
+      PORT: 8001
+    ports:
+      - "8002:8001"
+    volumes:
+      - ./ai-service:/app
+      - /app/.venv
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: pytest --watch
+
+  frontend-test:
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
+      target: test
+    environment:
+      NODE_ENV: test
+      VITE_API_URL: http://backend-test:8000/api
+      VITE_AI_SERVICE_URL: http://ai-service-test:8001/api/v1
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run test:watch
+
+  cypress:
+    image: cypress/included:13.6.2
+    environment:
+      CYPRESS_baseUrl: http://frontend-test:3000
+      CYPRESS_apiUrl: http://backend-test:8000/api
+    volumes:
+      - ./cypress:/cypress
+      - ./cypress.config.ts:/cypress.config.ts
+      - ./frontend/cypress/videos:/cypress/videos
+      - ./frontend/cypress/screenshots:/cypress/screenshots
+    depends_on:
+      - frontend-test
+      - backend-test
+      - ai-service-test
+    command: cypress run --browser chrome
+
+volumes:
+  postgres-test-data:
+
+networks:
+  default:
+    name: austa-test-network

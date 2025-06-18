@@ -1,0 +1,348 @@
+# Comprehensive Dependency Vulnerability Scanning Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dependency-scanning-config
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: security-scanning
+data:
+  package-scanning-rules.json: |
+    {
+      "scanningRules": {
+        "nodejs": {
+          "tools": ["npm-audit", "snyk", "retire.js", "audit-ci"],
+          "severity_threshold": "high",
+          "fail_on_vulnerable": true,
+          "exclude_dev_dependencies": false,
+          "package_files": [
+            "package.json",
+            "package-lock.json",
+            "yarn.lock"
+          ]
+        },
+        "python": {
+          "tools": ["safety", "pip-audit", "bandit", "semgrep"],
+          "severity_threshold": "medium",
+          "fail_on_vulnerable": true,
+          "package_files": [
+            "requirements.txt",
+            "requirements-dev.txt",
+            "Pipfile",
+            "pyproject.toml"
+          ]
+        },
+        "docker": {
+          "tools": ["trivy", "docker-scout", "grype", "snyk-container"],
+          "severity_threshold": "high",
+          "fail_on_vulnerable": true,
+          "scan_layers": true,
+          "include_base_images": true
+        }
+      },
+      "compliance": {
+        "hipaa": {
+          "required_scans": ["all"],
+          "documentation_required": true,
+          "remediation_timeline": "7 days"
+        },
+        "gdpr": {
+          "privacy_impact_assessment": true,
+          "data_processing_dependencies": true
+        },
+        "soc2": {
+          "vendor_management": true,
+          "third_party_risk_assessment": true
+        }
+      }
+    }
+  
+  vulnerability-policies.json: |
+    {
+      "vulnerabilityPolicies": {
+        "criticalVulnerabilities": {
+          "block_deployment": true,
+          "max_age_days": 0,
+          "require_immediate_fix": true,
+          "escalation": "security-team"
+        },
+        "highVulnerabilities": {
+          "block_deployment": true,
+          "max_age_days": 3,
+          "require_fix_plan": true,
+          "escalation": "development-team"
+        },
+        "mediumVulnerabilities": {
+          "block_deployment": false,
+          "max_age_days": 14,
+          "require_tracking": true,
+          "escalation": "product-owner"
+        },
+        "lowVulnerabilities": {
+          "block_deployment": false,
+          "max_age_days": 90,
+          "require_tracking": false
+        }
+      },
+      "exceptions": {
+        "process": "security-committee-approval",
+        "max_duration_days": 30,
+        "justification_required": true,
+        "compensating_controls": true
+      }
+    }
+  
+  sbom-generation.json: |
+    {
+      "sbomGeneration": {
+        "format": "SPDX",
+        "include_components": [
+          "direct_dependencies",
+          "transitive_dependencies",
+          "base_images",
+          "system_packages"
+        ],
+        "metadata": {
+          "supplier": "AUSTA Healthcare Technologies",
+          "license_detection": true,
+          "vulnerability_references": true,
+          "component_hashes": true
+        },
+        "output_formats": ["json", "xml", "yaml"],
+        "storage": {
+          "s3_bucket": "austa-sbom-repository",
+          "retention_years": 7,
+          "encryption": true
+        }
+      }
+    }
+---
+# Dependency Scanning CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dependency-vulnerability-scan
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: security-scanning
+spec:
+  schedule: "0 4 * * *"  # Daily at 4 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: dependency-scanner
+            image: austa/security-scanner:latest
+            command: ["/bin/bash"]
+            args:
+            - -c
+            - |
+              set -e
+              
+              echo "Starting comprehensive dependency vulnerability scan..."
+              
+              # Create report directory
+              mkdir -p /reports
+              
+              # Clone repository
+              git clone https://github.com/austa/cockpit.git /src
+              cd /src
+              
+              # Frontend dependency scanning
+              echo "Scanning Frontend dependencies..."
+              cd frontend
+              
+              # npm audit
+              npm audit --audit-level=moderate --json > /reports/frontend-npm-audit.json || true
+              
+              # Snyk scan
+              snyk test --json > /reports/frontend-snyk.json || true
+              
+              # Retire.js scan
+              retire --outputformat json --outputpath /reports/frontend-retire.json || true
+              
+              # Backend dependency scanning  
+              echo "Scanning Backend dependencies..."
+              cd ../backend
+              
+              # npm audit for backend
+              npm audit --audit-level=moderate --json > /reports/backend-npm-audit.json || true
+              
+              # Snyk scan for backend
+              snyk test --json > /reports/backend-snyk.json || true
+              
+              # AI Service dependency scanning
+              echo "Scanning AI Service dependencies..."
+              cd ../ai-service
+              
+              # Python Safety scan
+              safety check --json > /reports/ai-service-safety.json || true
+              
+              # pip-audit scan
+              pip-audit --format=json --output=/reports/ai-service-pip-audit.json || true
+              
+              # Bandit security scan
+              bandit -r . -f json -o /reports/ai-service-bandit.json || true
+              
+              # Container image scanning
+              echo "Scanning container images..."
+              cd /src
+              
+              # Build images for scanning
+              docker build -f Dockerfile.frontend -t austa-frontend:scan .
+              docker build -f Dockerfile.backend -t austa-backend:scan .
+              docker build -f ai-service/Dockerfile -t austa-ai-service:scan ./ai-service
+              
+              # Trivy scans
+              trivy image --format json --output /reports/frontend-trivy.json austa-frontend:scan || true
+              trivy image --format json --output /reports/backend-trivy.json austa-backend:scan || true
+              trivy image --format json --output /reports/ai-service-trivy.json austa-ai-service:scan || true
+              
+              # Docker Scout scans
+              docker scout cves --format sarif --output /reports/frontend-scout.sarif austa-frontend:scan || true
+              docker scout cves --format sarif --output /reports/backend-scout.sarif austa-backend:scan || true
+              docker scout cves --format sarif --output /reports/ai-service-scout.sarif austa-ai-service:scan || true
+              
+              # Generate SBOM
+              echo "Generating Software Bill of Materials..."
+              syft austa-frontend:scan -o spdx-json=/reports/frontend-sbom.json
+              syft austa-backend:scan -o spdx-json=/reports/backend-sbom.json
+              syft austa-ai-service:scan -o spdx-json=/reports/ai-service-sbom.json
+              
+              # Consolidate reports
+              echo "Consolidating vulnerability reports..."
+              python3 /scripts/consolidate-vulnerability-reports.py /reports
+              
+              # Check compliance policies
+              echo "Checking vulnerability policies..."
+              python3 /scripts/check-vulnerability-policies.py /reports
+              
+              # Upload to S3
+              if [ -n "$AWS_S3_BUCKET" ]; then
+                echo "Uploading reports to S3..."
+                aws s3 cp /reports s3://$AWS_S3_BUCKET/vulnerability-reports/$(date +%Y-%m-%d) --recursive
+              fi
+              
+              # Send alerts for critical vulnerabilities
+              python3 /scripts/send-vulnerability-alerts.py /reports
+              
+              echo "Dependency vulnerability scan completed."
+            env:
+            - name: SNYK_TOKEN
+              valueFrom:
+                secretRef:
+                  name: security-scanning-credentials
+                  key: snyk-token
+            - name: AWS_S3_BUCKET
+              valueFrom:
+                secretRef:
+                  name: backup-secrets
+                  key: s3-bucket
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretRef:
+                  name: alert-config
+                  key: slack-webhook
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretRef:
+                  name: security-scanning-credentials
+                  key: github-token
+            resources:
+              limits:
+                memory: 4Gi
+                cpu: 2000m
+              requests:
+                memory: 2Gi
+                cpu: 1000m
+            volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: scanning-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: scanning-config
+              mountPath: /config
+              readOnly: true
+          volumes:
+          - name: docker-socket
+            hostPath:
+              path: /var/run/docker.sock
+          - name: scanning-scripts
+            configMap:
+              name: vulnerability-scanning-scripts
+              defaultMode: 0755
+          - name: scanning-config
+            configMap:
+              name: dependency-scanning-config
+---
+# License Compliance Scanning
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: license-compliance-scan
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: compliance-scanning
+spec:
+  schedule: "0 6 * * 1"  # Weekly on Monday at 6 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: license-scanner
+            image: austa/license-scanner:latest
+            command: ["/bin/bash"]
+            args:
+            - -c
+            - |
+              set -e
+              
+              echo "Starting license compliance scan..."
+              
+              # Create report directory
+              mkdir -p /reports/licenses
+              
+              # Clone repository
+              git clone https://github.com/austa/cockpit.git /src
+              cd /src
+              
+              # Scan frontend licenses
+              echo "Scanning frontend licenses..."
+              cd frontend
+              license-checker --json > /reports/licenses/frontend-licenses.json
+              
+              # Scan backend licenses
+              echo "Scanning backend licenses..."
+              cd ../backend
+              license-checker --json > /reports/licenses/backend-licenses.json
+              
+              # Scan Python licenses
+              echo "Scanning AI service licenses..."
+              cd ../ai-service
+              pip-licenses --format=json > /reports/licenses/ai-service-licenses.json
+              
+              # Check license compliance
+              echo "Checking license compliance..."
+              python3 /scripts/check-license-compliance.py /reports/licenses
+              
+              # Generate license report
+              python3 /scripts/generate-license-report.py /reports/licenses
+              
+              echo "License compliance scan completed."
+            volumeMounts:
+            - name: license-scripts
+              mountPath: /scripts
+              readOnly: true
+          volumes:
+          - name: license-scripts
+            configMap:
+              name: license-scanning-scripts
+              defaultMode: 0755

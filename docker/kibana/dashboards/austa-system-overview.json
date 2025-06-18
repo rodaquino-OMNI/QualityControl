@@ -1,0 +1,175 @@
+{
+  "version": "8.11.0",
+  "objects": [
+    {
+      "id": "austa-system-overview",
+      "type": "dashboard",
+      "attributes": {
+        "title": "AUSTA System Overview Dashboard",
+        "hits": 0,
+        "description": "Comprehensive overview of AUSTA Cockpit system health, performance, and security",
+        "panelsJSON": "[{\"version\":\"8.11.0\",\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":8,\"i\":\"1\"},\"panelIndex\":\"1\",\"embeddableConfig\":{},\"panelRefName\":\"panel_1\"},{\"version\":\"8.11.0\",\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":8,\"i\":\"2\"},\"panelIndex\":\"2\",\"embeddableConfig\":{},\"panelRefName\":\"panel_2\"},{\"version\":\"8.11.0\",\"gridData\":{\"x\":0,\"y\":8,\"w\":16,\"h\":8,\"i\":\"3\"},\"panelIndex\":\"3\",\"embeddableConfig\":{},\"panelRefName\":\"panel_3\"},{\"version\":\"8.11.0\",\"gridData\":{\"x\":16,\"y\":8,\"w\":16,\"h\":8,\"i\":\"4\"},\"panelIndex\":\"4\",\"embeddableConfig\":{},\"panelRefName\":\"panel_4\"},{\"version\":\"8.11.0\",\"gridData\":{\"x\":32,\"y\":8,\"w\":16,\"h\":8,\"i\":\"5\"},\"panelIndex\":\"5\",\"embeddableConfig\":{},\"panelRefName\":\"panel_5\"},{\"version\":\"8.11.0\",\"gridData\":{\"x\":0,\"y\":16,\"w\":24,\"h\":12,\"i\":\"6\"},\"panelIndex\":\"6\",\"embeddableConfig\":{},\"panelRefName\":\"panel_6\"},{\"version\":\"8.11.0\",\"gridData\":{\"x\":24,\"y\":16,\"w\":24,\"h\":12,\"i\":\"7\"},\"panelIndex\":\"7\",\"embeddableConfig\":{},\"panelRefName\":\"panel_7\"},{\"version\":\"8.11.0\",\"gridData\":{\"x\":0,\"y\":28,\"w\":48,\"h\":12,\"i\":\"8\"},\"panelIndex\":\"8\",\"embeddableConfig\":{},\"panelRefName\":\"panel_8\"}]",
+        "optionsJSON": "{\"useMargins\":true,\"syncColors\":false,\"hidePanelTitles\":false}",
+        "version": 1,
+        "timeRestore": false,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"
+        }
+      },
+      "references": [
+        {
+          "name": "panel_1",
+          "type": "visualization",
+          "id": "austa-log-volume-timeline"
+        },
+        {
+          "name": "panel_2",
+          "type": "visualization", 
+          "id": "austa-error-rate-gauge"
+        },
+        {
+          "name": "panel_3",
+          "type": "visualization",
+          "id": "austa-response-time-histogram"
+        },
+        {
+          "name": "panel_4",
+          "type": "visualization",
+          "id": "austa-security-events-pie"
+        },
+        {
+          "name": "panel_5",
+          "type": "visualization",
+          "id": "austa-service-health-status"
+        },
+        {
+          "name": "panel_6",
+          "type": "visualization",
+          "id": "austa-top-errors-table"
+        },
+        {
+          "name": "panel_7",
+          "type": "visualization",
+          "id": "austa-user-activity-heatmap"
+        },
+        {
+          "name": "panel_8",
+          "type": "visualization",
+          "id": "austa-system-metrics-timeline"
+        }
+      ]
+    },
+    {
+      "id": "austa-log-volume-timeline",
+      "type": "visualization",
+      "attributes": {
+        "title": "Log Volume Timeline",
+        "visState": "{\"title\":\"Log Volume Timeline\",\"type\":\"line\",\"aggs\":[{\"id\":\"1\",\"type\":\"count\",\"schema\":\"metric\",\"params\":{}},{\"id\":\"2\",\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"@timestamp\",\"interval\":\"auto\",\"min_doc_count\":1}},{\"id\":\"3\",\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"service\",\"size\":10,\"order\":\"desc\",\"orderBy\":\"1\"}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"austa-*\",\"query\":{\"match_all\":{}},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "austa-error-rate-gauge",
+      "type": "visualization",
+      "attributes": {
+        "title": "Error Rate Gauge",
+        "visState": "{\"title\":\"Error Rate Gauge\",\"type\":\"gauge\",\"aggs\":[{\"id\":\"1\",\"type\":\"count\",\"schema\":\"metric\",\"params\":{}},{\"id\":\"2\",\"type\":\"filters\",\"schema\":\"group\",\"params\":{\"filters\":[{\"input\":{\"query\":\"level:ERROR\"},\"label\":\"Errors\"},{\"input\":{\"query\":\"*\"},\"label\":\"Total\"}]}}],\"params\":{\"gauge\":{\"alignment\":\"automatic\",\"extendRange\":true,\"percentageMode\":false,\"gaugeType\":\"Arc\",\"gaugeStyle\":\"Full\",\"backStyle\":\"Full\",\"orientation\":\"vertical\",\"colorSchema\":\"Green to Red\",\"gaugeColorMode\":\"Labels\",\"colorsRange\":[{\"from\":0,\"to\":50},{\"from\":50,\"to\":75},{\"from\":75,\"to\":100}],\"invertColors\":false,\"labels\":{\"show\":true,\"color\":\"black\"},\"scale\":{\"show\":true,\"labels\":false,\"color\":\"#333\"},\"type\":\"meter\",\"style\":{\"bgFill\":\"#eee\",\"bgColor\":false,\"labelColor\":false,\"subText\":\"\",\"fontSize\":60}}}}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"austa-*\",\"query\":{\"match_all\":{}},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "austa-response-time-histogram",
+      "type": "visualization",
+      "attributes": {
+        "title": "Response Time Distribution",
+        "visState": "{\"title\":\"Response Time Distribution\",\"type\":\"histogram\",\"aggs\":[{\"id\":\"1\",\"type\":\"count\",\"schema\":\"metric\",\"params\":{}},{\"id\":\"2\",\"type\":\"histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"responseTime\",\"interval\":100,\"min_doc_count\":1}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"austa-performance-*\",\"query\":{\"bool\":{\"must\":[{\"exists\":{\"field\":\"responseTime\"}}]}},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "austa-security-events-pie",
+      "type": "visualization",
+      "attributes": {
+        "title": "Security Events Breakdown",
+        "visState": "{\"title\":\"Security Events Breakdown\",\"type\":\"pie\",\"aggs\":[{\"id\":\"1\",\"type\":\"count\",\"schema\":\"metric\",\"params\":{}},{\"id\":\"2\",\"type\":\"terms\",\"schema\":\"segment\",\"params\":{\"field\":\"event\",\"size\":10,\"order\":\"desc\",\"orderBy\":\"1\"}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"austa-security-*\",\"query\":{\"match_all\":{}},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "austa-service-health-status",
+      "type": "visualization",
+      "attributes": {
+        "title": "Service Health Status",
+        "visState": "{\"title\":\"Service Health Status\",\"type\":\"metric\",\"aggs\":[{\"id\":\"1\",\"type\":\"count\",\"schema\":\"metric\",\"params\":{}},{\"id\":\"2\",\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"service\",\"size\":10,\"order\":\"desc\",\"orderBy\":\"1\"}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"austa-*\",\"query\":{\"range\":{\"@timestamp\":{\"gte\":\"now-5m\"}}},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "austa-top-errors-table",
+      "type": "visualization",
+      "attributes": {
+        "title": "Top Errors (Last Hour)",
+        "visState": "{\"title\":\"Top Errors (Last Hour)\",\"type\":\"table\",\"aggs\":[{\"id\":\"1\",\"type\":\"count\",\"schema\":\"metric\",\"params\":{}},{\"id\":\"2\",\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"message.keyword\",\"size\":10,\"order\":\"desc\",\"orderBy\":\"1\"}},{\"id\":\"3\",\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"service\",\"size\":5,\"order\":\"desc\",\"orderBy\":\"1\"}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"austa-*-errors-*\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"gte\":\"now-1h\"}}}]}},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "austa-user-activity-heatmap",
+      "type": "visualization",
+      "attributes": {
+        "title": "User Activity Heatmap",
+        "visState": "{\"title\":\"User Activity Heatmap\",\"type\":\"heatmap\",\"aggs\":[{\"id\":\"1\",\"type\":\"count\",\"schema\":\"metric\",\"params\":{}},{\"id\":\"2\",\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"@timestamp\",\"interval\":\"1h\",\"min_doc_count\":1}},{\"id\":\"3\",\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"userId\",\"size\":20,\"order\":\"desc\",\"orderBy\":\"1\"}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"austa-audit-*\",\"query\":{\"bool\":{\"must\":[{\"exists\":{\"field\":\"userId\"}}]}},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "austa-system-metrics-timeline",
+      "type": "visualization",
+      "attributes": {
+        "title": "System Metrics Timeline",
+        "visState": "{\"title\":\"System Metrics Timeline\",\"type\":\"line\",\"aggs\":[{\"id\":\"1\",\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"system.cpu.total.pct\"}},{\"id\":\"2\",\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"system.memory.used.pct\"}},{\"id\":\"3\",\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"system.filesystem.used.pct\"}},{\"id\":\"4\",\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"@timestamp\",\"interval\":\"auto\",\"min_doc_count\":1}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"metricbeat-*\",\"query\":{\"match_all\":{}},\"filter\":[]}"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AUSTA Cockpit - Auditoria Inteligente</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #7c3aed;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-light: #1e293b;
+            --bg-card: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #475569;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-light);
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .logo::before {
+            content: "🏥";
+            font-size: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Main Layout */
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            height: calc(100vh - 65px);
+            position: relative;
+        }
+
+        /* Sidebar - Cases Queue */
+        .sidebar {
+            background: var(--bg-light);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .sidebar h2 {
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .case-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .case-card:hover {
+            transform: translateX(4px);
+            border-color: var(--primary);
+        }
+
+        .case-card.active {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.1);
+        }
+
+        .case-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .case-id {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .priority-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .priority-high {
+            background: var(--danger);
+            color: white;
+        }
+
+        .priority-medium {
+            background: var(--warning);
+            color: white;
+        }
+
+        .priority-low {
+            background: var(--success);
+            color: white;
+        }
+
+        .case-info {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .case-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .case-analysis {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .analysis-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .analysis-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Info Cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+        }
+
+        .info-card h3 {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .info-card p {
+            font-size: 1.125rem;
+            font-weight: bold;
+        }
+
+        /* AI Analysis Section */
+        .ai-analysis {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .ai-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .ai-title {
+            font-size: 1.125rem;
+            font-weight: bold;
+        }
+
+        .ai-confidence {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .confidence-bar {
+            width: 100px;
+            height: 8px;
+            background: var(--bg-dark);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(to right, var(--danger), var(--warning), var(--success));
+            transition: width 0.3s;
+        }
+
+        .ai-content {
+            background: var(--bg-light);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .ai-insights {
+            list-style: none;
+            padding: 0;
+        }
+
+        .ai-insights li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        .ai-insights li:last-child {
+            border-bottom: none;
+        }
+
+        .insight-icon {
+            font-size: 1.25rem;
+            margin-top: 0.125rem;
+        }
+
+        .ai-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* AI Chat */
+        .ai-chat {
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 300px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+        }
+
+        .message-ai .message-avatar {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        .message-content {
+            background: var(--bg-card);
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            max-width: 80%;
+        }
+
+        .message-user .message-content {
+            background: var(--primary);
+            margin-left: auto;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            background: var(--bg-light);
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .chat-input input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Right Panel - Context */
+        .context-panel {
+            background: var(--bg-light);
+            border-left: 1px solid var(--border);
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .context-section {
+            margin-bottom: 2rem;
+        }
+
+        .context-section h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .timeline::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .timeline-item::before {
+            content: "";
+            position: absolute;
+            left: -1.75rem;
+            top: 0.25rem;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .timeline-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-content {
+            font-size: 0.875rem;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar, .context-panel {
+                display: none;
+            }
+
+            .mobile-menu {
+                display: flex;
+                gap: 0.5rem;
+                padding: 1rem;
+                background: var(--bg-light);
+                border-top: 1px solid var(--border);
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+            }
+
+            .mobile-menu button {
+                flex: 1;
+                padding: 0.75rem;
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+                font-size: 0.875rem;
+            }
+
+            .ai-chat {
+                height: 200px;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            .mobile-menu {
+                display: none;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--text-secondary);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 0.8s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Additional utility classes */
+        .small-text {
+            color: var(--text-secondary);
+        }
+
+        .ai-content-margin {
+            margin-bottom: 1rem;
+        }
+
+        .confidence-fill-85 {
+            width: 85%;
+        }
+
+        .decision-section {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .decision-title {
+            margin-bottom: 1rem;
+        }
+
+        .decision-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .btn-decision {
+            padding: 1rem;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+        }
+
+        .loading-inline {
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+
+        .timeline-list {
+            list-style: none;
+            font-size: 0.875rem;
+        }
+
+        .timeline-list li {
+            padding: 0.5rem 0;
+        }
+
+        .metrics-card {
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .metrics-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .metrics-label {
+            font-size: 0.875rem;
+        }
+
+        .metrics-success {
+            color: var(--success);
+        }
+
+        .metrics-warning {
+            color: var(--warning);
+        }
+
+        .docs-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .doc-btn {
+            justify-content: space-between;
+        }
+
+        .doc-size {
+            font-size: 0.75rem;
+        }
+
+        .value-warning {
+            color: var(--warning);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">AUSTA Cockpit</div>
+        <div class="user-info">
+            <span>Dr. Ana Silva</span>
+            <div class="avatar">AS</div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar - Cases Queue -->
+        <aside class="sidebar">
+            <h2>📋 Casos Pendentes (12)</h2>
+            
+            <div class="filters">
+                <button class="filter-btn active">Todos</button>
+                <button class="filter-btn">Alta Prior.</button>
+                <button class="filter-btn">Complexos</button>
+            </div>
+
+            <div class="cases-list">
+                <div class="case-card active">
+                    <div class="case-header">
+                        <span class="case-id">#AUT-2024-7834</span>
+                        <span class="priority-badge priority-high">ALTA</span>
+                    </div>
+                    <div class="case-info">
+                        <strong>Maria Santos</strong><br>
+                        Oncologia - Quimioterapia
+                    </div>
+                    <div class="case-stats">
+                        <span>⏱️ 15 min</span>
+                        <span>💰 R$ 45.000</span>
+                        <span>🤖 85% IA</span>
+                    </div>
+                </div>
+
+                <div class="case-card">
+                    <div class="case-header">
+                        <span class="case-id">#AUT-2024-7835</span>
+                        <span class="priority-badge priority-medium">MÉDIA</span>
+                    </div>
+                    <div class="case-info">
+                        <strong>João Oliveira</strong><br>
+                        Cardiologia - Cateterismo
+                    </div>
+                    <div class="case-stats">
+                        <span>⏱️ 8 min</span>
+                        <span>💰 R$ 12.000</span>
+                        <span>🤖 72% IA</span>
+                    </div>
+                </div>
+
+                <div class="case-card">
+                    <div class="case-header">
+                        <span class="case-id">#AUT-2024-7836</span>
+                        <span class="priority-badge priority-low">BAIXA</span>
+                    </div>
+                    <div class="case-info">
+                        <strong>Pedro Lima</strong><br>
+                        Ortopedia - Ressonância
+                    </div>
+                    <div class="case-stats">
+                        <span>⏱️ 5 min</span>
+                        <span>💰 R$ 1.200</span>
+                        <span>🤖 91% IA</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="case-analysis">
+                <div class="analysis-header">
+                    <h1 class="analysis-title">Análise do Caso #AUT-2024-7834</h1>
+                    <div class="analysis-actions">
+                        <button class="btn btn-secondary">
+                            📞 Contatar Prestador
+                        </button>
+                        <button class="btn btn-secondary">
+                            👨‍⚕️ Segunda Opinião
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>Paciente</h3>
+                        <p>Maria Santos, 45 anos</p>
+                        <small class="small-text">CPF: ***.***.789-**</small>
+                    </div>
+                    <div class="info-card">
+                        <h3>Procedimento</h3>
+                        <p>Quimioterapia - Protocolo AC</p>
+                        <small class="small-text">CID: C50.9</small>
+                    </div>
+                    <div class="info-card">
+                        <h3>Prestador</h3>
+                        <p>Hospital Sírio-Libanês</p>
+                        <small class="small-text">Dr. Roberto Costa</small>
+                    </div>
+                    <div class="info-card">
+                        <h3>Valor Total</h3>
+                        <p class="value-warning">R$ 45.000,00</p>
+                        <small class="small-text">4 sessões</small>
+                    </div>
+                </div>
+
+                <!-- AI Analysis -->
+                <div class="ai-analysis">
+                    <div class="ai-header">
+                        <div class="ai-icon">🧠</div>
+                        <div>
+                            <div class="ai-title">Análise da IA</div>
+                            <small class="small-text">Modelo: BERT-Medical v3.2</small>
+                        </div>
+                        <div class="ai-confidence">
+                            <span>Confiança: 85%</span>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill confidence-fill-85"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ai-content">
+                        <p class="ai-content-margin">
+                            <strong>Recomendação:</strong> <span class="value-warning">Aprovação com Ressalvas</span>
+                        </p>
+                        
+                        <ul class="ai-insights">
+                            <li>
+                                <span class="insight-icon">✅</span>
+                                <div>
+                                    <strong>Diagnóstico compatível:</strong> CID C50.9 confirmado por biópsia em 15/01/2024. 
+                                    Protocolo AC é primeira linha para este tipo de neoplasia.
+                                </div>
+                            </li>
+                            <li>
+                                <span class="insight-icon">⚠️</span>
+                                <div>
+                                    <strong>Alerta de valor:</strong> Custo 32% acima da média para este protocolo. 
+                                    Média nacional: R$ 34.000. Verificar justificativa do prestador.
+                                </div>
+                            </li>
+                            <li>
+                                <span class="insight-icon">📊</span>
+                                <div>
+                                    <strong>Histórico relevante:</strong> Paciente realizou mastectomia em 20/12/2023. 
+                                    Sem registros de tratamento quimioterápico prévio.
+                                </div>
+                            </li>
+                            <li>
+                                <span class="insight-icon">🔍</span>
+                                <div>
+                                    <strong>Detecção de padrão:</strong> Prestador com 15% de solicitações acima da média 
+                                    nos últimos 6 meses. Sugestão: auditoria presencial.
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="ai-actions">
+                        <button class="btn btn-primary">
+                            🤖 Gerar Parecer Completo
+                        </button>
+                        <button class="btn btn-secondary">
+                            📄 Ver Evidências
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Decision Actions -->
+                <div class="decision-section">
+                    <h3 class="decision-title">Decisão Final</h3>
+                    <div class="decision-grid">
+                        <button class="btn btn-success btn-decision">
+                            ✅ Aprovar
+                        </button>
+                        <button class="btn btn-warning btn-decision">
+                            ⚡ Aprovar Parcial
+                        </button>
+                        <button class="btn btn-danger btn-decision">
+                            ❌ Negar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Chat -->
+            <div class="ai-chat">
+                <div class="chat-messages">
+                    <div class="message message-ai">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            Olá Dr. Ana! Identifiquei uma discrepância no valor solicitado. 
+                            Gostaria que eu faça uma análise comparativa com casos similares?
+                        </div>
+                    </div>
+                    <div class="message message-user">
+                        <div class="message-content">
+                            Sim, por favor. Inclua também prestadores da mesma região.
+                        </div>
+                    </div>
+                    <div class="message message-ai">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <div class="loading loading-inline"></div>
+                            Analisando 47 casos similares...
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" placeholder="Digite sua pergunta para a IA...">
+                    <button class="btn btn-primary">Enviar</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Panel - Context -->
+        <aside class="context-panel">
+            <div class="context-section">
+                <h3>📊 Histórico Médico</h3>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-date">20/12/2023</div>
+                        <div class="timeline-content">
+                            <strong>Mastectomia</strong><br>
+                            Hospital Albert Einstein
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">15/01/2024</div>
+                        <div class="timeline-content">
+                            <strong>Biópsia</strong><br>
+                            Confirmação CID C50.9
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">25/01/2024</div>
+                        <div class="timeline-content">
+                            <strong>Consulta Oncologia</strong><br>
+                            Indicação quimioterapia
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="context-section">
+                <h3>💊 Medicamentos em Uso</h3>
+                <ul class="timeline-list">
+                    <li>• Tamoxifeno 20mg</li>
+                    <li>• Omeprazol 40mg</li>
+                    <li>• Dipirona 500mg</li>
+                </ul>
+            </div>
+
+            <div class="context-section">
+                <h3>📈 Métricas do Prestador</h3>
+                <div class="metrics-card">
+                    <div class="metrics-row">
+                        <span class="metrics-label">Taxa Aprovação</span>
+                        <span class="metrics-success">87%</span>
+                    </div>
+                    <div class="metrics-row">
+                        <span class="metrics-label">Tempo Médio</span>
+                        <span>12 min</span>
+                    </div>
+                    <div class="metrics-row">
+                        <span class="metrics-label">Score Qualidade</span>
+                        <span class="metrics-warning">B+</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="context-section">
+                <h3>🔗 Documentos Anexos</h3>
+                <div class="docs-grid">
+                    <button class="btn btn-secondary doc-btn">
+                        <span>📄 Laudo Médico</span>
+                        <span class="doc-size">2.3 MB</span>
+                    </button>
+                    <button class="btn btn-secondary doc-btn">
+                        <span>🔬 Biópsia</span>
+                        <span class="doc-size">1.8 MB</span>
+                    </button>
+                    <button class="btn btn-secondary doc-btn">
+                        <span>💉 Protocolo AC</span>
+                        <span class="doc-size">0.5 MB</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu">
+        <button>📋 Casos</button>
+        <button>💬 Chat IA</button>
+        <button>📊 Contexto</button>
+    </div>
+
+    <script>
+        // Simulação de interatividade
+        document.querySelectorAll('.case-card').forEach(card => {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.case-card').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Simulação de chat
+        const chatInput = document.querySelector('.chat-input input');
+        const sendBtn = document.querySelector('.chat-input button');
+        
+        sendBtn.addEventListener('click', () => {
+            if (chatInput.value.trim()) {
+                // Aqui entraria a lógica de envio para o LLM
+                chatInput.value = '';
+            }
+        });
+
+        // Mobile menu toggle
+        const mobileButtons = document.querySelectorAll('.mobile-menu button');
+        mobileButtons.forEach((btn, index) => {
+            btn.addEventListener('click', () => {
+                // Lógica para mostrar/ocultar painéis no mobile
+                console.log('Mobile panel:', index);
+            });
+        });
+    </script>
+</body>
+</html>

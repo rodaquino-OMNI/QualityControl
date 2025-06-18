@@ -1,0 +1,78 @@
+models:
+  bert-medical:
+    name: "BERT Medical Portuguese"
+    version: "3.2.0"
+    type: "transformer"
+    provider: "huggingface"
+    model_id: "pucpr/biobertpt-all"
+    max_tokens: 512
+    confidence_threshold: 0.85
+    features:
+      - medical_entity_recognition
+      - clinical_text_classification
+      - symptom_extraction
+      - diagnosis_suggestion
+    
+  gpt-4-medical:
+    name: "GPT-4 Medical Assistant"
+    version: "turbo-2024-01"
+    type: "llm"
+    provider: "openai"
+    model_id: "gpt-4-turbo-preview"
+    temperature: 0.3
+    max_tokens: 2000
+    system_prompt: |
+      You are a medical audit assistant specialized in Brazilian healthcare.
+      Analyze cases based on ANS (Agência Nacional de Saúde Suplementar) guidelines.
+      Provide evidence-based recommendations following TISS standards.
+      Always cite relevant medical literature and protocols.
+      Be conservative in approvals and thorough in analysis.
+    
+  xgboost-fraud:
+    name: "XGBoost Fraud Detection"
+    version: "2.1.0"
+    type: "ml_classifier"
+    provider: "custom"
+    features:
+      - provider_claim_frequency
+      - procedure_code_patterns
+      - value_anomaly_score
+      - network_relationship_score
+      - temporal_pattern_score
+      - geographic_anomaly_score
+    thresholds:
+      low_risk: 0.3
+      medium_risk: 0.6
+      high_risk: 0.8
+    
+  lstm-patterns:
+    name: "LSTM Pattern Analyzer"
+    version: "1.5.0"
+    type: "deep_learning"
+    provider: "custom"
+    sequence_length: 30
+    features:
+      - procedure_sequences
+      - diagnosis_progressions
+      - treatment_patterns
+      - cost_trajectories
+    output_dimensions: 128
+    
+pipelines:
+  audit_decision:
+    name: "Integrated Audit Decision Pipeline"
+    stages:
+      - name: "medical_validation"
+        model: "bert-medical"
+        weight: 0.3
+      - name: "fraud_detection"
+        model: "xgboost-fraud"
+        weight: 0.3
+      - name: "pattern_analysis"
+        model: "lstm-patterns"
+        weight: 0.2
+      - name: "expert_review"
+        model: "gpt-4-medical"
+        weight: 0.2
+    decision_threshold: 0.75
+    require_explanation: true

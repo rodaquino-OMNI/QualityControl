@@ -1,0 +1,138 @@
+groups:
+  - name: austa_application_alerts
+    rules:
+      # High Response Time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for {{ $labels.job }}"
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.job }}"
+
+      # Service Down
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+
+      # Database Connection Issues
+      - alert: DatabaseConnectionIssues
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection issues"
+          description: "Cannot connect to PostgreSQL database"
+
+      # Redis Connection Issues
+      - alert: RedisConnectionIssues
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis connection issues"
+          description: "Cannot connect to Redis cache"
+
+  - name: austa_business_alerts
+    rules:
+      # High Case Processing Time
+      - alert: HighCaseProcessingTime
+        expr: histogram_quantile(0.95, rate(case_processing_duration_seconds_bucket[10m])) > 300
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High case processing time"
+          description: "95th percentile case processing time is {{ $value }}s"
+
+      # Low AI Accuracy
+      - alert: LowAIAccuracy
+        expr: ai_prediction_accuracy < 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "AI prediction accuracy below threshold"
+          description: "AI accuracy is {{ $value | humanizePercentage }}, below 85% threshold"
+
+      # Fraud Detection Anomaly
+      - alert: FraudDetectionAnomaly
+        expr: fraud_detection_score > 0.9
+        for: 1m
+        labels:
+          severity: critical
+          component: fraud
+        annotations:
+          summary: "High fraud detection score"
+          description: "Fraud detection score is {{ $value }}, requiring immediate attention"
+
+      # Case Backlog Alert
+      - alert: CaseBacklogHigh
+        expr: pending_cases_count > 1000
+        for: 15m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High case backlog"
+          description: "Pending cases count is {{ $value }}, exceeding threshold"
+
+  - name: austa_security_alerts
+    rules:
+      # Multiple Failed Login Attempts
+      - alert: MultipleFailedLogins
+        expr: increase(failed_login_attempts_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Multiple failed login attempts"
+          description: "{{ $value }} failed login attempts in the last 5 minutes"
+
+      # Suspicious Activity
+      - alert: SuspiciousActivity
+        expr: suspicious_activity_score > 0.8
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "Suspicious activity score is {{ $value }}, requiring investigation"
+
+      # Unauthorized API Access
+      - alert: UnauthorizedAPIAccess
+        expr: increase(unauthorized_api_requests_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Unauthorized API access attempts"
+          description: "{{ $value }} unauthorized API access attempts in the last 5 minutes"

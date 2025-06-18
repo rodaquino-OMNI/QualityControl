@@ -1,0 +1,253 @@
+# LGPD/GDPR Data Protection Policies and Controls
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gdpr-lgpd-policies
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: compliance
+    regulation: gdpr-lgpd
+data:
+  data-retention-policy.json: |
+    {
+      "dataRetention": {
+        "personalData": {
+          "retentionPeriod": "7 years",
+          "purpose": "Healthcare record keeping as required by Brazilian health regulations",
+          "autoDelete": true,
+          "anonymizationAfter": "2 years"
+        },
+        "auditLogs": {
+          "retentionPeriod": "10 years",
+          "purpose": "Compliance and security monitoring",
+          "autoDelete": false
+        },
+        "userActivity": {
+          "retentionPeriod": "2 years",
+          "purpose": "System optimization and security",
+          "autoDelete": true,
+          "anonymizationAfter": "1 year"
+        }
+      },
+      "dataMinimization": {
+        "collectOnlyNecessary": true,
+        "purposeLimitation": true,
+        "accuracyMaintenance": true,
+        "storageMinimization": true
+      }
+    }
+  
+  consent-management.json: |
+    {
+      "consentManagement": {
+        "explicitConsent": true,
+        "granularConsent": true,
+        "withdrawalMechanism": true,
+        "consentLogging": true,
+        "categories": [
+          {
+            "id": "healthcare_data",
+            "description": "Processing of health-related information for medical audit purposes",
+            "required": true,
+            "lawfulBasis": "vital_interests"
+          },
+          {
+            "id": "analytics_data",
+            "description": "Analysis of usage patterns for system improvement",
+            "required": false,
+            "lawfulBasis": "legitimate_interests"
+          },
+          {
+            "id": "marketing_data",
+            "description": "Communication about new features and updates",
+            "required": false,
+            "lawfulBasis": "consent"
+          }
+        ]
+      }
+    }
+  
+  data-subject-rights.json: |
+    {
+      "dataSubjectRights": {
+        "accessRight": {
+          "enabled": true,
+          "endpoint": "/api/v1/gdpr/data-access",
+          "authenticationRequired": true,
+          "responseTimeLimit": "30 days"
+        },
+        "rectificationRight": {
+          "enabled": true,
+          "endpoint": "/api/v1/gdpr/data-rectification",
+          "authenticationRequired": true,
+          "responseTimeLimit": "30 days"
+        },
+        "erasureRight": {
+          "enabled": true,
+          "endpoint": "/api/v1/gdpr/data-erasure",
+          "authenticationRequired": true,
+          "responseTimeLimit": "30 days",
+          "exceptions": ["legal_obligation", "vital_interests"]
+        },
+        "portabilityRight": {
+          "enabled": true,
+          "endpoint": "/api/v1/gdpr/data-portability",
+          "authenticationRequired": true,
+          "formats": ["json", "csv", "pdf"]
+        },
+        "objectionRight": {
+          "enabled": true,
+          "endpoint": "/api/v1/gdpr/data-objection",
+          "authenticationRequired": true
+        }
+      }
+    }
+  
+  privacy-by-design.json: |
+    {
+      "privacyByDesign": {
+        "defaultSettings": {
+          "dataMinimization": true,
+          "purposeLimitation": true,
+          "pseudonymization": true,
+          "encryption": true
+        },
+        "technicalMeasures": [
+          "end-to-end encryption",
+          "role-based access control",
+          "audit logging",
+          "data masking",
+          "secure key management"
+        ],
+        "organizationalMeasures": [
+          "privacy impact assessments",
+          "data protection officer",
+          "staff training",
+          "incident response procedures",
+          "vendor management"
+        ]
+      }
+    }
+---
+# Data Protection Impact Assessment (DPIA) ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dpia-assessment
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: compliance
+    regulation: gdpr-lgpd
+data:
+  dpia-results.json: |
+    {
+      "dpiaAssessment": {
+        "assessmentDate": "2024-01-01",
+        "systemDescription": "AUSTA Cockpit - Healthcare Quality Control and Fraud Detection System",
+        "personalDataProcessed": [
+          "Patient identification data",
+          "Healthcare professional credentials",
+          "Medical audit records",
+          "System access logs"
+        ],
+        "riskAssessment": {
+          "overallRisk": "Medium",
+          "identifiedRisks": [
+            {
+              "risk": "Unauthorized access to patient data",
+              "likelihood": "Low",
+              "impact": "High",
+              "mitigation": "Multi-factor authentication, role-based access control, encryption"
+            },
+            {
+              "risk": "Data breach during transmission",
+              "likelihood": "Low",
+              "impact": "High",
+              "mitigation": "TLS encryption, VPN access, secure API endpoints"
+            },
+            {
+              "risk": "Inadequate data retention",
+              "likelihood": "Medium",
+              "impact": "Medium",
+              "mitigation": "Automated data lifecycle management, regular audits"
+            }
+          ]
+        },
+        "safeguardsMeasures": [
+          "Encryption at rest and in transit",
+          "Regular security assessments",
+          "Staff training on data protection",
+          "Incident response procedures",
+          "Regular backup and recovery testing"
+        ]
+      }
+    }
+---
+# Privacy Notice Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: privacy-notice
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: compliance
+    regulation: gdpr-lgpd
+data:
+  privacy-notice.json: |
+    {
+      "privacyNotice": {
+        "dataController": {
+          "name": "AUSTA Healthcare Technologies",
+          "address": "Brazil",
+          "contact": "privacy@austa.com.br",
+          "dpoContact": "dpo@austa.com.br"
+        },
+        "dataProcessing": {
+          "purposes": [
+            "Healthcare quality control and audit",
+            "Fraud detection and prevention",
+            "System security and monitoring",
+            "Regulatory compliance"
+          ],
+          "lawfulBasis": [
+            "Legitimate interests (fraud prevention)",
+            "Legal obligation (healthcare regulation compliance)",
+            "Vital interests (patient safety)"
+          ],
+          "categories": [
+            "Identity data",
+            "Contact data",
+            "Health data",
+            "Usage data"
+          ]
+        },
+        "dataSharing": {
+          "recipients": [
+            "Healthcare regulatory authorities (when required by law)",
+            "Cloud service providers (AWS - with adequate safeguards)",
+            "IT service providers (under data processing agreements)"
+          ],
+          "internationalTransfers": {
+            "enabled": true,
+            "safeguards": "Standard Contractual Clauses, Adequacy Decisions",
+            "countries": ["United States (AWS)"]
+          }
+        },
+        "retentionPeriods": {
+          "healthData": "7 years after last interaction",
+          "auditLogs": "10 years",
+          "userActivity": "2 years"
+        },
+        "rights": [
+          "Access to personal data",
+          "Rectification of inaccurate data",
+          "Erasure of data (where applicable)",
+          "Data portability",
+          "Object to processing",
+          "Restriction of processing"
+        ]
+      }
+    }

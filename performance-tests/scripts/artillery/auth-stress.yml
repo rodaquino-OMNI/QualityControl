@@ -1,0 +1,237 @@
+# Artillery Authentication Stress Test
+# Focused stress testing for authentication system
+
+config:
+  target: "{{ $processEnvironment.API_URL || 'http://localhost:8000' }}"
+  plugins:
+    expect: {}
+    influxdb:
+      host: "{{ $processEnvironment.INFLUXDB_HOST || 'localhost' }}"
+      port: "{{ $processEnvironment.INFLUXDB_PORT || 8086 }}"
+      database: "{{ $processEnvironment.INFLUXDB_DATABASE || 'austa_performance' }}"
+      measurement: "artillery_auth_stress"
+  phases:
+    # Phase 1: Baseline authentication load
+    - duration: 120
+      arrivalRate: 10
+      name: "Baseline auth load"
+    
+    # Phase 2: Login spike simulation (morning rush)
+    - duration: 300
+      arrivalRate: 10
+      rampTo: 50
+      name: "Morning login rush"
+    
+    # Phase 3: Sustained concurrent sessions
+    - duration: 600
+      arrivalRate: 50
+      name: "Sustained concurrent sessions"
+    
+    # Phase 4: Peak authentication load
+    - duration: 180
+      arrivalRate: 50
+      rampTo: 100
+      name: "Peak authentication stress"
+    
+    # Phase 5: Authentication attack simulation
+    - duration: 120
+      arrivalRate: 150
+      name: "Authentication attack simulation"
+    
+    # Phase 6: Recovery and cleanup
+    - duration: 120
+      arrivalRate: 150
+      rampTo: 5
+      name: "Recovery phase"
+  
+  http:
+    timeout: 10
+    pool: 100
+  
+  tls:
+    rejectUnauthorized: false
+
+scenarios:
+  # Valid login attempts
+  - name: "Valid Login Flow"
+    weight: 60
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ $pick(['admin@austa.com', 'auditor@austa.com', 'analyst@austa.com', 'user@austa.com']) }}"
+            password: "{{ $pick(['admin123', 'auditor123', 'analyst123', 'user123']) }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.refreshToken"
+              as: "refreshToken"
+            - json: "$.user.id"
+              as: "userId"
+          expect:
+            - statusCode: 200
+            - hasProperty: "token"
+            - hasProperty: "user"
+            
+      - think: "{{ $randomInt(1, 3) }}"
+      
+      # Profile access
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - hasProperty: "id"
+            - hasProperty: "email"
+            
+      - think: "{{ $randomInt(5, 15) }}"
+      
+      # Token refresh
+      - post:
+          url: "/api/auth/refresh"
+          json:
+            refreshToken: "{{ refreshToken }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          capture:
+            - json: "$.token"
+              as: "newAuthToken"
+          expect:
+            - statusCode: 200
+            - hasProperty: "token"
+            
+      - think: "{{ $randomInt(2, 5) }}"
+      
+      # Session validation
+      - get:
+          url: "/api/auth/validate"
+          headers:
+            Authorization: "Bearer {{ newAuthToken || authToken }}"
+          expect:
+            - statusCode: 200
+            
+      # Logout
+      - post:
+          url: "/api/auth/logout"
+          headers:
+            Authorization: "Bearer {{ newAuthToken || authToken }}"
+          expect:
+            - statusCode: 200
+
+  # Invalid login attempts (brute force simulation)
+  - name: "Invalid Login Attempts"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ $randomString() }}@{{ $randomString() }}.com"
+            password: "{{ $randomString() }}"
+          expect:
+            - statusCode: [401, 422, 429]
+            
+      - think: "{{ $randomInt(1, 2) }}"
+      
+      # Repeated failed attempts (account lockout testing)
+      - loop:
+          - post:
+              url: "/api/auth/login"
+              json:
+                email: "admin@austa.com"
+                password: "wrongpassword{{ $randomInt(1, 1000) }}"
+            expect:
+              - statusCode: [401, 429]
+        count: "{{ $randomInt(3, 8) }}"
+
+  # MFA authentication flow
+  - name: "MFA Authentication"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "admin@austa.com"
+            password: "admin123"
+          capture:
+            - json: "$.token"
+              as: "tempToken"
+            - json: "$.requiresMFA"
+              as: "requiresMFA"
+            - json: "$.user.id"
+              as: "userId"
+          expect:
+            - statusCode: 200
+            
+      - ifTrue: "{{ requiresMFA }}"
+        then:
+          - post:
+              url: "/api/auth/verify-mfa"
+              json:
+                token: "{{ $randomInt(100000, 999999) }}"
+                userId: "{{ userId }}"
+              headers:
+                Authorization: "Bearer {{ tempToken }}"
+            expect:
+              - statusCode: [200, 401, 422]
+
+  # Password reset flow
+  - name: "Password Reset Flow"
+    weight: 5
+    flow:
+      - post:
+          url: "/api/auth/forgot-password"
+          json:
+            email: "{{ $pick(['admin@austa.com', 'user@test.com', 'nonexistent@test.com']) }}"
+          expect:
+            - statusCode: [200, 404, 429]
+            
+      - think: "{{ $randomInt(2, 5) }}"
+      
+      # Simulate reset token usage (most will be invalid)
+      - post:
+          url: "/api/auth/reset-password"
+          json:
+            token: "{{ $randomString() }}"
+            newPassword: "newpassword{{ $randomInt(1, 1000) }}"
+          expect:
+            - statusCode: [200, 400, 404, 422]
+
+# Performance and security expectations
+expect:
+  # Authentication response time
+  - property: "response.time"
+    max: 2000
+    name: "Authentication response under 2 seconds"
+  
+  # Failed authentication rate (should be high due to invalid attempts)
+  - property: "stats.codes.401"
+    min: 1
+    name: "Invalid authentication attempts detected"
+    
+  # Rate limiting effectiveness
+  - property: "stats.codes.429"
+    min: 1
+    name: "Rate limiting active"
+    
+  # Successful authentication rate
+  - property: "stats.codes.200"
+    min: 100
+    name: "Successful authentications"
+
+# Custom authentication metrics
+metrics:
+  - name: "login_success_rate"
+    unit: "percent"
+  - name: "login_response_time_p95"
+    unit: "ms"
+  - name: "mfa_validation_time"
+    unit: "ms"
+  - name: "token_refresh_time"
+    unit: "ms"
+  - name: "session_duration"
+    unit: "seconds"
+  - name: "failed_login_attempts"
+    unit: "count"
+  - name: "account_lockouts"
+    unit: "count"

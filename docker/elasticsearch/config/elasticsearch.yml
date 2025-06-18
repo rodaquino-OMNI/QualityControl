@@ -1,0 +1,85 @@
+# Elasticsearch Configuration for AUSTA Cockpit Logging
+
+# Node Configuration
+node.name: austa-elasticsearch
+cluster.name: austa-cluster
+discovery.type: single-node
+
+# Network Configuration
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+# Path Configuration
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
+
+# Memory Configuration
+bootstrap.memory_lock: true
+
+# Security Configuration
+xpack.security.enabled: true
+xpack.security.authc.api_key.enabled: true
+xpack.security.transport.ssl.enabled: false
+xpack.security.http.ssl.enabled: false
+
+# License Configuration
+xpack.license.self_generated.type: basic
+
+# Monitoring Configuration
+xpack.monitoring.collection.enabled: true
+xpack.monitoring.elasticsearch.collection.enabled: true
+
+# Index Template Configuration
+action.auto_create_index: true
+
+# Index Lifecycle Management
+xpack.ilm.enabled: true
+
+# Security Realm Configuration
+xpack.security.authc.realms.native.native1:
+  order: 0
+
+# Audit Configuration
+xpack.security.audit.enabled: true
+xpack.security.audit.logfile.events.emit_request_body: true
+
+# Index Settings
+index.number_of_shards: 1
+index.number_of_replicas: 0
+index.refresh_interval: 1s
+
+# Logging Level Configuration
+logger.level: INFO
+logger.org.elasticsearch.transport: WARN
+logger.org.elasticsearch.discovery: WARN
+
+# Memory Settings
+indices.memory.index_buffer_size: 25%
+indices.memory.min_index_buffer_size: 96mb
+
+# Thread Pool Configuration
+thread_pool.write.queue_size: 200
+thread_pool.search.queue_size: 1000
+
+# Cache Configuration
+indices.queries.cache.size: 5%
+indices.fielddata.cache.size: 10%
+
+# Mapping Configuration
+index.mapping.total_fields.limit: 2000
+index.mapping.depth.limit: 20
+index.mapping.nested_fields.limit: 100
+
+# Performance Tuning
+cluster.routing.allocation.disk.threshold_enabled: true
+cluster.routing.allocation.disk.watermark.low: 85%
+cluster.routing.allocation.disk.watermark.high: 90%
+cluster.routing.allocation.disk.watermark.flood_stage: 95%
+
+# Index Optimization
+index.merge.policy.max_merge_at_once: 10
+index.merge.policy.segments_per_tier: 10
+
+# Snapshot Configuration
+path.repo: ["/usr/share/elasticsearch/snapshots"]

@@ -1,0 +1,45 @@
+# Backup Service Dockerfile
+FROM alpine:latest
+
+# Install required packages
+RUN apk add --no-cache \
+    bash \
+    postgresql-client \
+    mongodb-tools \
+    aws-cli \
+    curl \
+    gzip \
+    tar \
+    coreutils \
+    docker-cli
+
+# Create backup directories
+RUN mkdir -p /backups /scripts /logs
+
+# Copy backup scripts
+COPY docker/backup-scripts/* /scripts/
+RUN chmod +x /scripts/*
+
+# Install cron
+RUN apk add --no-cache dcron
+
+# Create backup user
+RUN adduser -D -h /home/backup backup
+
+# Set working directory
+WORKDIR /backups
+
+# Add health check
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+  CMD pgrep crond || exit 1
+
+# Copy entrypoint script
+COPY docker/backup-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Run as backup user
+USER backup
+
+# Start cron daemon
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["crond", "-f", "-l", "2"]

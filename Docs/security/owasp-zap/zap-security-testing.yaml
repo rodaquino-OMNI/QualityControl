@@ -1,0 +1,380 @@
+# OWASP ZAP Security Testing Integration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zap-config
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: security-testing
+data:
+  zap-baseline-scan.yaml: |
+    # ZAP Baseline Scan Configuration
+    env:
+      contexts:
+        - name: "AUSTA Cockpit"
+          urls:
+            - "https://austa-cockpit.local"
+          includePaths:
+            - "https://austa-cockpit.local/api/.*"
+            - "https://austa-cockpit.local/dashboard/.*"
+            - "https://austa-cockpit.local/cases/.*"
+          excludePaths:
+            - "https://austa-cockpit.local/api/health"
+            - "https://austa-cockpit.local/static/.*"
+            - "https://austa-cockpit.local/assets/.*"
+          authentication:
+            method: "form"
+            loginUrl: "https://austa-cockpit.local/api/auth/login"
+            username: "security-scanner@austa.local"
+            password: "${ZAP_SCANNER_PASSWORD}"
+            usernameParameter: "email"
+            passwordParameter: "password"
+            extraPostData: ""
+          sessionManagement:
+            method: "cookie"
+            sessionTokens:
+              - "sessionid"
+              - "csrftoken"
+              - "jwt_token"
+      users:
+        - name: "Healthcare Admin"
+          credentials:
+            username: "admin@austa.local"
+            password: "${ZAP_ADMIN_PASSWORD}"
+        - name: "Auditor User"
+          credentials:
+            username: "auditor@austa.local"
+            password: "${ZAP_AUDITOR_PASSWORD}"
+      rules:
+        - id: 10016
+          name: "Web Browser XSS Protection Not Enabled"
+          threshold: "OFF"
+        - id: 10017
+          name: "Cross-Domain JavaScript Source File Inclusion"
+          threshold: "HIGH"
+        - id: 40012
+          name: "Cross Site Scripting (Reflected)"
+          threshold: "HIGH"
+        - id: 40014
+          name: "Cross Site Scripting (Persistent)"
+          threshold: "HIGH"
+        - id: 40016
+          name: "Cross Site Scripting (Persistent) - Prime"
+          threshold: "HIGH"
+        - id: 40017
+          name: "Cross Site Scripting (Persistent) - Spider"
+          threshold: "HIGH"
+        - id: 40018
+          name: "SQL Injection"
+          threshold: "HIGH"
+        - id: 40019
+          name: "SQL Injection - MySQL"
+          threshold: "HIGH"
+        - id: 40020
+          name: "SQL Injection - Hypersonic SQL"
+          threshold: "HIGH"
+        - id: 40021
+          name: "SQL Injection - Oracle"
+          threshold: "HIGH"
+        - id: 40022
+          name: "SQL Injection - PostgreSQL"
+          threshold: "HIGH"
+  
+  zap-full-scan.yaml: |
+    # ZAP Full Scan Configuration for Comprehensive Testing
+    env:
+      contexts:
+        - name: "AUSTA Cockpit Full Scan"
+          urls:
+            - "https://austa-cockpit.local"
+          includePaths:
+            - "https://austa-cockpit.local/.*"
+          excludePaths:
+            - "https://austa-cockpit.local/api/health"
+            - "https://austa-cockpit.local/static/.*"
+            - "https://austa-cockpit.local/assets/.*"
+            - "https://austa-cockpit.local/logout"
+          authentication:
+            method: "form"
+            loginUrl: "https://austa-cockpit.local/api/auth/login"
+            username: "security-scanner@austa.local"
+            password: "${ZAP_SCANNER_PASSWORD}"
+            usernameParameter: "email"
+            passwordParameter: "password"
+          sessionManagement:
+            method: "cookie"
+            sessionTokens:
+              - "sessionid"
+              - "csrftoken"
+              - "jwt_token"
+      spider:
+        maxDepth: 5
+        maxChildren: 10
+        maxDuration: 10
+        acceptCookies: true
+        handleODataParametersVisited: false
+        requestWaitTime: 1000
+        excludedParameters:
+          - "csrf_token"
+          - "authenticity_token"
+      activeScan:
+        policy: "AUSTA-Healthcare-Policy"
+        maxRuleDurationInMins: 5
+        maxScanDurationInMins: 60
+        addQueryParam: false
+        defaultPolicy: "Default Policy"
+        delayInMs: 0
+        handleAntiCSRFTokens: true
+        hostPerScan: 1
+        maxChartTimeInMins: 60
+        maxResultsToList: 100
+        maxScansInUI: 5
+        targetParamsEnabledRPC: 7
+        targetParamsInjectable:
+          - "RPC"
+          - "MULTIPART"
+          - "XML"
+          - "JSON"
+          - "GWT"
+          - "HEADER"
+          - "COOKIE"
+          - "URL"
+          - "FORM"
+      passiveScan:
+        scanOnlyInScope: true
+        maxAlertsPerRule: 10
+  
+  zap-api-scan.yaml: |
+    # ZAP API Scan Configuration
+    env:
+      contexts:
+        - name: "AUSTA API Security Scan"
+          urls:
+            - "https://austa-cockpit.local/api"
+          includePaths:
+            - "https://austa-cockpit.local/api/.*"
+          excludePaths:
+            - "https://austa-cockpit.local/api/health"
+            - "https://austa-cockpit.local/api/docs"
+          authentication:
+            method: "bearer"
+            bearerToken: "${ZAP_API_TOKEN}"
+      api:
+        type: "openapi"
+        url: "https://austa-cockpit.local/api/docs/openapi.json"
+        hostOverride: "austa-cockpit.local"
+        config:
+          - key: "rules.cookie.ignorelist"
+            value: "HttpOnly,Secure,SameSite"
+          - key: "rules.csrf.ignorelist"
+            value: "GET,HEAD,OPTIONS"
+      activeScan:
+        policy: "API-Security-Policy"
+        targetParamsInjectable:
+          - "JSON"
+          - "XML"
+          - "HEADER"
+          - "URL"
+          - "FORM"
+        maxRuleDurationInMins: 3
+        maxScanDurationInMins: 30
+
+  hipaa-security-rules.yaml: |
+    # HIPAA-Specific Security Rules for Healthcare Data
+    rules:
+      # PHI Access Controls
+      - id: "HIPAA-001"
+        name: "PHI Access Without Authentication"
+        description: "Detect access to PHI endpoints without proper authentication"
+        pattern: "/api/.*/patient.*|/api/.*/medical.*|/api/.*/health.*"
+        authentication_required: true
+        severity: "CRITICAL"
+      
+      # Audit Logging
+      - id: "HIPAA-002"
+        name: "Missing Audit Trail Headers"
+        description: "PHI access must include audit trail headers"
+        headers_required:
+          - "X-Audit-User-ID"
+          - "X-Audit-Session-ID"
+          - "X-Audit-Timestamp"
+        severity: "HIGH"
+      
+      # Encryption Requirements  
+      - id: "HIPAA-003"
+        name: "Unencrypted PHI Transmission"
+        description: "PHI must be transmitted over encrypted channels"
+        https_required: true
+        min_tls_version: "1.2"
+        severity: "CRITICAL"
+      
+      # Access Control
+      - id: "HIPAA-004"
+        name: "Excessive PHI Access"
+        description: "Access to PHI should follow minimum necessary principle"
+        scope_validation: true
+        role_based_access: true
+        severity: "HIGH"
+---
+# ZAP Security Testing Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: zap-security-scan
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: security-testing
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: zap-scanner
+        image: owasp/zap2docker-stable:latest
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          # Start ZAP in daemon mode
+          zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true &
+          
+          # Wait for ZAP to start
+          sleep 30
+          
+          # Run baseline scan
+          echo "Running OWASP ZAP Baseline Scan..."
+          zap-baseline.py -t https://austa-cockpit.local \
+            -c /zap/wrk/zap-baseline-scan.yaml \
+            -J baseline-report.json \
+            -r baseline-report.html \
+            -x baseline-report.xml
+          
+          # Run API scan
+          echo "Running OWASP ZAP API Scan..."
+          zap-api-scan.py -t https://austa-cockpit.local/api/docs/openapi.json \
+            -c /zap/wrk/zap-api-scan.yaml \
+            -J api-report.json \
+            -r api-report.html \
+            -x api-report.xml
+          
+          # Run full active scan (if enabled)
+          if [ "$FULL_SCAN_ENABLED" = "true" ]; then
+            echo "Running OWASP ZAP Full Active Scan..."
+            zap-full-scan.py -t https://austa-cockpit.local \
+              -c /zap/wrk/zap-full-scan.yaml \
+              -J full-report.json \
+              -r full-report.html \
+              -x full-report.xml
+          fi
+          
+          # Generate consolidated report
+          echo "Generating consolidated security report..."
+          python3 /zap/wrk/generate-security-report.py
+          
+          # Upload results to S3 (if configured)
+          if [ -n "$AWS_S3_BUCKET" ]; then
+            aws s3 cp /zap/wrk/reports/ s3://$AWS_S3_BUCKET/security-reports/$(date +%Y-%m-%d)/ --recursive
+          fi
+        env:
+        - name: ZAP_SCANNER_PASSWORD
+          valueFrom:
+            secretRef:
+              name: zap-credentials
+              key: scanner-password
+        - name: ZAP_ADMIN_PASSWORD
+          valueFrom:
+            secretRef:
+              name: zap-credentials
+              key: admin-password
+        - name: ZAP_AUDITOR_PASSWORD
+          valueFrom:
+            secretRef:
+              name: zap-credentials
+              key: auditor-password
+        - name: ZAP_API_TOKEN
+          valueFrom:
+            secretRef:
+              name: zap-credentials
+              key: api-token
+        - name: FULL_SCAN_ENABLED
+          value: "false"
+        - name: AWS_S3_BUCKET
+          valueFrom:
+            secretRef:
+              name: backup-secrets
+              key: s3-bucket
+        resources:
+          limits:
+            memory: 4Gi
+            cpu: 2000m
+          requests:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: zap-config
+          mountPath: /zap/wrk
+          readOnly: true
+        - name: reports
+          mountPath: /zap/wrk/reports
+      volumes:
+      - name: zap-config
+        configMap:
+          name: zap-config
+      - name: reports
+        emptyDir: {}
+---
+# CronJob for scheduled security scans
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scheduled-zap-scan
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: security-testing
+spec:
+  schedule: "0 2 * * 0"  # Weekly on Sunday at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: zap-scanner
+            image: owasp/zap2docker-stable:latest
+            command: ["/bin/bash"]
+            args:
+            - -c
+            - |
+              # Weekly comprehensive security scan
+              zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true &
+              sleep 30
+              
+              # Run all scans
+              zap-baseline.py -t https://austa-cockpit.local -c /zap/wrk/zap-baseline-scan.yaml -J baseline-report.json
+              zap-api-scan.py -t https://austa-cockpit.local/api/docs/openapi.json -c /zap/wrk/zap-api-scan.yaml -J api-report.json
+              
+              # Generate and send report
+              python3 /zap/wrk/generate-security-report.py
+              python3 /zap/wrk/send-security-alerts.py
+            env:
+            - name: ZAP_SCANNER_PASSWORD
+              valueFrom:
+                secretRef:
+                  name: zap-credentials
+                  key: scanner-password
+            - name: SLACK_WEBHOOK_URL
+              valueFromy:
+                secretRef:
+                  name: alert-config
+                  key: slack-webhook
+            volumeMounts:
+            - name: zap-config
+              mountPath: /zap/wrk
+              readOnly: true
+          volumes:
+          - name: zap-config
+            configMap:
+              name: zap-config

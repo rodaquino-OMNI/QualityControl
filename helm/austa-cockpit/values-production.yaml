@@ -1,0 +1,175 @@
+# Production environment values
+global:
+  imageRegistry: ghcr.io
+  imagePullSecrets: []
+
+frontend:
+  replicaCount: 5
+  image:
+    tag: latest
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+
+backend:
+  replicaCount: 5
+  image:
+    tag: latest
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+
+aiService:
+  replicaCount: 3
+  image:
+    tag: latest
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  persistence:
+    size: 50Gi
+
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  hosts:
+    - host: austa-cockpit.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: frontend
+            port: 80
+        - path: /api
+          pathType: Prefix
+          service:
+            name: backend
+            port: 3000
+        - path: /ai
+          pathType: Prefix
+          service:
+            name: ai-service
+            port: 8000
+  tls:
+    - secretName: austa-cockpit-tls
+      hosts:
+        - austa-cockpit.com
+
+postgresql:
+  primary:
+    persistence:
+      size: 100Gi
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  readReplicas:
+    replicaCount: 2
+    persistence:
+      size: 100Gi
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+redis:
+  master:
+    persistence:
+      size: 20Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+  replica:
+    replicaCount: 2
+    persistence:
+      size: 20Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+mongodb:
+  persistence:
+    size: 100Gi
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  replicaSet:
+    enabled: true
+    replicas:
+      secondary: 2
+      arbiter: 1
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention: "90d"
+  storage:
+    provider: "s3"
+    s3:
+      bucket: "austa-production-backups"
+      region: "us-west-2"
+
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+  alerting:
+    enabled: true
+
+security:
+  networkPolicies:
+    enabled: true
+  podSecurityPolicy:
+    enabled: true

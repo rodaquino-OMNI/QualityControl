@@ -1,0 +1,72 @@
+# JVM Configuration for Elasticsearch
+# 
+# IMPORTANT: For production use, adjust heap size based on available memory
+# Recommendation: Set heap size to no more than 50% of available RAM
+# and no more than 31GB (to utilize compressed ordinary object pointers)
+
+# Heap Size Configuration
+-Xms2g
+-Xmx2g
+
+# GC Configuration - G1GC (recommended for most workloads)
+-XX:+UseG1GC
+-XX:G1HeapRegionSize=16m
+-XX:G1ReservePercent=25
+-XX:InitiatingHeapOccupancyPercent=30
+
+# GC Logging (for monitoring and troubleshooting)
+-Xlog:gc*,gc+age=trace,safepoint:gc.log:utctime,pid,tid,level,tags
+-XX:+UnlockExperimentalVMOptions
+-XX:+UseCGroupMemoryLimitForHeap
+
+# Performance Tuning
+-XX:+AlwaysPreTouch
+-server
+-XX:+UseBiasedLocking
+-XX:+UseTLAB
+-XX:+ResizeTLAB
+
+# Error Handling
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/usr/share/elasticsearch/logs/
+-XX:ErrorFile=/usr/share/elasticsearch/logs/hs_err_pid%p.log
+
+# Security Manager
+-Djava.security.manager=default
+-Djava.security.policy=file:///usr/share/elasticsearch/config/elasticsearch.policy
+
+# Temporary Directory
+-Djava.io.tmpdir=${ES_TMPDIR}
+
+# Network Configuration
+-Djava.net.preferIPv4Stack=true
+
+# Disable explicit GC
+-XX:+DisableExplicitGC
+
+# Security Configuration
+-Dfile.encoding=UTF-8
+-Djna.nosys=true
+-Djdk.io.permissionsUseCanonicalPath=true
+
+# Memory Configuration
+-XX:+UseStringDeduplication
+-XX:MaxDirectMemorySize=1g
+
+# Monitoring and Profiling
+-XX:+FlightRecorder
+-XX:+UnlockCommercialFeatures
+-XX:FlightRecorderOptions=stackdepth=256
+
+# Log4j Configuration
+-Dlog4j2.disable.jmx=true
+-Dlog4j.shutdownHookEnabled=false
+-Dlog4j2.formatMsgNoLookups=true
+
+# Elasticsearch specific
+-Des.enforce.bootstrap.checks=true
+-Des.path.home=${ES_PATH_HOME}
+-Des.path.conf=${ES_PATH_CONF}
+-Des.distribution.flavor=default
+-Des.distribution.type=docker
+-Des.bundled_jdk=true

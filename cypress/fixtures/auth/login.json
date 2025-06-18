@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user_123",
+      "email": "test@example.com",
+      "firstName": "Test",
+      "lastName": "User",
+      "role": "auditor",
+      "permissions": [
+        "case:view",
+        "case:edit",
+        "case:comment",
+        "reports:view"
+      ],
+      "department": "Medical Review",
+      "lastLogin": "2024-07-15T10:30:00Z",
+      "mfaEnabled": false
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token",
+    "refreshToken": "refresh_token_123",
+    "expiresIn": 3600,
+    "tokenType": "Bearer"
+  },
+  "message": "Login successful"
+}

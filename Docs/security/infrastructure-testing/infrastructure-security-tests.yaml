@@ -1,0 +1,427 @@
+# Infrastructure Security Testing Suite
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infrastructure-security-tests
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: infrastructure-security
+data:
+  kubernetes-security-tests.yaml: |
+    # Kubernetes Security Test Configuration
+    tests:
+      pod_security:
+        - name: "Pod Security Standards Compliance"
+          description: "Verify all pods comply with restricted security standards"
+          test_type: "policy"
+          rules:
+            - "no_privileged_containers"
+            - "no_root_user"
+            - "read_only_root_filesystem"
+            - "no_privilege_escalation"
+            - "dropped_capabilities"
+            - "security_context_required"
+        
+        - name: "Resource Limits Enforcement"
+          description: "Ensure all containers have resource limits"
+          test_type: "resource"
+          rules:
+            - "cpu_limits_set"
+            - "memory_limits_set"
+            - "cpu_requests_set"
+            - "memory_requests_set"
+      
+      network_security:
+        - name: "Network Policy Enforcement"
+          description: "Verify network policies are properly configured"
+          test_type: "network"
+          rules:
+            - "default_deny_all"
+            - "ingress_policies_defined"
+            - "egress_policies_defined"
+            - "pod_to_pod_restrictions"
+        
+        - name: "Service Mesh Security"
+          description: "Validate service mesh security configurations"
+          test_type: "mesh"
+          rules:
+            - "mtls_enabled"
+            - "authorization_policies"
+            - "traffic_encryption"
+      
+      rbac_security:
+        - name: "RBAC Configuration Validation"
+          description: "Ensure proper RBAC is configured"
+          test_type: "rbac"
+          rules:
+            - "no_cluster_admin_bindings"
+            - "service_account_tokens_automount_disabled"
+            - "minimal_permissions"
+            - "role_binding_subjects_valid"
+      
+      secrets_security:
+        - name: "Secrets Management Validation"
+          description: "Verify secure secrets handling"
+          test_type: "secrets"
+          rules:
+            - "no_hardcoded_secrets"
+            - "external_secrets_operator"
+            - "secret_encryption_at_rest"
+            - "secret_rotation_enabled"
+  
+  container-security-tests.yaml: |
+    # Container Security Test Configuration
+    tests:
+      image_security:
+        - name: "Base Image Security"
+          description: "Validate base image security"
+          test_type: "image"
+          rules:
+            - "no_latest_tags"
+            - "trusted_registries_only"
+            - "image_signatures_verified"
+            - "minimal_base_images"
+        
+        - name: "Image Vulnerability Assessment"
+          description: "Check for known vulnerabilities"
+          test_type: "vulnerability"
+          rules:
+            - "no_critical_vulnerabilities"
+            - "no_high_vulnerabilities"
+            - "vulnerability_scan_recent"
+      
+      runtime_security:
+        - name: "Runtime Security Configuration"
+          description: "Validate runtime security settings"
+          test_type: "runtime"
+          rules:
+            - "no_docker_socket_mount"
+            - "no_host_network"
+            - "no_host_pid"
+            - "no_host_ipc"
+            - "apparmor_enabled"
+            - "seccomp_enabled"
+  
+  cloud-security-tests.yaml: |
+    # Cloud Infrastructure Security Tests
+    tests:
+      aws_security:
+        - name: "IAM Security Configuration"
+          description: "Validate AWS IAM security"
+          test_type: "iam"
+          rules:
+            - "no_root_access_keys"
+            - "mfa_enabled"
+            - "least_privilege_policies"
+            - "unused_access_keys_removed"
+            - "password_policy_enforced"
+        
+        - name: "S3 Security Configuration"
+          description: "Validate S3 bucket security"
+          test_type: "s3"
+          rules:
+            - "bucket_encryption_enabled"
+            - "public_access_blocked"
+            - "versioning_enabled"
+            - "logging_enabled"
+            - "ssl_requests_only"
+        
+        - name: "VPC Security Configuration"
+          description: "Validate VPC security settings"
+          test_type: "vpc"
+          rules:
+            - "security_groups_restrictive"
+            - "nacls_configured"
+            - "flow_logs_enabled"
+            - "internet_gateway_restricted"
+        
+        - name: "RDS Security Configuration"
+          description: "Validate RDS security"
+          test_type: "rds"
+          rules:
+            - "encryption_at_rest"
+            - "encryption_in_transit"
+            - "backup_encryption"
+            - "automated_backups_enabled"
+            - "multi_az_enabled"
+  
+  compliance-tests.yaml: |
+    # Compliance-Specific Security Tests
+    tests:
+      hipaa_compliance:
+        - name: "HIPAA Technical Safeguards"
+          description: "Verify HIPAA technical safeguards"
+          test_type: "hipaa"
+          rules:
+            - "access_control_unique_user_id"
+            - "automatic_logoff"
+            - "encryption_decryption"
+            - "audit_controls"
+            - "integrity_protection"
+            - "transmission_security"
+        
+        - name: "PHI Access Controls"
+          description: "Validate PHI access controls"
+          test_type: "phi"
+          rules:
+            - "minimum_necessary_access"
+            - "role_based_access"
+            - "audit_trail_complete"
+            - "access_termination_procedures"
+      
+      gdpr_compliance:
+        - name: "Data Protection Measures"
+          description: "Verify GDPR data protection"
+          test_type: "gdpr"
+          rules:
+            - "data_encryption"
+            - "pseudonymization"
+            - "access_controls"
+            - "data_retention_policies"
+            - "breach_detection"
+        
+        - name: "Privacy by Design"
+          description: "Validate privacy by design implementation"
+          test_type: "privacy"
+          rules:
+            - "data_minimization"
+            - "purpose_limitation"
+            - "storage_limitation"
+            - "transparency"
+      
+      soc2_compliance:
+        - name: "SOC 2 Security Controls"
+          description: "Verify SOC 2 security controls"
+          test_type: "soc2"
+          rules:
+            - "logical_access_controls"
+            - "system_operations"
+            - "change_management"
+            - "risk_mitigation"
+            - "monitoring_controls"
+---
+# Infrastructure Security Testing Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: infrastructure-security-test
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: infrastructure-security
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: security-tester
+        image: austa/infrastructure-security-tester:latest
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          set -e
+          
+          echo "Starting comprehensive infrastructure security testing..."
+          
+          # Create report directory
+          mkdir -p /reports
+          
+          # Kubernetes Security Tests
+          echo "Running Kubernetes security tests..."
+          
+          # Policy violations check
+          echo "Checking for policy violations..."
+          conftest verify --policy /policies/kubernetes --output json /k8s-manifests > /reports/k8s-policy-violations.json || true
+          
+          # Kubesec security analysis
+          echo "Running Kubesec analysis..."
+          find /k8s-manifests -name "*.yaml" -exec kubesec scan {} \; > /reports/kubesec-analysis.json
+          
+          # Polaris security validation
+          echo "Running Polaris security validation..."
+          polaris audit --audit-path /k8s-manifests --format json > /reports/polaris-audit.json
+          
+          # CIS Kubernetes Benchmark
+          echo "Running CIS Kubernetes Benchmark..."
+          kube-bench run --json > /reports/cis-benchmark.json || true
+          
+          # Container Security Tests
+          echo "Running container security tests..."
+          
+          # Docker Bench Security
+          echo "Running Docker Bench Security..."
+          docker run --rm --net host --pid host --userns host --cap-add audit_control \
+            -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
+            -v /etc:/etc:ro \
+            -v /var/lib:/var/lib:ro \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            -v /usr/lib/systemd:/usr/lib/systemd:ro \
+            -v /etc/systemd:/etc/systemd:ro \
+            --label docker_bench_security \
+            docker/docker-bench-security -l /reports/docker-bench.log -j > /reports/docker-bench.json || true
+          
+          # Cloud Security Tests (AWS)
+          echo "Running AWS security tests..."
+          
+          # Scout Suite AWS security assessment
+          scout aws --no-browser --report-dir /reports/scout-suite || true
+          
+          # AWS Config Rules compliance
+          aws configservice get-compliance-summary > /reports/aws-config-compliance.json || true
+          
+          # Infrastructure as Code Security
+          echo "Running IaC security tests..."
+          
+          # Checkov security analysis
+          checkov -f /iac --framework kubernetes,dockerfile,terraform --output json > /reports/checkov-iac.json || true
+          
+          # Terrascan policy validation
+          terrascan scan -i terraform -d /iac --output json > /reports/terrascan-iac.json || true
+          
+          # Network Security Tests
+          echo "Running network security tests..."
+          
+          # Network policy testing
+          kubectl auth can-i --list --as=system:serviceaccount:austa-cockpit:default > /reports/network-permissions.txt
+          
+          # Port scanning (internal)
+          nmap -sS -O 172.20.0.0/16 -oX /reports/internal-network-scan.xml || true
+          
+          # SSL/TLS Configuration Tests
+          echo "Running SSL/TLS tests..."
+          
+          # SSL Labs assessment
+          testssl.sh --json https://austa-cockpit.local > /reports/ssl-assessment.json || true
+          
+          # Certificate validation
+          openssl s_client -connect austa-cockpit.local:443 -servername austa-cockpit.local < /dev/null 2>/dev/null | \
+            openssl x509 -text > /reports/certificate-details.txt || true
+          
+          # Compliance Validation
+          echo "Running compliance validation..."
+          
+          # HIPAA compliance check
+          python3 /scripts/hipaa-compliance-check.py > /reports/hipaa-compliance.json
+          
+          # GDPR compliance check
+          python3 /scripts/gdpr-compliance-check.py > /reports/gdpr-compliance.json
+          
+          # SOC 2 compliance check
+          python3 /scripts/soc2-compliance-check.py > /reports/soc2-compliance.json
+          
+          # Generate consolidated report
+          echo "Generating consolidated security report..."
+          python3 /scripts/generate-security-report.py /reports
+          
+          # Upload results
+          if [ -n "$AWS_S3_BUCKET" ]; then
+            echo "Uploading reports to S3..."
+            aws s3 cp /reports s3://$AWS_S3_BUCKET/security-reports/infrastructure/$(date +%Y-%m-%d) --recursive
+          fi
+          
+          # Check for critical issues and send alerts
+          python3 /scripts/check-critical-issues.py /reports
+          
+          echo "Infrastructure security testing completed."
+        env:
+        - name: AWS_S3_BUCKET
+          valueFrom:
+            secretRef:
+              name: backup-secrets
+              key: s3-bucket
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretRef:
+              name: alert-config
+              key: slack-webhook
+        - name: KUBECONFIG
+          value: "/kubeconfig/config"
+        resources:
+          limits:
+            memory: 4Gi
+            cpu: 2000m
+          requests:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: /kubeconfig
+          readOnly: true
+        - name: k8s-manifests
+          mountPath: /k8s-manifests
+          readOnly: true
+        - name: iac-files
+          mountPath: /iac
+          readOnly: true
+        - name: security-policies
+          mountPath: /policies
+          readOnly: true
+        - name: security-scripts
+          mountPath: /scripts
+          readOnly: true
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+          readOnly: true
+      volumes:
+      - name: kubeconfig
+        secret:
+          secretName: kubeconfig
+      - name: k8s-manifests
+        configMap:
+          name: k8s-manifests
+      - name: iac-files
+        configMap:
+          name: iac-files
+      - name: security-policies
+        configMap:
+          name: security-policies
+      - name: security-scripts
+        configMap:
+          name: infrastructure-security-scripts
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+---
+# Scheduled Infrastructure Security Testing
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scheduled-infrastructure-security-test
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: infrastructure-security
+spec:
+  schedule: "0 3 * * 2"  # Weekly on Tuesday at 3 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: security-tester
+            image: austa/infrastructure-security-tester:latest
+            command: ["/bin/bash"]
+            args:
+            - -c
+            - |
+              # Weekly comprehensive infrastructure security assessment
+              /scripts/run-full-security-assessment.sh
+            env:
+            - name: FULL_ASSESSMENT
+              value: "true"
+            - name: AWS_S3_BUCKET
+              valueFrom:
+                secretRef:
+                  name: backup-secrets
+                  key: s3-bucket
+            volumeMounts:
+            - name: security-scripts
+              mountPath: /scripts
+              readOnly: true
+          volumes:
+          - name: security-scripts
+            configMap:
+              name: infrastructure-security-scripts

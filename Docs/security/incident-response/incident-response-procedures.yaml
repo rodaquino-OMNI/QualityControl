@@ -1,0 +1,422 @@
+# Security Incident Response Procedures for AUSTA Cockpit
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incident-response-procedures
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: incident-response
+data:
+  incident-classification.json: |
+    {
+      "incidentClassification": {
+        "severity_levels": {
+          "critical": {
+            "description": "Incident poses immediate threat to patient safety or data integrity",
+            "examples": [
+              "PHI data breach",
+              "Ransomware attack",
+              "Complete system compromise",
+              "Critical system outage affecting patient care"
+            ],
+            "response_time": "15 minutes",
+            "escalation": "immediate",
+            "notification_required": [
+              "CISO",
+              "CEO",
+              "Legal team",
+              "Compliance officer",
+              "Regulatory authorities"
+            ]
+          },
+          "high": {
+            "description": "Incident significantly impacts operations or security",
+            "examples": [
+              "Successful unauthorized access",
+              "Malware infection",
+              "Significant service degradation",
+              "Failed backup systems"
+            ],
+            "response_time": "1 hour",
+            "escalation": "within 2 hours",
+            "notification_required": [
+              "Security team",
+              "IT management",
+              "Compliance officer"
+            ]
+          },
+          "medium": {
+            "description": "Incident has moderate impact on operations",
+            "examples": [
+              "Failed login attempts",
+              "Minor service disruption",
+              "Policy violations",
+              "Suspicious network activity"
+            ],
+            "response_time": "4 hours",
+            "escalation": "within 8 hours",
+            "notification_required": [
+              "Security team",
+              "System administrators"
+            ]
+          },
+          "low": {
+            "description": "Incident has minimal impact",
+            "examples": [
+              "Software vulnerability (not exploited)",
+              "Minor configuration issues",
+              "User access issues"
+            ],
+            "response_time": "24 hours",
+            "escalation": "within 48 hours",
+            "notification_required": [
+              "IT support team"
+            ]
+          }
+        }
+      }
+    }
+  
+  response-team-roles.json: |
+    {
+      "responseTeam": {
+        "incident_commander": {
+          "role": "Overall incident management and coordination",
+          "responsibilities": [
+            "Coordinate response activities",
+            "Make containment decisions",
+            "Communicate with stakeholders",
+            "Ensure proper documentation",
+            "Conduct post-incident review"
+          ],
+          "primary": "Security Manager",
+          "backup": "IT Manager"
+        },
+        "security_analyst": {
+          "role": "Technical security investigation and analysis",
+          "responsibilities": [
+            "Analyze security logs and alerts",
+            "Identify attack vectors and IOCs",
+            "Implement security containment measures",
+            "Coordinate with external security vendors",
+            "Preserve digital evidence"
+          ],
+          "primary": "Senior Security Analyst",
+          "backup": "Junior Security Analyst"
+        },
+        "system_administrator": {
+          "role": "System and infrastructure management",
+          "responsibilities": [
+            "Implement system isolation measures",
+            "Execute recovery procedures",
+            "Monitor system performance",
+            "Apply security patches and updates",
+            "Manage backup and restore operations"
+          ],
+          "primary": "Senior System Administrator",
+          "backup": "System Administrator"
+        },
+        "compliance_officer": {
+          "role": "Regulatory compliance and notification",
+          "responsibilities": [
+            "Assess regulatory notification requirements",
+            "Coordinate with legal team",
+            "Manage external notifications",
+            "Ensure compliance documentation",
+            "Interface with regulators"
+          ],
+          "primary": "Compliance Officer",
+          "backup": "Legal Counsel"
+        },
+        "communications_lead": {
+          "role": "Internal and external communications",
+          "responsibilities": [
+            "Manage internal communications",
+            "Coordinate with PR team",
+            "Prepare customer notifications",
+            "Handle media inquiries",
+            "Update stakeholders"
+          ],
+          "primary": "Communications Manager",
+          "backup": "Marketing Manager"
+        }
+      }
+    }
+  
+  containment-procedures.json: |
+    {
+      "containmentProcedures": {
+        "immediate_actions": {
+          "assessment": [
+            "Verify incident authenticity",
+            "Determine scope and impact",
+            "Classify incident severity",
+            "Identify affected systems",
+            "Assess data exposure risk"
+          ],
+          "notification": [
+            "Alert incident response team",
+            "Notify key stakeholders",
+            "Document initial findings",
+            "Activate incident response plan",
+            "Start incident log"
+          ],
+          "preservation": [
+            "Preserve evidence",
+            "Create system snapshots",
+            "Collect relevant logs",
+            "Document system states",
+            "Secure physical access"
+          ]
+        },
+        "containment_strategies": {
+          "network_isolation": {
+            "description": "Isolate affected systems from network",
+            "procedures": [
+              "Identify affected network segments",
+              "Implement network segmentation",
+              "Block malicious IP addresses",
+              "Quarantine infected systems",
+              "Monitor network traffic"
+            ],
+            "tools": [
+              "Firewall rules",
+              "Network access control",
+              "VLAN isolation",
+              "VPN disconnection"
+            ]
+          },
+          "system_isolation": {
+            "description": "Isolate compromised systems",
+            "procedures": [
+              "Disconnect from network",
+              "Preserve system state",
+              "Create forensic images",
+              "Disable user accounts",
+              "Terminate malicious processes"
+            ],
+            "tools": [
+              "System shutdown procedures",
+              "Forensic imaging tools",
+              "Process monitoring",
+              "Account management"
+            ]
+          },
+          "data_protection": {
+            "description": "Protect data from further exposure",
+            "procedures": [
+              "Encrypt sensitive data",
+              "Change access credentials",
+              "Revoke compromised certificates",
+              "Enable additional monitoring",
+              "Implement emergency access controls"
+            ],
+            "tools": [
+              "Encryption tools",
+              "Certificate management",
+              "Access control systems",
+              "Monitoring solutions"
+            ]
+          }
+        }
+      }
+    }
+  
+  recovery-procedures.json: |
+    {
+      "recoveryProcedures": {
+        "system_recovery": {
+          "preparation": [
+            "Verify threat elimination",
+            "Validate system integrity",
+            "Test recovery procedures",
+            "Prepare clean system images",
+            "Update security controls"
+          ],
+          "restoration": [
+            "Restore from clean backups",
+            "Apply security patches",
+            "Reconfigure security settings",
+            "Update monitoring rules",
+            "Test system functionality"
+          ],
+          "validation": [
+            "Perform security scans",
+            "Verify data integrity",
+            "Test business functions",
+            "Confirm monitoring coverage",
+            "Validate user access"
+          ]
+        },
+        "data_recovery": {
+          "backup_restoration": [
+            "Identify clean backup point",
+            "Verify backup integrity",
+            "Restore data systematically",
+            "Validate data completeness",
+            "Test data accessibility"
+          ],
+          "integrity_verification": [
+            "Run data integrity checks",
+            "Compare with known good data",
+            "Verify business logic",
+            "Test data relationships",
+            "Confirm regulatory compliance"
+          ]
+        },
+        "service_restoration": {
+          "phased_approach": [
+            "Restore critical services first",
+            "Gradually restore functionality",
+            "Monitor for anomalies",
+            "Validate user experience",
+            "Full service restoration"
+          ],
+          "monitoring": [
+            "Enhanced security monitoring",
+            "Performance monitoring",
+            "User activity monitoring",
+            "Error rate monitoring",
+            "Capacity monitoring"
+          ]
+        }
+      }
+    }
+  
+  notification-procedures.json: |
+    {
+      "notificationProcedures": {
+        "internal_notifications": {
+          "immediate": [
+            "Incident response team",
+            "Security operations center",
+            "IT management",
+            "Executive leadership"
+          ],
+          "within_2_hours": [
+            "All relevant technical teams",
+            "Business unit leaders",
+            "Compliance team",
+            "Legal team"
+          ],
+          "within_24_hours": [
+            "All employees (if required)",
+            "Board of directors",
+            "External auditors"
+          ]
+        },
+        "external_notifications": {
+          "regulatory": {
+            "hipaa_breach": {
+              "timeline": "60 days for individuals, 60 days for HHS",
+              "recipients": [
+                "Affected individuals",
+                "Department of Health and Human Services",
+                "Media (if > 500 individuals affected)"
+              ],
+              "requirements": [
+                "Breach notification content",
+                "Risk assessment documentation",
+                "Mitigation measures taken"
+              ]
+            },
+            "gdpr_breach": {
+              "timeline": "72 hours to supervisory authority, without undue delay to individuals",
+              "recipients": [
+                "Supervisory authority",
+                "Affected data subjects"
+              ],
+              "requirements": [
+                "Nature of breach",
+                "Likely consequences",
+                "Measures taken or proposed"
+              ]
+            }
+          },
+          "customers": {
+            "timeline": "Within 24 hours for high/critical incidents",
+            "channels": [
+              "Email notifications",
+              "System status page",
+              "Direct phone calls",
+              "In-app notifications"
+            ],
+            "content": [
+              "Nature of incident",
+              "Impact on services",
+              "Steps being taken",
+              "Expected resolution time"
+            ]
+          },
+          "partners": {
+            "timeline": "Within 48 hours",
+            "recipients": [
+              "Technology partners",
+              "Service providers",
+              "Integration partners"
+            ]
+          }
+        }
+      }
+    }
+  
+  post-incident-activities.json: |
+    {
+      "postIncidentActivities": {
+        "lessons_learned": {
+          "review_meeting": {
+            "timeline": "Within 5 business days",
+            "participants": [
+              "Incident response team",
+              "Affected stakeholders",
+              "Management representatives"
+            ],
+            "agenda": [
+              "Incident timeline review",
+              "Response effectiveness",
+              "Areas for improvement",
+              "Action items identification"
+            ]
+          },
+          "documentation": [
+            "Complete incident report",
+            "Timeline of events",
+            "Actions taken",
+            "Impact assessment",
+            "Lessons learned",
+            "Improvement recommendations"
+          ]
+        },
+        "process_improvement": {
+          "security_enhancements": [
+            "Update security controls",
+            "Implement additional monitoring",
+            "Enhance detection capabilities",
+            "Improve response procedures",
+            "Update training materials"
+          ],
+          "procedure_updates": [
+            "Revise incident response plan",
+            "Update contact information",
+            "Enhance escalation procedures",
+            "Improve communication templates",
+            "Update technical procedures"
+          ]
+        },
+        "compliance_activities": {
+          "regulatory_reporting": [
+            "Submit required reports",
+            "Provide additional documentation",
+            "Respond to regulator inquiries",
+            "Implement corrective actions"
+          ],
+          "audit_preparation": [
+            "Organize incident documentation",
+            "Prepare for compliance audits",
+            "Update compliance frameworks",
+            "Review control effectiveness"
+          ]
+        }
+      }
+    }

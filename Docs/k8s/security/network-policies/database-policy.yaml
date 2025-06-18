@@ -1,0 +1,120 @@
+# Database Network Policy - Highly restricted access to databases
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-network-policy
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: database
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Only allow backend and AI service access
+  - from:
+    - podSelector:
+        matchLabels:
+          app: austa-backend
+    - podSelector:
+        matchLabels:
+          app: austa-ai-service
+  # Allow backup service access
+  - from:
+    - podSelector:
+        matchLabels:
+          app: backup-service
+    ports:
+    - protocol: TCP
+      port: 5432
+  egress:
+  # Allow DNS only
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+# Redis Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-network-policy
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: cache
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Only allow backend and AI service access
+  - from:
+    - podSelector:
+        matchLabels:
+          app: austa-backend
+    - podSelector:
+        matchLabels:
+          app: austa-ai-service
+    ports:
+    - protocol: TCP
+      port: 6379
+  egress:
+  # Allow DNS only
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+# MongoDB Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb-network-policy
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: logging
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Only allow backend and AI service access
+  - from:
+    - podSelector:
+        matchLabels:
+          app: austa-backend
+    - podSelector:
+        matchLabels:
+          app: austa-ai-service
+  # Allow backup service access
+  - from:
+    - podSelector:
+        matchLabels:
+          app: backup-service
+    ports:
+    - protocol: TCP
+      port: 27017
+  egress:
+  # Allow DNS only
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53

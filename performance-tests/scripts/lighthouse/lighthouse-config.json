@@ -1,0 +1,105 @@
+{
+  "extends": "lighthouse:default",
+  "settings": {
+    "onlyCategories": [
+      "performance",
+      "accessibility",
+      "best-practices",
+      "seo",
+      "pwa"
+    ],
+    "formFactor": "desktop",
+    "throttling": {
+      "rttMs": 40,
+      "throughputKbps": 10240,
+      "cpuSlowdownMultiplier": 1,
+      "requestLatencyMs": 0,
+      "downloadThroughputKbps": 0,
+      "uploadThroughputKbps": 0
+    },
+    "screenEmulation": {
+      "mobile": false,
+      "width": 1350,
+      "height": 940,
+      "deviceScaleFactor": 1,
+      "disabled": false
+    },
+    "emulatedUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+  },
+  "audits": [
+    "first-contentful-paint",
+    "largest-contentful-paint",
+    "speed-index",
+    "cumulative-layout-shift",
+    "max-potential-fid",
+    "total-blocking-time",
+    "interactive",
+    "server-response-time",
+    "unused-javascript",
+    "unused-css-rules",
+    "uses-optimized-images",
+    "uses-webp-images",
+    "efficient-animated-content",
+    "preload-lcp-image",
+    "critical-request-chains",
+    "resource-summary",
+    "third-party-summary",
+    "bootup-time",
+    "mainthread-work-breakdown",
+    "dom-size",
+    "duplicated-javascript",
+    "legacy-javascript",
+    "render-blocking-resources",
+    "unminified-css",
+    "unminified-javascript",
+    "uses-text-compression",
+    "uses-responsive-images",
+    "font-display",
+    "preconnect",
+    "prioritize-lcp-image"
+  ],
+  "categories": {
+    "performance": {
+      "title": "Performance",
+      "auditRefs": [
+        {"id": "first-contentful-paint", "weight": 10},
+        {"id": "largest-contentful-paint", "weight": 25},
+        {"id": "speed-index", "weight": 10},
+        {"id": "cumulative-layout-shift", "weight": 25},
+        {"id": "max-potential-fid", "weight": 10},
+        {"id": "total-blocking-time", "weight": 30},
+        {"id": "interactive", "weight": 10}
+      ]
+    },
+    "accessibility": {
+      "title": "Accessibility",
+      "description": "These checks highlight opportunities to improve the accessibility of your web app.",
+      "manualDescription": "These items address areas which an automated testing tool cannot cover."
+    },
+    "best-practices": {
+      "title": "Best Practices",
+      "description": "We've compiled some recommendations that can improve your page's performance."
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "These checks ensure that your page is following basic search engine optimization advice."
+    },
+    "pwa": {
+      "title": "Progressive Web App",
+      "description": "These checks validate the aspects of a Progressive Web App."
+    }
+  },
+  "groups": {
+    "performance-budget": {
+      "title": "Performance Budget"
+    },
+    "load-opportunities": {
+      "title": "Opportunities",
+      "description": "These suggestions can help your page load faster. They don't directly affect the Performance score."
+    },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "description": "More information about the performance of your application. These numbers don't directly affect the Performance score."
+    }
+  }
+}

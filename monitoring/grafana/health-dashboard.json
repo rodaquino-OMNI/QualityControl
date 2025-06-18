@@ -1,0 +1,216 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "AUSTA Cockpit - Health Monitoring Dashboard",
+    "tags": ["health", "monitoring", "austa-cockpit"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Health Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=~\"ai-service|backend-service|frontend-service\"}",
+            "legendFormat": "{{job}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"options": {"0": {"text": "DOWN"}}, "type": "value"},
+              {"options": {"1": {"text": "UP"}}, "type": "value"}
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Circuit Breaker Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "circuit_breaker_state{service=\"backend-service\"}",
+            "legendFormat": "{{circuit_breaker}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 2}
+              ]
+            },
+            "mappings": [
+              {"options": {"0": {"text": "CLOSED"}}, "type": "value"},
+              {"options": {"1": {"text": "HALF_OPEN"}}, "type": "value"},
+              {"options": {"2": {"text": "OPEN"}}, "type": "value"}
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Health Check Response Times",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "health_check_duration_seconds{job=~\"ai-service|backend-service\"}",
+            "legendFormat": "{{job}} - {{check_type}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Seconds",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Database Health",
+        "type": "singlestat",
+        "targets": [
+          {
+            "expr": "database_connection_pool_active{service=\"backend-service\"}",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 16}
+      },
+      {
+        "id": 5,
+        "title": "Redis Health",
+        "type": "singlestat",
+        "targets": [
+          {
+            "expr": "redis_connected_clients{service=\"backend-service\"}",
+            "legendFormat": "Connected Clients"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "AI Model Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ai_model_loaded{service=\"ai-service\"}",
+            "legendFormat": "{{model_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"options": {"0": {"text": "NOT LOADED"}}, "type": "value"},
+              {"options": {"1": {"text": "LOADED"}}, "type": "value"}
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "System Resources",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "cpu_usage_percent{job=~\"ai-service|backend-service\"}",
+            "legendFormat": "{{job}} CPU %"
+          },
+          {
+            "expr": "memory_usage_percent{job=~\"ai-service|backend-service\"}",
+            "legendFormat": "{{job}} Memory %"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Percentage",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Failed Health Checks",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "increase(health_check_failures_total[5m])",
+            "legendFormat": "{{job}} - {{check_type}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Failures",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "External Dependencies",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "external_service_up{service=\"backend-service\"}",
+            "legendFormat": "{{external_service}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"options": {"0": {"text": "DOWN"}}, "type": "value"},
+              {"options": {"1": {"text": "UP"}}, "type": "value"}
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

@@ -1,0 +1,59 @@
+# Frontend Network Policy - Controls access to frontend services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-network-policy
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: austa-frontend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from nginx load balancer
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nginx-lb
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+  # Allow health checks
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  # Allow DNS
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow communication with backend
+  - to:
+    - podSelector:
+        matchLabels:
+          app: austa-backend
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Allow communication with AI service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: austa-ai-service
+    ports:
+    - protocol: TCP
+      port: 8000

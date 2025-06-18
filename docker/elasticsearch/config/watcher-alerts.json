@@ -1,0 +1,442 @@
+{
+  "watches": {
+    "high_error_rate": {
+      "trigger": {
+        "schedule": {
+          "interval": "1m"
+        }
+      },
+      "input": {
+        "search": {
+          "request": {
+            "indices": [
+              "austa-backend-errors-*",
+              "austa-ai-service-errors-*"
+            ],
+            "body": {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "range": {
+                        "@timestamp": {
+                          "gte": "now-5m"
+                        }
+                      }
+                    },
+                    {
+                      "term": {
+                        "level": "ERROR"
+                      }
+                    }
+                  ]
+                }
+              },
+              "aggs": {
+                "error_count": {
+                  "value_count": {
+                    "field": "@timestamp"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "condition": {
+        "compare": {
+          "ctx.payload.aggregations.error_count.value": {
+            "gt": 10
+          }
+        }
+      },
+      "actions": {
+        "send_slack_alert": {
+          "webhook": {
+            "scheme": "https",
+            "host": "hooks.slack.com",
+            "port": 443,
+            "method": "post",
+            "path": "/services/YOUR/SLACK/WEBHOOK",
+            "params": {},
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"text\":\"🚨 High Error Rate Alert: {{ctx.payload.aggregations.error_count.value}} errors in the last 5 minutes\"}"
+          }
+        }
+      }
+    },
+    "security_breach_attempt": {
+      "trigger": {
+        "schedule": {
+          "interval": "30s"
+        }
+      },
+      "input": {
+        "search": {
+          "request": {
+            "indices": [
+              "austa-security-logs-*"
+            ],
+            "body": {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "range": {
+                        "@timestamp": {
+                          "gte": "now-1m"
+                        }
+                      }
+                    },
+                    {
+                      "terms": {
+                        "event": [
+                          "unauthorized_access",
+                          "failed_login",
+                          "permission_denied",
+                          "suspicious_activity"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "aggs": {
+                "security_events": {
+                  "value_count": {
+                    "field": "@timestamp"
+                  }
+                },
+                "by_ip": {
+                  "terms": {
+                    "field": "ip",
+                    "size": 10
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "condition": {
+        "compare": {
+          "ctx.payload.aggregations.security_events.value": {
+            "gt": 5
+          }
+        }
+      },
+      "actions": {
+        "send_security_alert": {
+          "webhook": {
+            "scheme": "https",
+            "host": "hooks.slack.com",
+            "port": 443,
+            "method": "post",
+            "path": "/services/YOUR/SECURITY/WEBHOOK",
+            "params": {},
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"text\":\"🔒 Security Alert: {{ctx.payload.aggregations.security_events.value}} security events detected in the last minute\"}"
+          }
+        },
+        "email_security_team": {
+          "email": {
+            "profile": "standard",
+            "to": [
+              "security@austa.com"
+            ],
+            "subject": "Security Alert - AUSTA Cockpit",
+            "body": "Security breach attempt detected. {{ctx.payload.aggregations.security_events.value}} events in the last minute."
+          }
+        }
+      }
+    },
+    "performance_degradation": {
+      "trigger": {
+        "schedule": {
+          "interval": "2m"
+        }
+      },
+      "input": {
+        "search": {
+          "request": {
+            "indices": [
+              "austa-performance-logs-*"
+            ],
+            "body": {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "range": {
+                        "@timestamp": {
+                          "gte": "now-5m"
+                        }
+                      }
+                    },
+                    {
+                      "exists": {
+                        "field": "responseTime"
+                      }
+                    }
+                  ]
+                }
+              },
+              "aggs": {
+                "avg_response_time": {
+                  "avg": {
+                    "field": "responseTime"
+                  }
+                },
+                "p95_response_time": {
+                  "percentiles": {
+                    "field": "responseTime",
+                    "percents": [95]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "condition": {
+        "compare": {
+          "ctx.payload.aggregations.avg_response_time.value": {
+            "gt": 2000
+          }
+        }
+      },
+      "actions": {
+        "performance_alert": {
+          "webhook": {
+            "scheme": "https",
+            "host": "hooks.slack.com",
+            "port": 443,
+            "method": "post",
+            "path": "/services/YOUR/PERFORMANCE/WEBHOOK",
+            "params": {},
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"text\":\"⚠️ Performance Alert: Average response time {{ctx.payload.aggregations.avg_response_time.value}}ms\"}"
+          }
+        }
+      }
+    },
+    "ml_model_failure": {
+      "trigger": {
+        "schedule": {
+          "interval": "1m"
+        }
+      },
+      "input": {
+        "search": {
+          "request": {
+            "indices": [
+              "austa-ai-service-errors-*"
+            ],
+            "body": {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "range": {
+                        "@timestamp": {
+                          "gte": "now-5m"
+                        }
+                      }
+                    },
+                    {
+                      "term": {
+                        "error_category": "ml_processing"
+                      }
+                    }
+                  ]
+                }
+              },
+              "aggs": {
+                "ml_errors": {
+                  "value_count": {
+                    "field": "@timestamp"
+                  }
+                },
+                "by_model": {
+                  "terms": {
+                    "field": "model",
+                    "size": 10
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "condition": {
+        "compare": {
+          "ctx.payload.aggregations.ml_errors.value": {
+            "gt": 3
+          }
+        }
+      },
+      "actions": {
+        "ml_alert": {
+          "webhook": {
+            "scheme": "https",
+            "host": "hooks.slack.com",
+            "port": 443,
+            "method": "post",
+            "path": "/services/YOUR/ML/WEBHOOK",
+            "params": {},
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"text\":\"🤖 ML Model Alert: {{ctx.payload.aggregations.ml_errors.value}} model failures in the last 5 minutes\"}"
+          }
+        }
+      }
+    },
+    "disk_space_warning": {
+      "trigger": {
+        "schedule": {
+          "interval": "5m"
+        }
+      },
+      "input": {
+        "search": {
+          "request": {
+            "indices": [
+              "metricbeat-*"
+            ],
+            "body": {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "range": {
+                        "@timestamp": {
+                          "gte": "now-10m"
+                        }
+                      }
+                    },
+                    {
+                      "term": {
+                        "metricset.name": "filesystem"
+                      }
+                    }
+                  ]
+                }
+              },
+              "aggs": {
+                "max_used_pct": {
+                  "max": {
+                    "field": "system.filesystem.used.pct"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "condition": {
+        "compare": {
+          "ctx.payload.aggregations.max_used_pct.value": {
+            "gt": 0.85
+          }
+        }
+      },
+      "actions": {
+        "disk_space_alert": {
+          "webhook": {
+            "scheme": "https",
+            "host": "hooks.slack.com",
+            "port": 443,
+            "method": "post",
+            "path": "/services/YOUR/INFRASTRUCTURE/WEBHOOK",
+            "params": {},
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"text\":\"💾 Disk Space Warning: {{ctx.payload.aggregations.max_used_pct.value}}% disk usage\"}"
+          }
+        }
+      }
+    },
+    "failed_audit_compliance": {
+      "trigger": {
+        "schedule": {
+          "interval": "10m"
+        }
+      },
+      "input": {
+        "search": {
+          "request": {
+            "indices": [
+              "austa-audit-logs-*"
+            ],
+            "body": {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "range": {
+                        "@timestamp": {
+                          "gte": "now-1h"
+                        }
+                      }
+                    },
+                    {
+                      "terms": {
+                        "action": [
+                          "data_access",
+                          "case_modification",
+                          "user_privilege_change"
+                        ]
+                      }
+                    }
+                  ],
+                  "must_not": [
+                    {
+                      "exists": {
+                        "field": "compliance_verified"
+                      }
+                    }
+                  ]
+                }
+              },
+              "aggs": {
+                "non_compliant_actions": {
+                  "value_count": {
+                    "field": "@timestamp"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "condition": {
+        "compare": {
+          "ctx.payload.aggregations.non_compliant_actions.value": {
+            "gt": 0
+          }
+        }
+      },
+      "actions": {
+        "compliance_alert": {
+          "email": {
+            "profile": "standard",
+            "to": [
+              "compliance@austa.com",
+              "legal@austa.com"
+            ],
+            "subject": "Audit Compliance Alert - AUSTA Cockpit",
+            "body": "{{ctx.payload.aggregations.non_compliant_actions.value}} non-compliant audit actions detected in the last hour."
+          }
+        }
+      }
+    }
+  }
+}

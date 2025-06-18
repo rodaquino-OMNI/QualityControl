@@ -1,0 +1,232 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consul-service-registration
+  labels:
+    app: consul-registration
+data:
+  register-services.sh: |
+    #!/bin/bash
+    set -e
+    
+    CONSUL_URL="http://consul:8500"
+    
+    # Wait for Consul to be ready
+    until curl -f $CONSUL_URL/v1/status/leader; do
+      echo "Waiting for Consul..."
+      sleep 5
+    done
+    
+    # Register AI Service
+    curl -X PUT $CONSUL_URL/v1/agent/service/register \
+      -d '{
+        "ID": "ai-service",
+        "Name": "ai-service",
+        "Tags": ["ai", "ml", "backend"],
+        "Address": "ai-service",
+        "Port": 80,
+        "Meta": {
+          "version": "1.0.0",
+          "environment": "production"
+        },
+        "Check": {
+          "HTTP": "http://ai-service/health/readiness",
+          "Interval": "30s",
+          "Timeout": "10s",
+          "DeregisterCriticalServiceAfter": "90s"
+        },
+        "Checks": [
+          {
+            "HTTP": "http://ai-service/health/liveness",
+            "Interval": "30s",
+            "Timeout": "5s",
+            "Name": "AI Service Liveness"
+          },
+          {
+            "HTTP": "http://ai-service/health/detailed",
+            "Interval": "60s",
+            "Timeout": "15s",
+            "Name": "AI Service Detailed Health"
+          }
+        ]
+      }'
+    
+    # Register Backend Service
+    curl -X PUT $CONSUL_URL/v1/agent/service/register \
+      -d '{
+        "ID": "backend-service",
+        "Name": "backend-service",
+        "Tags": ["api", "backend", "nodejs"],
+        "Address": "backend-service",
+        "Port": 80,
+        "Meta": {
+          "version": "1.0.0",
+          "environment": "production"
+        },
+        "Check": {
+          "HTTP": "http://backend-service/health/ready",
+          "Interval": "30s",
+          "Timeout": "10s",
+          "DeregisterCriticalServiceAfter": "90s"
+        },
+        "Checks": [
+          {
+            "HTTP": "http://backend-service/health/live",
+            "Interval": "30s",
+            "Timeout": "5s",
+            "Name": "Backend Service Liveness"
+          },
+          {
+            "HTTP": "http://backend-service/health/detailed",
+            "Interval": "60s",
+            "Timeout": "15s",
+            "Name": "Backend Service Detailed Health"
+          }
+        ]
+      }'
+    
+    # Register Frontend Service
+    curl -X PUT $CONSUL_URL/v1/agent/service/register \
+      -d '{
+        "ID": "frontend-service",
+        "Name": "frontend-service",
+        "Tags": ["web", "frontend", "nginx"],
+        "Address": "frontend-service",
+        "Port": 80,
+        "Meta": {
+          "version": "1.0.0",
+          "environment": "production"
+        },
+        "Check": {
+          "HTTP": "http://frontend-service/health",
+          "Interval": "30s",
+          "Timeout": "5s",
+          "DeregisterCriticalServiceAfter": "90s"
+        }
+      }'
+    
+    # Register Database Service
+    curl -X PUT $CONSUL_URL/v1/agent/service/register \
+      -d '{
+        "ID": "postgres-db",
+        "Name": "postgres-db",
+        "Tags": ["database", "postgres", "storage"],
+        "Address": "postgres",
+        "Port": 5432,
+        "Meta": {
+          "version": "15.0",
+          "environment": "production"
+        },
+        "Check": {
+          "TCP": "postgres:5432",
+          "Interval": "30s",
+          "Timeout": "5s",
+          "DeregisterCriticalServiceAfter": "90s"
+        }
+      }'
+    
+    # Register Redis Service
+    curl -X PUT $CONSUL_URL/v1/agent/service/register \
+      -d '{
+        "ID": "redis-cache",
+        "Name": "redis-cache",
+        "Tags": ["cache", "redis", "storage"],
+        "Address": "redis",
+        "Port": 6379,
+        "Meta": {
+          "version": "7.0",
+          "environment": "production"
+        },
+        "Check": {
+          "TCP": "redis:6379",
+          "Interval": "30s",
+          "Timeout": "5s",
+          "DeregisterCriticalServiceAfter": "90s"
+        }
+      }'
+    
+    echo "All services registered successfully!"
+  
+  check-services.sh: |
+    #!/bin/bash
+    CONSUL_URL="http://consul:8500"
+    
+    echo "=== Service Health Status ==="
+    services=("ai-service" "backend-service" "frontend-service" "postgres-db" "redis-cache")
+    
+    for service in "${services[@]}"; do
+      echo "Checking $service..."
+      health=$(curl -s $CONSUL_URL/v1/health/service/$service | jq -r '.[0].Checks[].Status')
+      echo "$service: $health"
+    done
+    
+    echo "=== Critical Services ==="
+    curl -s $CONSUL_URL/v1/health/state/critical | jq -r '.[] | "\(.ServiceName): \(.Status) - \(.Output)"'
+    
+    echo "=== Service Catalog ==="
+    curl -s $CONSUL_URL/v1/catalog/services | jq
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: consul-service-registration
+  labels:
+    app: consul-registration
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: service-registration
+        image: curlimages/curl:latest
+        command: ["/bin/sh"]
+        args: ["/scripts/register-services.sh"]
+        volumeMounts:
+        - name: registration-scripts
+          mountPath: /scripts
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: registration-scripts
+        configMap:
+          name: consul-service-registration
+          defaultMode: 0755
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: consul-health-check
+  labels:
+    app: consul-health-check
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: health-check
+            image: curlimages/curl:latest
+            command: ["/bin/sh"]
+            args: ["/scripts/check-services.sh"]
+            volumeMounts:
+            - name: registration-scripts
+              mountPath: /scripts
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+          volumes:
+          - name: registration-scripts
+            configMap:
+              name: consul-service-registration
+              defaultMode: 0755

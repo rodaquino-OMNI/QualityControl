@@ -1,0 +1,109 @@
+{
+  "success": true,
+  "data": {
+    "analysisId": "analysis_001",
+    "caseId": "case_001",
+    "status": "completed",
+    "startedAt": "2024-07-15T09:15:00Z",
+    "completedAt": "2024-07-15T09:18:32Z",
+    "modelVersion": "bert-medical-v2.1",
+    "confidence": 0.94,
+    "results": {
+      "medicalNecessity": {
+        "score": 0.92,
+        "confidence": "high",
+        "rationale": "Patient presents with severe coronary artery disease with multiple vessel involvement. Clinical indicators strongly support the medical necessity for coronary artery bypass surgery.",
+        "supportingEvidence": [
+          "Abnormal stress test with significant ST-segment depression",
+          "Cardiac catheterization shows 90% stenosis in LAD",
+          "Patient experiencing limiting angina despite optimal medical therapy"
+        ],
+        "clinicalGuidelines": [
+          "ACC/AHA Guidelines for Coronary Artery Bypass Surgery",
+          "CMS National Coverage Determination for CABG"
+        ]
+      },
+      "fraudRisk": {
+        "score": 0.15,
+        "risk": "low",
+        "indicators": [],
+        "redFlags": [],
+        "providerHistory": {
+          "fraudScore": 0.12,
+          "billingPatterns": "normal",
+          "peerComparison": "within_expected_range"
+        }
+      },
+      "costEffectiveness": {
+        "score": 0.78,
+        "analysis": "Procedure cost is within expected range for complexity level. Long-term cost savings expected from improved cardiac function.",
+        "costComparison": {
+          "regionalAverage": 118000,
+          "nationalAverage": 122000,
+          "percentile": 65
+        },
+        "alternativeTreatments": [
+          {
+            "treatment": "Percutaneous Coronary Intervention",
+            "cost": 45000,
+            "effectiveness": 0.65,
+            "applicability": "not_suitable_multi_vessel"
+          }
+        ]
+      },
+      "complianceCheck": {
+        "score": 0.95,
+        "status": "compliant",
+        "requirements": {
+          "priorAuthorization": "obtained",
+          "networkProvider": "in_network",
+          "benefitCoverage": "covered",
+          "deductibleStatus": "met"
+        }
+      }
+    },
+    "recommendations": {
+      "primaryRecommendation": "approve",
+      "confidence": 0.89,
+      "reasoning": "Strong clinical evidence supports medical necessity. Low fraud risk. Cost is reasonable for procedure complexity.",
+      "conditions": [
+        "Verify current medication regimen optimization",
+        "Confirm surgical risk assessment completion"
+      ],
+      "alternativeActions": [],
+      "reviewRequired": false
+    },
+    "explanation": {
+      "featureImportance": [
+        {
+          "feature": "diagnosis_severity",
+          "importance": 0.32,
+          "impact": "positive"
+        },
+        {
+          "feature": "clinical_indicators",
+          "importance": 0.28,
+          "impact": "positive"
+        },
+        {
+          "feature": "provider_history",
+          "importance": 0.18,
+          "impact": "neutral"
+        },
+        {
+          "feature": "cost_comparison",
+          "importance": 0.22,
+          "impact": "positive"
+        }
+      ],
+      "decisionPath": [
+        "Medical necessity evaluation: HIGH",
+        "Fraud risk assessment: LOW", 
+        "Cost analysis: REASONABLE",
+        "Compliance check: PASSED",
+        "Final recommendation: APPROVE"
+      ]
+    }
+  },
+  "message": "AI analysis completed successfully"
+}

@@ -1,0 +1,301 @@
+# HIPAA Compliance Configuration for AUSTA Cockpit
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hipaa-compliance-config
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: compliance
+    regulation: hipaa
+data:
+  hipaa-safeguards.json: |
+    {
+      "administrativeSafeguards": {
+        "securityOfficer": {
+          "designated": true,
+          "responsibilities": [
+            "Develop and implement security policies",
+            "Conduct security risk assessments",
+            "Manage security incident response",
+            "Oversee workforce training"
+          ]
+        },
+        "workforceTraining": {
+          "required": true,
+          "frequency": "Annual",
+          "topics": [
+            "HIPAA privacy and security rules",
+            "Proper handling of PHI",
+            "Incident reporting procedures",
+            "Password and access management"
+          ]
+        },
+        "accessManagement": {
+          "uniqueUserIdentification": true,
+          "roleBasedAccess": true,
+          "minimumNecessary": true,
+          "accessReviewFrequency": "Quarterly"
+        },
+        "contingencyPlan": {
+          "dataBackupPlan": true,
+          "disasterRecoveryPlan": true,
+          "emergencyModeAccess": true,
+          "testingFrequency": "Semi-annually"
+        }
+      },
+      "physicalSafeguards": {
+        "facilityAccess": {
+          "controlledAccess": true,
+          "physicalBarriers": true,
+          "accessLogging": true
+        },
+        "workstationSecurity": {
+          "restrictedAccess": true,
+          "screenLocks": true,
+          "positioningControls": true
+        },
+        "mediaControls": {
+          "mediaInventory": true,
+          "secureDisposal": true,
+          "dataReuse": false
+        }
+      },
+      "technicalSafeguards": {
+        "accessControl": {
+          "uniqueUserIdentity": true,
+          "automaticLogoff": true,
+          "encryptionDecryption": true,
+          "multiFactorAuth": true
+        },
+        "auditControls": {
+          "auditLogging": true,
+          "logReview": "Daily",
+          "auditTrail": true,
+          "tamperResistant": true
+        },
+        "integrity": {
+          "dataIntegrityControls": true,
+          "checksumValidation": true,
+          "changeLogging": true
+        },
+        "transmission": {
+          "endToEndEncryption": true,
+          "integrityProtection": true,
+          "accessLogging": true
+        }
+      }
+    }
+  
+  phi-handling-rules.json: |
+    {
+      "phiHandling": {
+        "identification": {
+          "dataClassification": true,
+          "phiIdentifiers": [
+            "Names", "Addresses", "Dates", "Phone numbers",
+            "Fax numbers", "Email addresses", "SSN",
+            "Medical record numbers", "Health plan numbers",
+            "Account numbers", "Certificate numbers",
+            "Vehicle identifiers", "Device identifiers",
+            "Web URLs", "IP addresses", "Biometric identifiers",
+            "Full face photos", "Other unique identifiers"
+          ]
+        },
+        "minimumNecessary": {
+          "accessControl": true,
+          "dataSegmentation": true,
+          "roleBasedFiltering": true,
+          "purposeLimitation": true
+        },
+        "deidentification": {
+          "safeHarborMethod": true,
+          "expertDetermination": false,
+          "removedIdentifiers": "all_18_categories",
+          "statisticalMethod": "k_anonymity"
+        },
+        "businessAssociates": {
+          "contractsRequired": true,
+          "subcontractorManagement": true,
+          "complianceMonitoring": true,
+          "incidentReporting": true
+        }
+      }
+    }
+  
+  breach-notification.json: |
+    {
+      "breachNotification": {
+        "definition": {
+          "unsecuredPHI": true,
+          "acquisitionAccess": true,
+          "useDisclosure": true,
+          "compromisesPrivacy": true
+        },
+        "riskAssessment": {
+          "natureExtent": true,
+          "personInvolved": true,
+          "likelihood": true,
+          "actualPotentialHarm": true
+        },
+        "notifications": {
+          "individuals": {
+            "timeframe": "60 days",
+            "method": "Written notice",
+            "content": [
+              "Brief description of breach",
+              "Types of information involved",
+              "Steps taken to investigate",
+              "Mitigation measures",
+              "Contact information"
+            ]
+          },
+          "hhs": {
+            "timeframe": "60 days",
+            "threshold": "500+ individuals",
+            "method": "HHS website"
+          },
+          "media": {
+            "timeframe": "60 days",
+            "threshold": "500+ individuals",
+            "scope": "State or jurisdiction"
+          }
+        }
+      }
+    }
+  
+  risk-assessment.json: |
+    {
+      "riskAssessment": {
+        "frequency": "Annual",
+        "scope": [
+          "All systems containing PHI",
+          "Network infrastructure",
+          "Physical facilities",
+          "Workforce access",
+          "Business associate relationships"
+        ],
+        "methodology": "NIST Cybersecurity Framework",
+        "riskCategories": [
+          {
+            "category": "Unauthorized Access",
+            "likelihood": "Medium",
+            "impact": "High",
+            "controls": [
+              "Multi-factor authentication",
+              "Role-based access control",
+              "Regular access reviews",
+              "Session timeouts"
+            ]
+          },
+          {
+            "category": "Data Breaches",
+            "likelihood": "Low",
+            "impact": "Critical",
+            "controls": [
+              "Encryption at rest and in transit",
+              "Network segmentation",
+              "Intrusion detection",
+              "Data loss prevention"
+            ]
+          },
+          {
+            "category": "System Vulnerabilities",
+            "likelihood": "Medium",
+            "impact": "High",
+            "controls": [
+              "Regular security updates",
+              "Vulnerability scanning",
+              "Penetration testing",
+              "Security monitoring"
+            ]
+          }
+        ]
+      }
+    }
+---
+# HIPAA Audit Logging Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hipaa-audit-logging
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: compliance
+    regulation: hipaa
+data:
+  audit-requirements.json: |
+    {
+      "auditLogging": {
+        "requiredEvents": [
+          "PHI access attempts (successful and failed)",
+          "PHI modifications",
+          "PHI deletions",
+          "User authentication events",
+          "Administrative actions",
+          "System configuration changes",
+          "Database access events",
+          "File access events",
+          "Network access events"
+        ],
+        "logElements": [
+          "Date and time",
+          "User identification",
+          "Event type",
+          "Patient identifier (when applicable)",
+          "Data accessed/modified",
+          "Source of access",
+          "Success/failure status"
+        ],
+        "retention": "6 years minimum",
+        "protection": {
+          "encryption": true,
+          "integrity": true,
+          "accessControl": true,
+          "backup": true
+        },
+        "monitoring": {
+          "realTimeAlerts": true,
+          "anomalyDetection": true,
+          "regularReview": "Daily",
+          "reportGeneration": "Monthly"
+        }
+      }
+    }
+  
+  compliance-monitoring.json: |
+    {
+      "complianceMonitoring": {
+        "automatedChecks": [
+          "Encryption status verification",
+          "Access control validation",
+          "Audit log completeness",
+          "Security patch compliance",
+          "User access reviews"
+        ],
+        "manualReviews": [
+          "Risk assessment updates",
+          "Policy compliance audits",
+          "Workforce training records",
+          "Business associate agreements",
+          "Incident response procedures"
+        ],
+        "reporting": {
+          "frequency": "Monthly",
+          "recipients": [
+            "Security Officer",
+            "Privacy Officer",
+            "Compliance Team",
+            "Executive Leadership"
+          ],
+          "metrics": [
+            "Security incidents",
+            "Access violations",
+            "Training completion rates",
+            "Risk assessment scores",
+            "Audit findings"
+          ]
+        }
+      }
+    }

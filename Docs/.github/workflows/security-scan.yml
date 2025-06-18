@@ -1,0 +1,306 @@
+name: Security Scan Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd backend && npm ci
+        cd ../frontend && npm ci
+        cd ../ai-service && pip install -r requirements.txt
+
+    - name: Run npm audit (Backend)
+      run: |
+        cd backend
+        npm audit --audit-level=high --json > ../security-reports/npm-audit-backend.json || true
+
+    - name: Run npm audit (Frontend)
+      run: |
+        cd frontend
+        npm audit --audit-level=high --json > ../security-reports/npm-audit-frontend.json || true
+
+    - name: Python Security Scan with Safety
+      run: |
+        cd ai-service
+        pip install safety
+        safety check --json > ../security-reports/python-safety.json || true
+
+    - name: Snyk Security Scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high --json > security-reports/snyk-scan.json || true
+
+    - name: Upload Dependency Scan Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-scan-results
+        path: security-reports/
+
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      packages: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Frontend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.frontend
+        push: false
+        tags: austa-frontend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build Backend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.backend
+        push: false
+        tags: austa-backend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build AI Service Image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./ai-service
+        file: ./ai-service/Dockerfile
+        push: false
+        tags: austa-ai-service:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Run Trivy vulnerability scanner (Frontend)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'austa-frontend:test'
+        format: 'sarif'
+        output: 'trivy-frontend-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+    - name: Run Trivy vulnerability scanner (Backend)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'austa-backend:test'
+        format: 'sarif'
+        output: 'trivy-backend-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+    - name: Run Trivy vulnerability scanner (AI Service)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'austa-ai-service:test'
+        format: 'sarif'
+        output: 'trivy-ai-service-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-frontend-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-backend-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-ai-service-results.sarif'
+
+    - name: Docker Scout CVE Scan
+      uses: docker/scout-action@v1
+      with:
+        command: cves
+        image: austa-frontend:test,austa-backend:test,austa-ai-service:test
+        sarif-file: scout-results.sarif
+        summary: true
+
+    - name: Upload Scout scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'scout-results.sarif'
+
+  code-quality-scan:
+    name: Code Quality & Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    - name: CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript,python,typescript
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+    - name: Semgrep Security Scan
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/owasp-top-ten
+          p/javascript
+          p/typescript
+          p/python
+        generateSarif: "1"
+
+    - name: Upload Semgrep results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: semgrep.sarif
+
+  infrastructure-scan:
+    name: Infrastructure Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Terraform Security Scan with Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: .
+        framework: kubernetes,dockerfile,docker_compose,secrets
+        output_format: sarif
+        output_file_path: checkov-results.sarif
+        quiet: true
+        soft_fail: true
+
+    - name: Upload Checkov scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'checkov-results.sarif'
+
+    - name: Kubernetes Security Scan with Kubesec
+      run: |
+        mkdir -p security-reports
+        find k8s/ -name "*.yaml" -o -name "*.yml" | while read file; do
+          echo "Scanning $file"
+          curl -sSL https://v2.kubesec.io/scan -F file=@"$file" > "security-reports/kubesec-$(basename $file).json"
+        done
+
+    - name: Upload Infrastructure Scan Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: infrastructure-scan-results
+        path: security-reports/
+
+  security-report:
+    name: Consolidate Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, container-scan, code-quality-scan, infrastructure-scan]
+    if: always()
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Generate Security Report
+      run: |
+        echo "# Security Scan Results" > SECURITY_REPORT.md
+        echo "## Scan Date: $(date)" >> SECURITY_REPORT.md
+        echo "## Repository: $GITHUB_REPOSITORY" >> SECURITY_REPORT.md
+        echo "## Commit: $GITHUB_SHA" >> SECURITY_REPORT.md
+        echo "" >> SECURITY_REPORT.md
+        
+        echo "### Dependency Vulnerabilities" >> SECURITY_REPORT.md
+        if [ -f dependency-scan-results/npm-audit-backend.json ]; then
+          echo "Backend npm audit results found" >> SECURITY_REPORT.md
+        fi
+        
+        echo "### Container Vulnerabilities" >> SECURITY_REPORT.md
+        echo "Trivy and Docker Scout scan results processed" >> SECURITY_REPORT.md
+        
+        echo "### Infrastructure Security" >> SECURITY_REPORT.md
+        if [ -d infrastructure-scan-results ]; then
+          echo "Kubernetes and infrastructure scan results found" >> SECURITY_REPORT.md
+        fi
+
+    - name: Upload Security Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: consolidated-security-report
+        path: SECURITY_REPORT.md
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('SECURITY_REPORT.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });

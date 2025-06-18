@@ -1,0 +1,294 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  password       String
+  name           String
+  role           String    // admin, auditor, viewer
+  organizationId String?
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  decisions          Decision[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  notificationPrefs  NotificationPreference?
+  aiConversations    AIConversation[]
+  appeals            Appeal[]
+  assignedCases      Case[]           @relation("AssignedCases")
+}
+
+// Organization
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // hospital, clinic, insurance
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  apiKeys  APIKey[]
+  patients Patient[]
+}
+
+// API Key Management
+model APIKey {
+  id             String    @id @default(uuid())
+  key            String    @unique
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  rateLimit      Int       @default(1000)
+  allowedIPs     String[]
+  isActive       Boolean   @default(true)
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Patient
+model Patient {
+  id             String    @id @default(uuid())
+  name           String
+  documentNumber String    @unique
+  age            Int?
+  gender         String?
+  organizationId String?
+  providerId     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  cases        Case[]
+}
+
+// Medical Cases
+model Case {
+  id                   String    @id @default(uuid())
+  patientId            String
+  patient              Patient   @relation(fields: [patientId], references: [id])
+  procedureCode        String
+  procedureDescription String
+  requestDate          DateTime
+  priority             String    // low, medium, high, urgent
+  status               String    // pending, in_review, approved, denied, partial
+  value                Float
+  aiScore              Float?
+  fraudScore           Float?
+  assignedTo           String?
+  assignedUser         User?     @relation("AssignedCases", fields: [assignedTo], references: [id])
+  assignedAt           DateTime?
+  decidedBy            String?
+  decidedAt            DateTime?
+  hasAppeal            Boolean   @default(false)
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  documents       Document[]
+  decisions       Decision[]
+  aiAnalyses      AIAnalysis[]
+  aiConversations AIConversation[]
+  appeals         Appeal[]
+  fraudDetections FraudDetection[]
+}
+
+// Documents
+model Document {
+  id        String   @id @default(uuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id])
+  type      String   // medical_report, exam_result, prescription, etc
+  name      String
+  url       String
+  size      Int
+  mimeType  String
+  createdAt DateTime @default(now())
+}
+
+// Decisions
+model Decision {
+  id               String    @id @default(uuid())
+  caseId           String
+  case             Case      @relation(fields: [caseId], references: [id])
+  auditorId        String
+  auditor          User      @relation(fields: [auditorId], references: [id])
+  decision         String    // approved, denied, partial
+  justification    String
+  approvedAmount   Float?
+  conditions       String[]
+  followUpRequired Boolean   @default(false)
+  aiRecommendation String?
+  aiConfidence     Float?
+  processingTime   Int       // in seconds
+  metadata         Json?
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  appeals Appeal[]
+}
+
+// AI Analysis
+model AIAnalysis {
+  id              String   @id @default(uuid())
+  caseId          String
+  case            Case     @relation(fields: [caseId], references: [id])
+  analysisType    String   // full, quick, fraud_only, medical_only
+  recommendation  String   // approved, denied, partial, review
+  confidence      Float
+  explanation     String
+  riskFactors     Json[]
+  similarCases    Json[]
+  medicalContext  Json
+  modelVersion    String
+  processingTime  Int      // in milliseconds
+  createdAt       DateTime @default(now())
+}
+
+// AI Conversations
+model AIConversation {
+  id        String   @id @default(uuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  messages AIMessage[]
+}
+
+// AI Messages
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id])
+  role           String         // user, assistant
+  content        String
+  confidence     Float?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+}
+
+// Fraud Detection
+model FraudDetection {
+  id           String   @id @default(uuid())
+  caseId       String
+  case         Case     @relation(fields: [caseId], references: [id])
+  score        Float
+  riskLevel    String   // low, medium, high, critical
+  indicators   Json[]
+  modelVersion String
+  createdAt    DateTime @default(now())
+}
+
+// Appeals
+model Appeal {
+  id         String   @id @default(uuid())
+  decisionId String
+  decision   Decision @relation(fields: [decisionId], references: [id])
+  caseId     String
+  case       Case     @relation(fields: [caseId], references: [id])
+  reason     String
+  status     String   // pending, reviewing, approved, denied
+  requestedBy String
+  requestor   User     @relation(fields: [requestedBy], references: [id])
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  resolution  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  documents AppealDocument[]
+}
+
+// Appeal Documents
+model AppealDocument {
+  id        String   @id @default(uuid())
+  appealId  String
+  appeal    Appeal   @relation(fields: [appealId], references: [id])
+  type      String
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+}
+
+// Notifications
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      String    // case_assigned, decision_made, appeal_created, alert, system
+  title     String
+  message   String
+  priority  String    @default("medium") // low, medium, high
+  data      Json?
+  read      Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// Notification Preferences
+model NotificationPreference {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  email     Json     // { caseAssigned: true, decisionMade: true, ... }
+  push      Json
+  sms       Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Alerts
+model Alert {
+  id          String    @id @default(uuid())
+  type        String    // fraud_detection, sla_breach, system_error, etc
+  severity    String    // low, medium, high, critical
+  title       String
+  description String
+  metadata    Json?
+  resolved    Boolean   @default(false)
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// Audit Logs
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // case.created, decision.made, etc
+  entityType String   // case, decision, user, etc
+  entityId   String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}

@@ -1,0 +1,203 @@
+# Filebeat Configuration for AUSTA Cockpit
+
+# Global Configuration
+name: austa-filebeat
+tags: ["austa", "production"]
+
+# Filebeat Inputs
+filebeat.inputs:
+  # Backend service logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/backend/application-*.log
+      - /var/log/backend/error-*.log
+      - /var/log/backend/security-*.log
+      - /var/log/backend/access-*.log
+    fields:
+      service: austa-backend
+      service_type: api
+      language: nodejs
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    multiline.pattern: '^\{'
+    multiline.negate: true
+    multiline.match: after
+    scan_frequency: 10s
+    harvester_buffer_size: 16384
+    max_bytes: 10485760
+    
+  # AI service logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/ai-service/application.log
+      - /var/log/ai-service/error.log
+      - /var/log/ai-service/performance.log
+      - /var/log/ai-service/security.log
+    fields:
+      service: austa-ai-service
+      service_type: ml
+      language: python
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    multiline.pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+    multiline.negate: true
+    multiline.match: after
+    scan_frequency: 10s
+    
+  # Docker container logs
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    containers.ids:
+      - "*"
+    containers.path: "/var/lib/docker/containers"
+    containers.stream: "all"
+    json.keys_under_root: true
+    json.add_error_key: true
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+
+# Output Configuration
+output.logstash:
+  hosts: ["logstash:5044"]
+  loadbalance: true
+  worker: 2
+  bulk_max_size: 2048
+  compression_level: 3
+  
+# Alternative Elasticsearch output (commented out - use when Logstash is not available)
+# output.elasticsearch:
+#   hosts: ["http://elasticsearch:9200"]
+#   username: "elastic"
+#   password: "austa123"
+#   protocol: "http"
+#   index: "filebeat-austa-%{+yyyy.MM.dd}"
+#   template.name: "filebeat-austa"
+#   template.pattern: "filebeat-austa-*"
+#   template.settings:
+#     index.number_of_shards: 1
+#     index.number_of_replicas: 0
+#     index.refresh_interval: "5s"
+
+# Processors
+processors:
+  # Add host information
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      
+  # Add Docker metadata
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+      
+  # Add Kubernetes metadata (if running in K8s)
+  - add_kubernetes_metadata:
+      host: ${NODE_NAME}
+      matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+            
+  # Timestamp processing
+  - timestamp:
+      field: "@timestamp"
+      layouts:
+        - '2006-01-02T15:04:05.000Z'
+        - '2006-01-02T15:04:05Z'
+        - '2006-01-02 15:04:05'
+      test:
+        - '2023-12-01T15:04:05.123Z'
+        
+  # Drop empty events
+  - drop_event:
+      when:
+        or:
+          - equals:
+              message: ""
+          - equals:
+              message: " "
+              
+  # Add custom fields
+  - add_fields:
+      target: austa
+      fields:
+        environment: ${ENVIRONMENT:production}
+        datacenter: ${DATACENTER:default}
+        
+  # Convert log levels to lowercase
+  - script:
+      lang: javascript
+      id: normalize_log_level
+      source: >
+        function process(event) {
+          var level = event.Get("level");
+          if (level) {
+            event.Put("level", level.toLowerCase());
+          }
+        }
+
+# Logging Configuration
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# Monitoring
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "elastic"
+  password: "austa123"
+
+# HTTP Configuration for monitoring
+http.enabled: true
+http.host: "0.0.0.0"
+http.port: 5066
+
+# Performance Tuning
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s
+
+# Security
+ssl.verification_mode: none
+
+# Registry
+filebeat.registry.path: /usr/share/filebeat/data/registry
+filebeat.registry.file_permissions: 0600
+filebeat.registry.flush: 1s
+
+# Shutdown
+filebeat.shutdown_timeout: 10s
+
+# Max message size
+max_message_bytes: 1048576
+
+# Ignore older files
+ignore_older: 24h
+
+# Close files after inactivity
+close_inactive: 5m
+close_renamed: true
+close_removed: true
+close_eof: false
+
+# Harvester limits
+harvester_limit: 0
+
+# Scan frequency
+scan_frequency: 10s

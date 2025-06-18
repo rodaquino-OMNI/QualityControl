@@ -1,0 +1,367 @@
+version: '3.8'
+
+# Docker Compose for Integration Testing Environment
+# Provides isolated, reproducible test environment for all services
+
+services:
+  # PostgreSQL Test Database
+  postgres-integration:
+    image: postgres:15-alpine
+    container_name: austa-postgres-integration
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: austa_integration_test
+      POSTGRES_INITDB_ARGS: --encoding=UTF-8
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-integration-data:/var/lib/postgresql/data
+      - ./tests/fixtures/sql:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d austa_integration_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - integration-test-network
+
+  # MongoDB Test Database for Logs
+  mongodb-integration:
+    image: mongo:6
+    container_name: austa-mongodb-integration
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test_user
+      MONGO_INITDB_ROOT_PASSWORD: test_password
+      MONGO_INITDB_DATABASE: austa_integration_logs
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb-integration-data:/data/db
+      - ./tests/fixtures/mongo:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - integration-test-network
+
+  # Redis Test Cache
+  redis-integration:
+    image: redis:7-alpine
+    container_name: austa-redis-integration
+    command: redis-server --appendonly yes --requirepass test_password
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis-integration-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "test_password", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - integration-test-network
+
+  # Backend Service for Integration Testing
+  backend-integration:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+      target: integration
+    container_name: austa-backend-integration
+    environment:
+      NODE_ENV: integration_test
+      PORT: 3000
+      DATABASE_URL: postgresql://test_user:test_password@postgres-integration:5432/austa_integration_test
+      REDIS_URL: redis://:test_password@redis-integration:6379
+      MONGODB_URL: mongodb://test_user:test_password@mongodb-integration:27017/austa_integration_logs
+      JWT_SECRET: integration-test-jwt-secret
+      SESSION_SECRET: integration-test-session-secret
+      AI_SERVICE_URL: http://ai-service-integration:8000
+      CORS_ORIGIN: http://frontend-integration:3000
+      LOG_LEVEL: debug
+      TEST_MODE: true
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./tests:/app/tests
+      - backend-integration-uploads:/app/uploads
+    depends_on:
+      postgres-integration:
+        condition: service_healthy
+      redis-integration:
+        condition: service_healthy
+      mongodb-integration:
+        condition: service_healthy
+    networks:
+      - integration-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # AI Service for Integration Testing
+  ai-service-integration:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile.test
+      target: integration
+    container_name: austa-ai-service-integration
+    environment:
+      ENVIRONMENT: integration_test
+      DATABASE_URL: postgresql://test_user:test_password@postgres-integration:5432/austa_integration_test
+      REDIS_URL: redis://:test_password@redis-integration:6379/1
+      MONGODB_URL: mongodb://test_user:test_password@mongodb-integration:27017/austa_ai_integration_logs
+      MODEL_CACHE_DIR: /app/models
+      LOG_LEVEL: DEBUG
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-test-key}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-test-key}
+      TEST_MODE: true
+      MOCK_MODELS: true
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./ai-service:/app
+      - /app/.venv
+      - ./tests:/app/tests
+      - ai-integration-models:/app/models
+      - ai-integration-cache:/app/cache
+    depends_on:
+      postgres-integration:
+        condition: service_healthy
+      redis-integration:
+        condition: service_healthy
+      mongodb-integration:
+        condition: service_healthy
+    networks:
+      - integration-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Frontend Service for Integration Testing
+  frontend-integration:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.test
+      target: integration
+    container_name: austa-frontend-integration
+    environment:
+      NODE_ENV: integration_test
+      VITE_API_URL: http://backend-integration:3000/api
+      VITE_AI_SERVICE_URL: http://ai-service-integration:8000/api/v1
+      VITE_WS_URL: ws://backend-integration:3000/ws
+      VITE_TEST_MODE: true
+    ports:
+      - "3003:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - ./tests:/app/tests
+    depends_on:
+      backend-integration:
+        condition: service_healthy
+      ai-service-integration:
+        condition: service_healthy
+    networks:
+      - integration-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Test Runner Service
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-runner
+    container_name: austa-test-runner
+    environment:
+      NODE_ENV: integration_test
+      DATABASE_URL: postgresql://test_user:test_password@postgres-integration:5432/austa_integration_test
+      REDIS_URL: redis://:test_password@redis-integration:6379
+      MONGODB_URL: mongodb://test_user:test_password@mongodb-integration:27017/austa_integration_logs
+      BACKEND_URL: http://backend-integration:3000
+      AI_SERVICE_URL: http://ai-service-integration:8000
+      FRONTEND_URL: http://frontend-integration:3000
+      TEST_TIMEOUT: 60000
+      TEST_RETRIES: 3
+      PARALLEL_TESTS: 4
+    volumes:
+      - .:/workspace
+      - /workspace/node_modules
+      - test-results:/workspace/test-results
+      - test-coverage:/workspace/coverage
+    depends_on:
+      backend-integration:
+        condition: service_healthy
+      ai-service-integration:
+        condition: service_healthy
+      frontend-integration:
+        condition: service_healthy
+    networks:
+      - integration-test-network
+    command: npm run test:integration
+    profiles:
+      - test
+
+  # Cypress E2E Testing
+  cypress-integration:
+    image: cypress/included:13.6.2
+    container_name: austa-cypress-integration
+    environment:
+      CYPRESS_baseUrl: http://frontend-integration:3000
+      CYPRESS_apiUrl: http://backend-integration:3000/api
+      CYPRESS_aiServiceUrl: http://ai-service-integration:8000/api/v1
+      CYPRESS_video: true
+      CYPRESS_screenshotOnRunFailure: true
+      CYPRESS_defaultCommandTimeout: 10000
+      CYPRESS_requestTimeout: 10000
+      CYPRESS_responseTimeout: 10000
+    volumes:
+      - ./cypress:/cypress
+      - ./cypress.config.ts:/cypress.config.ts
+      - cypress-videos:/cypress/videos
+      - cypress-screenshots:/cypress/screenshots
+      - cypress-downloads:/cypress/downloads
+    depends_on:
+      frontend-integration:
+        condition: service_healthy
+      backend-integration:
+        condition: service_healthy
+      ai-service-integration:
+        condition: service_healthy
+    networks:
+      - integration-test-network
+    working_dir: /cypress
+    profiles:
+      - e2e
+
+  # Performance Testing with K6
+  k6-performance:
+    image: grafana/k6:latest
+    container_name: austa-k6-performance
+    environment:
+      K6_WEB_DASHBOARD: true
+      K6_WEB_DASHBOARD_EXPORT: test-results/performance-report.html
+    volumes:
+      - ./tests/performance:/scripts
+      - test-results:/test-results
+    depends_on:
+      backend-integration:
+        condition: service_healthy
+      ai-service-integration:
+        condition: service_healthy
+    networks:
+      - integration-test-network
+    command: run --out json=/test-results/performance-results.json /scripts/load-test.js
+    profiles:
+      - performance
+
+  # Monitoring and Observability
+  prometheus-test:
+    image: prom/prometheus:latest
+    container_name: austa-prometheus-test
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./tests/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-test-data:/prometheus
+    networks:
+      - integration-test-network
+    profiles:
+      - monitoring
+
+  grafana-test:
+    image: grafana/grafana:latest
+    container_name: austa-grafana-test
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: test_password
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./tests/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./tests/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-test-data:/var/lib/grafana
+    depends_on:
+      - prometheus-test
+    networks:
+      - integration-test-network
+    profiles:
+      - monitoring
+
+  # Test Database Seeder
+  test-seeder:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-seeder
+    container_name: austa-test-seeder
+    environment:
+      DATABASE_URL: postgresql://test_user:test_password@postgres-integration:5432/austa_integration_test
+      MONGODB_URL: mongodb://test_user:test_password@mongodb-integration:27017/austa_integration_logs
+      REDIS_URL: redis://:test_password@redis-integration:6379
+      SEED_SIZE: ${SEED_SIZE:-small}
+    volumes:
+      - ./tests/fixtures:/fixtures
+      - ./tests/seeders:/seeders
+    depends_on:
+      postgres-integration:
+        condition: service_healthy
+      mongodb-integration:
+        condition: service_healthy
+      redis-integration:
+        condition: service_healthy
+    networks:
+      - integration-test-network
+    profiles:
+      - seed
+
+  # Test Results Aggregator
+  test-aggregator:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-aggregator
+    container_name: austa-test-aggregator
+    environment:
+      RESULTS_DIR: /test-results
+      COVERAGE_DIR: /coverage
+      OUTPUT_FORMAT: json,html,xml
+    volumes:
+      - test-results:/test-results
+      - test-coverage:/coverage
+      - ./test-reports:/output
+    networks:
+      - integration-test-network
+    profiles:
+      - aggregate
+
+networks:
+  integration-test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+volumes:
+  postgres-integration-data:
+  mongodb-integration-data:
+  redis-integration-data:
+  backend-integration-uploads:
+  ai-integration-models:
+  ai-integration-cache:
+  test-results:
+  test-coverage:
+  cypress-videos:
+  cypress-screenshots:
+  cypress-downloads:
+  prometheus-test-data:
+  grafana-test-data:

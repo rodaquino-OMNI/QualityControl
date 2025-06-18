@@ -1,0 +1,97 @@
+{
+  "success": true,
+  "data": {
+    "case": {
+      "id": "case_001",
+      "title": "Cardiac Surgery Pre-Authorization",
+      "description": "Patient requires cardiac bypass surgery pre-authorization review",
+      "patientId": "PT-2024-001",
+      "medicalRecordNumber": "MRN-789012",
+      "status": "pending_review",
+      "priority": "high",
+      "urgencyLevel": "immediate",
+      "createdAt": "2024-07-15T09:00:00Z",
+      "updatedAt": "2024-07-15T09:00:00Z",
+      "assignedTo": "auditor@austa.com",
+      "createdBy": "intake@austa.com",
+      "procedureCode": "33518",
+      "procedureDescription": "Coronary artery bypass, using venous graft",
+      "diagnosisCodes": ["I25.10", "Z95.1"],
+      "claimAmount": 125000,
+      "serviceDate": "2024-07-20",
+      "provider": {
+        "id": "PRV-001",
+        "name": "CardioVascular Associates",
+        "npi": "1234567890",
+        "address": "123 Medical Center Dr, Healthcare City, HC 12345",
+        "phone": "+1-555-HEART1",
+        "specialty": "Cardiovascular Surgery"
+      },
+      "patient": {
+        "id": "PT-2024-001",
+        "age": 65,
+        "gender": "M",
+        "membershipId": "MEM-567890",
+        "planType": "PPO Gold"
+      },
+      "clinicalIndicators": [
+        "Chest pain on exertion",
+        "Positive stress test",
+        "Abnormal cardiac catheterization"
+      ],
+      "riskFactors": [
+        "Diabetes Type 2",
+        "Hypertension",
+        "Previous myocardial infarction"
+      ],
+      "flags": ["high_cost", "complex_procedure"],
+      "documents": [
+        {
+          "id": "doc_001",
+          "name": "Cardiac Catheterization Report.pdf",
+          "type": "clinical_report",
+          "uploadedAt": "2024-07-15T09:05:00Z",
+          "size": 1024000
+        },
+        {
+          "id": "doc_002",
+          "name": "Pre-operative Assessment.pdf",
+          "type": "clinical_assessment",
+          "uploadedAt": "2024-07-15T09:10:00Z",
+          "size": 512000
+        }
+      ],
+      "comments": [
+        {
+          "id": "comment_001",
+          "author": "auditor@austa.com",
+          "content": "Initial review completed. Awaiting cardiology specialist consultation.",
+          "timestamp": "2024-07-15T10:30:00Z",
+          "type": "internal"
+        }
+      ],
+      "aiAnalysis": {
+        "medicalNecessityScore": 0.92,
+        "fraudRiskScore": 0.15,
+        "costEffectivenessScore": 0.78,
+        "lastAnalyzed": "2024-07-15T09:15:00Z",
+        "modelVersion": "bert-medical-v2.1"
+      },
+      "auditTrail": [
+        {
+          "action": "case_created",
+          "user": "intake@austa.com",
+          "timestamp": "2024-07-15T09:00:00Z",
+          "details": "Case created via web portal"
+        },
+        {
+          "action": "case_assigned",
+          "user": "supervisor@austa.com",
+          "timestamp": "2024-07-15T09:02:00Z",
+          "details": "Assigned to auditor@austa.com"
+        }
+      ]
+    }
+  },
+  "message": "Case details retrieved successfully"
+}

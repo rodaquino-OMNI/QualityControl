@@ -1,0 +1,205 @@
+# RBAC Roles and RoleBindings for AUSTA Cockpit
+
+# Role for backend service - minimal required permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: austa-cockpit
+  name: austa-backend-role
+  labels:
+    app: austa-cockpit
+    component: backend
+rules:
+# Allow reading own service account
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["get"]
+# Allow reading secrets (for database connections)
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+  resourceNames: ["austa-db-secrets", "austa-api-secrets"]
+# Allow reading configmaps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames: ["austa-backend-config"]
+---
+# RoleBinding for backend service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: austa-backend-binding
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: backend
+subjects:
+- kind: ServiceAccount
+  name: austa-backend-sa
+  namespace: austa-cockpit
+roleRef:
+  kind: Role
+  name: austa-backend-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Role for AI service - minimal required permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: austa-cockpit
+  name: austa-ai-service-role
+  labels:
+    app: austa-cockpit
+    component: ai-service
+rules:
+# Allow reading own service account
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["get"]
+# Allow reading secrets for AI API keys
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+  resourceNames: ["austa-ai-secrets", "austa-db-secrets"]
+# Allow reading configmaps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames: ["austa-ai-config"]
+---
+# RoleBinding for AI service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: austa-ai-service-binding
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: ai-service
+subjects:
+- kind: ServiceAccount
+  name: austa-ai-service-sa
+  namespace: austa-cockpit
+roleRef:
+  kind: Role
+  name: austa-ai-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Role for monitoring - read-only access for metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: austa-cockpit
+  name: austa-monitoring-role
+  labels:
+    app: austa-cockpit
+    component: monitoring
+rules:
+# Allow reading pods for metrics
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+# Allow reading metrics
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list"]
+---
+# RoleBinding for monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: austa-monitoring-binding
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: monitoring
+subjects:
+- kind: ServiceAccount
+  name: austa-monitoring-sa
+  namespace: austa-cockpit
+roleRef:
+  kind: Role
+  name: austa-monitoring-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Role for backup service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: austa-cockpit
+  name: austa-backup-role
+  labels:
+    app: austa-cockpit
+    component: backup
+rules:
+# Allow reading secrets for database connections
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+  resourceNames: ["austa-db-secrets", "austa-backup-secrets"]
+# Allow reading pods to get database pod information
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Allow creating backup jobs
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "get", "list", "watch"]
+---
+# RoleBinding for backup service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: austa-backup-binding
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: backup
+subjects:
+- kind: ServiceAccount
+  name: austa-backup-sa
+  namespace: austa-cockpit
+roleRef:
+  kind: Role
+  name: austa-backup-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRole for security scanner (needs broader access)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: austa-security-scanner-clusterrole
+  labels:
+    app: austa-cockpit
+    component: security
+rules:
+# Allow reading pods and images for vulnerability scanning
+- apiGroups: [""]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list", "watch"]
+# Allow reading security policies
+- apiGroups: ["policy"]
+  resources: ["podsecuritypolicies"]
+  verbs: ["get", "list"]
+# Allow reading network policies
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list"]
+---
+# ClusterRoleBinding for security scanner
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: austa-security-scanner-binding
+  labels:
+    app: austa-cockpit
+    component: security
+subjects:
+- kind: ServiceAccount
+  name: austa-security-scanner-sa
+  namespace: austa-cockpit
+roleRef:
+  kind: ClusterRole
+  name: austa-security-scanner-clusterrole
+  apiGroup: rbac.authorization.k8s.io

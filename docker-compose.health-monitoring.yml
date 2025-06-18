@@ -1,0 +1,388 @@
+version: '3.8'
+
+services:
+  # Core application services with enhanced health checks
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - BACKEND_URL=http://backend-service:3000
+      - REDIS_URL=redis://redis:6379
+      - HEALTH_CHECK_TIMEOUT=30
+      - ENVIRONMENT=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - redis
+      - consul
+    networks:
+      - austa-network
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    labels:
+      - "consul.service=ai-service"
+      - "consul.health.http=/health/readiness"
+      - "consul.health.interval=30s"
+
+  backend-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/austa_cockpit
+      - REDIS_URL=redis://redis:6379
+      - AI_SERVICE_URL=http://ai-service:8000
+      - NODE_ENV=production
+      - HEALTH_CHECK_TIMEOUT=30
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - postgres
+      - redis
+      - consul
+    networks:
+      - austa-network
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    labels:
+      - "consul.service=backend-service"
+      - "consul.health.http=/health/ready"
+      - "consul.health.interval=30s"
+
+  frontend-service:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=http://backend-service:3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - austa-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    labels:
+      - "consul.service=frontend-service"
+      - "consul.health.http=/health"
+      - "consul.health.interval=30s"
+
+  # Infrastructure services
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=austa_cockpit
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/schemas:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - austa-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    labels:
+      - "consul.service=postgres"
+      - "consul.health.tcp=5432"
+      - "consul.health.interval=30s"
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - austa-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    labels:
+      - "consul.service=redis"
+      - "consul.health.tcp=6379"
+      - "consul.health.interval=30s"
+
+  # Service discovery and health monitoring
+  consul:
+    image: consul:1.16.1
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    command: >
+      consul agent -server -bootstrap-expect=1 -ui
+      -bind=0.0.0.0 -client=0.0.0.0
+      -datacenter=austa-cockpit
+      -data-dir=/consul/data
+      -log-level=INFO
+      -retry-join=consul
+    volumes:
+      - consul_data:/consul/data
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - austa-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.2'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # Load balancer with health-aware routing
+  nginx-lb:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/health-aware-lb.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/ssl
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - ai-service
+      - backend-service
+      - frontend-service
+    networks:
+      - austa-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+
+  # Monitoring stack
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/health-alerts.yml:/etc/prometheus/health-alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - austa-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/health-dashboard.json:/etc/grafana/provisioning/dashboards/health-dashboard.json
+      - ./monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - prometheus
+    networks:
+      - austa-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  # Alertmanager for health alerts
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--cluster.advertise-address=0.0.0.0:9093'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - austa-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.1'
+
+  # Health check testing service
+  health-tester:
+    build:
+      context: ./tests/health
+      dockerfile: Dockerfile
+    environment:
+      - AI_SERVICE_URL=http://ai-service:8000
+      - BACKEND_SERVICE_URL=http://backend-service:3000
+      - FRONTEND_SERVICE_URL=http://frontend-service:80
+    volumes:
+      - ./tests/health:/app/tests
+    networks:
+      - austa-network
+    deploy:
+      restart_policy:
+        condition: none
+    profiles:
+      - testing
+
+  # Service registration for Consul
+  consul-register:
+    image: curlimages/curl:latest
+    volumes:
+      - ./k8s/consul/service-registration.yaml:/scripts/register.sh
+    command: ["/bin/sh", "/scripts/register.sh"]
+    depends_on:
+      - consul
+      - ai-service
+      - backend-service
+      - frontend-service
+    networks:
+      - austa-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  # Continuous health monitoring
+  health-monitor:
+    image: curlimages/curl:latest
+    volumes:
+      - ./monitoring/scripts/continuous-health-check.sh:/scripts/monitor.sh
+    command: ["/bin/sh", "/scripts/monitor.sh"]
+    environment:
+      - CONSUL_URL=http://consul:8500
+      - CHECK_INTERVAL=60
+      - ALERT_WEBHOOK=${ALERT_WEBHOOK:-}
+    depends_on:
+      - consul
+    networks:
+      - austa-network
+    deploy:
+      restart_policy:
+        condition: always
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  consul_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+networks:
+  austa-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Health check configuration for the entire stack
+x-health-check-defaults: &health-check-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s

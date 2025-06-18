@@ -1,0 +1,137 @@
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "id": "user_001",
+        "firstName": "John",
+        "lastName": "Smith",
+        "email": "john.smith@austa.com",
+        "employeeId": "EMP-2024-001",
+        "role": "medical_reviewer",
+        "department": "Medical Review",
+        "status": "active",
+        "lastLogin": "2024-07-15T08:30:00Z",
+        "createdAt": "2024-01-15T10:00:00Z",
+        "permissions": [
+          "case:view",
+          "case:edit",
+          "case:approve",
+          "case:deny",
+          "reports:view"
+        ],
+        "mfaEnabled": true,
+        "phone": "+1-555-0123",
+        "accessLevel": "department"
+      },
+      {
+        "id": "user_002",
+        "firstName": "Sarah",
+        "lastName": "Johnson",
+        "email": "sarah.johnson@austa.com",
+        "employeeId": "EMP-2024-002",
+        "role": "fraud_investigator",
+        "department": "Fraud Investigation",
+        "status": "active",
+        "lastLogin": "2024-07-15T07:45:00Z",
+        "createdAt": "2024-02-01T14:00:00Z",
+        "permissions": [
+          "case:view",
+          "case:edit",
+          "fraud:investigate",
+          "external:reporting",
+          "admin:users_view"
+        ],
+        "mfaEnabled": true,
+        "phone": "+1-555-0456",
+        "accessLevel": "organization"
+      },
+      {
+        "id": "user_003",
+        "firstName": "Michael",
+        "lastName": "Brown",
+        "email": "michael.brown@austa.com",
+        "employeeId": "EMP-2024-003",
+        "role": "auditor",
+        "department": "Quality Assurance",
+        "status": "active",
+        "lastLogin": "2024-07-14T16:20:00Z",
+        "createdAt": "2024-03-10T09:30:00Z",
+        "permissions": [
+          "case:view",
+          "case:edit",
+          "case:comment",
+          "reports:view",
+          "qa:audit"
+        ],
+        "mfaEnabled": false,
+        "phone": "+1-555-0789",
+        "accessLevel": "department"
+      },
+      {
+        "id": "user_004",
+        "firstName": "Lisa",
+        "lastName": "Davis",
+        "email": "lisa.davis@austa.com",
+        "employeeId": "EMP-2024-004",
+        "role": "manager",
+        "department": "Medical Review",
+        "status": "active",
+        "lastLogin": "2024-07-15T09:15:00Z",
+        "createdAt": "2024-01-05T11:00:00Z",
+        "permissions": [
+          "case:view",
+          "case:edit",
+          "case:approve",
+          "case:deny",
+          "case:assign",
+          "reports:generate",
+          "admin:users_manage",
+          "analytics:view"
+        ],
+        "mfaEnabled": true,
+        "phone": "+1-555-0234",
+        "accessLevel": "organization"
+      },
+      {
+        "id": "user_005",
+        "firstName": "Robert",
+        "lastName": "Wilson",
+        "email": "robert.wilson@austa.com",
+        "employeeId": "EMP-2024-005",
+        "role": "admin",
+        "department": "IT Administration",
+        "status": "active",
+        "lastLogin": "2024-07-15T10:00:00Z",
+        "createdAt": "2024-01-01T08:00:00Z",
+        "permissions": [
+          "*"
+        ],
+        "mfaEnabled": true,
+        "phone": "+1-555-0567",
+        "accessLevel": "system"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 45,
+      "totalPages": 5
+    },
+    "summary": {
+      "totalUsers": 45,
+      "activeUsers": 42,
+      "inactiveUsers": 3,
+      "mfaEnabledUsers": 38,
+      "roleDistribution": {
+        "admin": 2,
+        "manager": 8,
+        "medical_reviewer": 15,
+        "fraud_investigator": 6,
+        "auditor": 12,
+        "analyst": 2
+      }
+    }
+  },
+  "message": "Users retrieved successfully"
+}

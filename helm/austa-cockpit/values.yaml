@@ -1,0 +1,392 @@
+# Default values for austa-cockpit
+global:
+  imageRegistry: ghcr.io
+  imagePullSecrets: []
+  storageClass: ""
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 3
+  image:
+    registry: ghcr.io
+    repository: austa/austa-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# Backend configuration
+backend:
+  enabled: true
+  replicaCount: 3
+  image:
+    registry: ghcr.io
+    repository: austa/austa-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: database-secret
+          key: url
+    - name: REDIS_URL
+      valueFrom:
+        secretKeyRef:
+          name: redis-secret
+          key: url
+    - name: JWT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: jwt-secret
+    - name: CLAUDE_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: claude-api-key
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /api/health/ready
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# AI Service configuration
+aiService:
+  enabled: true
+  replicaCount: 2
+  image:
+    registry: ghcr.io
+    repository: austa/austa-ai-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  
+  env:
+    - name: ENV
+      value: "production"
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: database-secret
+          key: url
+    - name: REDIS_URL
+      valueFrom:
+        secretKeyRef:
+          name: redis-secret
+          key: url
+    - name: CLAUDE_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: claude-api-key
+    - name: OPENAI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: openai-api-key
+    - name: MODEL_CACHE_DIR
+      value: "/app/models"
+  
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 85
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+  livenessProbe:
+    httpGet:
+      path: /api/v1/health
+      port: 8000
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /api/v1/health/ready
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    mountPath: /app/models
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: austa-cockpit.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: frontend
+            port: 80
+        - path: /api
+          pathType: Prefix
+          service:
+            name: backend
+            port: 3000
+        - path: /ai
+          pathType: Prefix
+          service:
+            name: ai-service
+            port: 8000
+  tls:
+    - secretName: austa-cockpit-tls
+      hosts:
+        - austa-cockpit.com
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: ""
+    username: austa
+    password: ""
+    database: austa_db
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: ""
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+  metrics:
+    enabled: true
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"
+    retention: "7d"
+
+# Redis configuration
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: ""
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClass: ""
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  metrics:
+    enabled: true
+
+# MongoDB configuration
+mongodb:
+  enabled: true
+  auth:
+    enabled: true
+    rootPassword: ""
+    username: austa
+    password: ""
+    database: austa_logs
+  persistence:
+    enabled: true
+    size: 15Gi
+    storageClass: ""
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  metrics:
+    enabled: true
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+  alerting:
+    enabled: true
+
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 3 * * *"
+  retention: "30d"
+  storage:
+    provider: "s3"
+    s3:
+      bucket: "austa-backups"
+      region: "us-west-2"
+
+# Security configuration
+security:
+  networkPolicies:
+    enabled: true
+  podSecurityPolicy:
+    enabled: true
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+  
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+rbac:
+  create: true
+
+# Pod security standards
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Health checks
+healthChecks:
+  livenessProbe:
+    enabled: true
+  readinessProbe:
+    enabled: true
+  startupProbe:
+    enabled: true
+
+# Blue-Green deployment configuration
+deployment:
+  strategy: RollingUpdate
+  color: blue
+  blueGreen:
+    enabled: false
+    autoPromote: false
+    scaleDownDelaySeconds: 600

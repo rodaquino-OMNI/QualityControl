@@ -1,0 +1,322 @@
+version: '3.8'
+
+services:
+  # Frontend Service (Production)
+  frontend:
+    image: ${DOCKER_REGISTRY}/austa-frontend:${VERSION:-latest}
+    container_name: austa-frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=${API_URL}
+      - REACT_APP_AI_SERVICE_URL=${AI_SERVICE_URL}
+      - REACT_APP_WS_URL=${WS_URL}
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./docker/nginx-prod.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - ai-service
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Backend Service (Production)
+  backend:
+    image: ${DOCKER_REGISTRY}/austa-backend:${VERSION:-latest}
+    container_name: austa-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - MONGODB_URL=${MONGODB_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET=${S3_BUCKET}
+    volumes:
+      - backend-uploads:/app/uploads
+      - ./logs/backend:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # AI Service (Production)
+  ai-service:
+    image: ${DOCKER_REGISTRY}/austa-ai-service:${VERSION:-latest}
+    container_name: austa-ai-service
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENV=production
+      - DATABASE_URL=${AI_DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - MONGODB_URL=${AI_MONGODB_URL}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MODEL_CACHE_DIR=/app/models
+      - LOG_LEVEL=WARNING
+      - SENTRY_DSN=${SENTRY_DSN}
+    volumes:
+      - ai-models:/app/models
+      - ai-cache:/app/cache
+      - ./logs/ai-service:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+  # PostgreSQL Database (Production)
+  postgres:
+    image: postgres:15-alpine
+    container_name: austa-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups/postgres:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+  # Redis Cache (Production)
+  redis:
+    image: redis:7-alpine
+    container_name: austa-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # MongoDB for Logs (Production)
+  mongodb:
+    image: mongo:6
+    container_name: austa-mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
+    volumes:
+      - mongodb-data:/data/db
+      - ./backups/mongodb:/backups
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Nginx Load Balancer
+  nginx-lb:
+    image: nginx:alpine
+    container_name: austa-nginx-lb
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx-lb.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Backup Service
+  backup:
+    image: ${DOCKER_REGISTRY}/austa-backup:${VERSION:-latest}
+    container_name: austa-backup
+    environment:
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 2 * * *}
+      - POSTGRES_CONNECTION=${DATABASE_URL}
+      - MONGODB_CONNECTION=${MONGODB_URL}
+      - S3_BUCKET=${BACKUP_S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - austa-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: austa-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - austa-network
+    restart: always
+    profiles:
+      - monitoring
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: austa-grafana
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - austa-network
+    restart: always
+    profiles:
+      - monitoring
+
+networks:
+  austa-network:
+    driver: overlay
+    attachable: true
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  mongodb-data:
+    driver: local
+  backend-uploads:
+    driver: local
+  ai-models:
+    driver: local
+  ai-cache:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local

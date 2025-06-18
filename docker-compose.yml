@@ -1,0 +1,253 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: austa-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:3000/api
+      - REACT_APP_AI_SERVICE_URL=http://localhost:3000/ai
+      - REACT_APP_WS_URL=ws://localhost:3000/ws
+    volumes:
+      - ./frontend:/app:delegated
+      - /app/node_modules
+    depends_on:
+      - backend
+      - ai-service
+    networks:
+      - austa-network
+    restart: unless-stopped
+
+  # Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: austa-backend
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://austa:austa123@postgres:5432/austa_db
+      - REDIS_URL=redis://redis:6379
+      - MONGODB_URL=mongodb://mongodb:27017/austa_logs
+      - JWT_SECRET=your-jwt-secret-here
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SESSION_SECRET=your-session-secret-here
+      - CORS_ORIGIN=http://localhost:3000
+      - LOG_LEVEL=info
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+    volumes:
+      - ./backend:/app:delegated
+      - /app/node_modules
+      - backend-uploads:/app/uploads
+      - backend-logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - austa-network
+      - austa-logging
+    restart: unless-stopped
+    command: npm run dev
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=austa-backend,environment=development"
+
+  # AI Service
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai-service
+    container_name: austa-ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://austa:austa123@postgres:5432/austa_ai
+      - REDIS_URL=redis://redis:6379
+      - MONGODB_URL=mongodb://mongodb:27017/austa_ai_logs
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MODEL_CACHE_DIR=/app/models
+      - LOG_LEVEL=INFO
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+    volumes:
+      - ./ai-service:/app:delegated
+      - ai-models:/app/models
+      - ai-cache:/app/cache
+      - ai-service-logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - austa-network
+      - austa-logging
+    restart: unless-stopped
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=austa-ai-service,environment=development"
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: austa-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=austa
+      - POSTGRES_PASSWORD=austa123
+      - POSTGRES_DB=austa_db
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U austa -d austa_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - austa-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: austa-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis123
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - austa-network
+    restart: unless-stopped
+
+  # MongoDB for Logs
+  mongodb:
+    image: mongo:6
+    container_name: austa-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=austa
+      - MONGO_INITDB_ROOT_PASSWORD=mongo123
+      - MONGO_INITDB_DATABASE=austa_logs
+    volumes:
+      - mongodb-data:/data/db
+      - ./docker/init-mongo.js:/docker-entrypoint-initdb.d/01-init.js:ro
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - austa-network
+    restart: unless-stopped
+
+  # pgAdmin (optional, for database management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: austa-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@austa.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - austa-network
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # Redis Commander (optional, for Redis management)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: austa-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:redis123
+    depends_on:
+      - redis
+    networks:
+      - austa-network
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # Jaeger for Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: austa-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - austa-logging
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+networks:
+  austa-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  austa-logging:
+    external: true
+
+volumes:
+  postgres-data:
+  redis-data:
+  mongodb-data:
+  backend-uploads:
+  backend-logs:
+  ai-models:
+  ai-cache:
+  ai-service-logs:
+  pgadmin-data:

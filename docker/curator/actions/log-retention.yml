@@ -1,0 +1,231 @@
+# Curator Actions for AUSTA Cockpit Log Retention Policies
+
+actions:
+  # 1. Delete old application logs after 30 days
+  delete_application_logs:
+    action: delete_indices
+    description: "Delete application logs older than 30 days"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-backend-logs-
+        exclude:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-ai-service-logs-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 30
+        exclude:
+
+  # 2. Delete old performance logs after 7 days
+  delete_performance_logs:
+    action: delete_indices
+    description: "Delete performance logs older than 7 days"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-performance-logs-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 7
+        exclude:
+
+  # 3. Delete old error logs after 90 days
+  delete_error_logs:
+    action: delete_indices
+    description: "Delete error logs older than 90 days"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-backend-errors-
+        exclude:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-ai-service-errors-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 90
+        exclude:
+
+  # 4. Archive security logs older than 180 days (instead of deleting)
+  close_security_logs:
+    action: close
+    description: "Close security logs older than 180 days for archival"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-security-logs-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 180
+        exclude:
+
+  # 5. Delete archived security logs after 2 years
+  delete_old_security_logs:
+    action: delete_indices
+    description: "Delete security logs older than 2 years"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-security-logs-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: years
+        unit_count: 2
+        exclude:
+
+  # 6. Archive audit logs older than 365 days
+  close_audit_logs:
+    action: close
+    description: "Close audit logs older than 365 days for compliance archival"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-audit-logs-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 365
+        exclude:
+
+  # 7. Delete audit logs after 7 years (regulatory compliance)
+  delete_old_audit_logs:
+    action: delete_indices
+    description: "Delete audit logs older than 7 years (regulatory compliance)"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-audit-logs-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: years
+        unit_count: 7
+        exclude:
+
+  # 8. Optimize ML metrics indices older than 1 day
+  forcemerge_ml_metrics:
+    action: forcemerge
+    description: "Optimize ML metrics indices older than 1 day"
+    options:
+      max_num_segments: 1
+      delay: 120
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-ml-metrics-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 1
+        exclude:
+      - filtertype: opened
+        exclude:
+
+  # 9. Snapshot important indices before deletion
+  snapshot_before_delete:
+    action: snapshot
+    description: "Create snapshot of indices before deletion"
+    options:
+      repository: austa-backup
+      name: "austa-logs-%Y%m%d"
+      ignore_unavailable: False
+      include_global_state: True
+      partial: False
+      wait_for_completion: True
+      skip_repo_fs_check: False
+      timeout_override: 300
+      continue_if_exception: False
+      disable_action: False
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: austa-
+        exclude:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 25
+        exclude:
+
+  # 10. Rollover large indices
+  rollover_large_indices:
+    action: rollover
+    description: "Rollover indices when they become too large"
+    options:
+      name: austa-backend-logs
+      conditions:
+        max_size: 5gb
+        max_age: 1d
+        max_docs: 10000000
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False

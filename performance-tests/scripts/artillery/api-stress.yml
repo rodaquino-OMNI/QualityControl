@@ -1,0 +1,386 @@
+# Artillery API Stress Test
+# Comprehensive API endpoint stress testing
+
+config:
+  target: "{{ $processEnvironment.API_URL || 'http://localhost:8000' }}"
+  plugins:
+    expect: {}
+    influxdb:
+      host: "{{ $processEnvironment.INFLUXDB_HOST || 'localhost' }}"
+      port: "{{ $processEnvironment.INFLUXDB_PORT || 8086 }}"
+      database: "{{ $processEnvironment.INFLUXDB_DATABASE || 'austa_performance' }}"
+      measurement: "artillery_api_stress"
+  phases:
+    # Phase 1: API warm-up
+    - duration: 60
+      arrivalRate: 5
+      name: "API warm-up"
+    
+    # Phase 2: Normal API load
+    - duration: 300
+      arrivalRate: 20
+      name: "Normal API load"
+    
+    # Phase 3: High API throughput
+    - duration: 600
+      arrivalRate: 20
+      rampTo: 80
+      name: "High API throughput"
+    
+    # Phase 4: API stress test
+    - duration: 300
+      arrivalRate: 80
+      rampTo: 150
+      name: "API stress test"
+    
+    # Phase 5: API breaking point test
+    - duration: 180
+      arrivalRate: 200
+      name: "API breaking point"
+    
+    # Phase 6: Recovery
+    - duration: 120
+      arrivalRate: 200
+      rampTo: 10
+      name: "API recovery"
+  
+  http:
+    timeout: 30
+    pool: 200
+  
+  tls:
+    rejectUnauthorized: false
+  
+  variables:
+    authToken: ""
+
+before:
+  flow:
+    - post:
+        url: "/api/auth/login"
+        json:
+          email: "{{ $processEnvironment.TEST_ADMIN_EMAIL || 'admin@austa.com' }}"
+          password: "{{ $processEnvironment.TEST_ADMIN_PASSWORD || 'admin123' }}"
+        capture:
+          - json: "$.token"
+            as: "authToken"
+        expect:
+          - statusCode: 200
+
+scenarios:
+  # Case management API stress
+  - name: "Case Management API"
+    weight: 30
+    flow:
+      # Create case
+      - post:
+          url: "/api/cases"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            type: "fraud_detection"
+            title: "API Stress Test Case {{ $randomInt(1, 100000) }}"
+            description: "Automated API stress test case"
+            priority: "{{ $pick(['low', 'medium', 'high', 'critical']) }}"
+            category: "{{ $pick(['fraud', 'compliance', 'audit', 'risk']) }}"
+            amount: "{{ $randomInt(1000, 100000) }}"
+            currency: "USD"
+            metadata:
+              source: "artillery_api_stress"
+              batch_id: "{{ $randomString() }}"
+          capture:
+            - json: "$.id"
+              as: "caseId"
+          expect:
+            - statusCode: [201, 400, 429]
+            
+      # Get case details
+      - ifTrue: "{{ caseId }}"
+        then:
+          - get:
+              url: "/api/cases/{{ caseId }}"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+            expect:
+              - statusCode: [200, 404, 429]
+              
+          # Update case
+          - put:
+              url: "/api/cases/{{ caseId }}"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+                Content-Type: "application/json"
+              json:
+                status: "{{ $pick(['open', 'in_progress', 'under_review']) }}"
+                priority: "{{ $pick(['low', 'medium', 'high', 'critical']) }}"
+                notes: "Updated during API stress test at {{ $now() }}"
+            expect:
+              - statusCode: [200, 400, 404, 429]
+              
+          # Case analysis
+          - post:
+              url: "/api/cases/{{ caseId }}/analyze"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+                Content-Type: "application/json"
+              json:
+                analysis_type: "{{ $pick(['fraud_detection', 'compliance_check', 'risk_assessment']) }}"
+                include_ai_assessment: true
+                risk_factors: ["{{ $randomString() }}", "{{ $randomString() }}"]
+            expect:
+              - statusCode: [200, 400, 404, 429, 503]
+
+  # User management API stress
+  - name: "User Management API"
+    weight: 15
+    flow:
+      # Get user profile
+      - get:
+          url: "/api/users/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+        expect:
+          - statusCode: [200, 401, 429]
+          
+      # Update user preferences
+      - put:
+          url: "/api/users/preferences"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            theme: "{{ $pick(['light', 'dark']) }}"
+            notifications: "{{ $pick([true, false]) }}"
+            language: "{{ $pick(['en', 'es', 'fr']) }}"
+            timezone: "{{ $pick(['UTC', 'America/New_York', 'Europe/London']) }}"
+        expect:
+          - statusCode: [200, 400, 401, 429]
+          
+      # Get user activity
+      - get:
+          url: "/api/users/activity"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            limit: "{{ $randomInt(10, 50) }}"
+            offset: "{{ $randomInt(0, 100) }}"
+        expect:
+          - statusCode: [200, 401, 429]
+
+  # Analytics API stress
+  - name: "Analytics API"
+    weight: 20
+    flow:
+      # Dashboard overview
+      - get:
+          url: "/api/analytics/overview"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            period: "{{ $pick(['day', 'week', 'month', 'quarter']) }}"
+            metrics: "{{ $pick(['cases', 'fraud', 'performance', 'users']) }}"
+        expect:
+          - statusCode: [200, 401, 429]
+          
+      # Performance metrics
+      - get:
+          url: "/api/analytics/performance"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            start_date: "{{ $timestamp(Date.now() - 86400000 * 30) }}"
+            end_date: "{{ $timestamp(Date.now()) }}"
+            granularity: "{{ $pick(['hour', 'day', 'week']) }}"
+        expect:
+          - statusCode: [200, 401, 429]
+          
+      # Fraud detection metrics
+      - get:
+          url: "/api/analytics/fraud-detection"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            period: "{{ $pick(['last_7_days', 'last_30_days', 'last_90_days']) }}"
+            include_trends: true
+        expect:
+          - statusCode: [200, 401, 429]
+          
+      # Custom report generation
+      - post:
+          url: "/api/analytics/reports"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            type: "{{ $pick(['performance', 'fraud_analysis', 'compliance_summary']) }}"
+            filters:
+              status: ["{{ $pick(['open', 'closed', 'in_progress']) }}"]
+              priority: ["{{ $pick(['low', 'medium', 'high', 'critical']) }}"]
+              date_range:
+                start: "{{ $timestamp(Date.now() - 86400000 * 30) }}"
+                end: "{{ $timestamp(Date.now()) }}"
+            format: "{{ $pick(['json', 'csv', 'pdf']) }}"
+        expect:
+          - statusCode: [200, 400, 401, 429]
+
+  # Search and filtering API stress
+  - name: "Search API"
+    weight: 15
+    flow:
+      # Case search
+      - post:
+          url: "/api/search/cases"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            query: "{{ $pick(['fraud', 'high risk', 'compliance', 'urgent', 'suspicious']) }}"
+            filters:
+              status: ["{{ $pick(['open', 'closed', 'in_progress']) }}"]
+              priority: ["{{ $pick(['low', 'medium', 'high', 'critical']) }}"]
+              category: ["{{ $pick(['fraud', 'compliance', 'audit', 'risk']) }}"]
+              date_range:
+                start: "{{ $timestamp(Date.now() - 86400000 * 90) }}"
+                end: "{{ $timestamp(Date.now()) }}"
+            sort: "{{ $pick(['relevance', 'date', 'priority', 'amount']) }}"
+            limit: "{{ $randomInt(10, 100) }}"
+            offset: "{{ $randomInt(0, 1000) }}"
+        expect:
+          - statusCode: [200, 400, 401, 429]
+          
+      # Advanced search with aggregations
+      - post:
+          url: "/api/search/advanced"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            query:
+              bool:
+                must:
+                  - term:
+                      status: "{{ $pick(['open', 'closed', 'in_progress']) }}"
+                  - range:
+                      amount:
+                        gte: "{{ $randomInt(1000, 10000) }}"
+                        lte: "{{ $randomInt(50000, 100000) }}"
+                filter:
+                  - term:
+                      category: "{{ $pick(['fraud', 'compliance']) }}"
+            aggregations:
+              status_breakdown:
+                terms:
+                  field: "status"
+              amount_stats:
+                stats:
+                  field: "amount"
+        expect:
+          - statusCode: [200, 400, 401, 429]
+
+  # Notification API stress
+  - name: "Notification API"
+    weight: 10
+    flow:
+      # Get notifications
+      - get:
+          url: "/api/notifications"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            limit: "{{ $randomInt(10, 50) }}"
+            unread_only: "{{ $pick([true, false]) }}"
+            type: "{{ $pick(['alert', 'info', 'warning', 'success']) }}"
+        expect:
+          - statusCode: [200, 401, 429]
+          
+      # Mark notifications as read
+      - put:
+          url: "/api/notifications/mark-read"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            notification_ids: ["{{ $randomString() }}", "{{ $randomString() }}"]
+        expect:
+          - statusCode: [200, 400, 401, 429]
+          
+      # Create notification (for testing)
+      - post:
+          url: "/api/notifications"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            type: "{{ $pick(['info', 'warning', 'alert']) }}"
+            title: "API Stress Test Notification"
+            message: "This is a test notification created during API stress testing"
+            priority: "{{ $pick(['low', 'medium', 'high']) }}"
+            metadata:
+              source: "artillery_api_stress"
+              timestamp: "{{ $now() }}"
+        expect:
+          - statusCode: [201, 400, 401, 429]
+
+  # File upload/download API stress
+  - name: "File Management API"
+    weight: 10
+    flow:
+      # Upload file (simulated)
+      - post:
+          url: "/api/files/upload"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "multipart/form-data"
+          formData:
+            file: "test_file_content_{{ $randomString() }}"
+            filename: "stress_test_{{ $randomInt(1, 1000) }}.txt"
+            case_id: "{{ $randomString() }}"
+        expect:
+          - statusCode: [201, 400, 401, 413, 429]
+          
+      # List files
+      - get:
+          url: "/api/files"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            limit: "{{ $randomInt(10, 50) }}"
+            type: "{{ $pick(['document', 'image', 'report']) }}"
+        expect:
+          - statusCode: [200, 401, 429]
+
+# Performance expectations
+expect:
+  # API response times
+  - property: "response.time"
+    max: 5000
+    name: "API response time under 5 seconds"
+  
+  # Error rate
+  - property: "stats.errors"
+    max: 2
+    name: "API error rate under 2%"
+    
+  # Throughput
+  - property: "stats.requestsCompleted"
+    min: 5000
+    name: "Minimum 5000 API requests processed"
+    
+  # Rate limiting
+  - property: "stats.codes.429"
+    min: 1
+    name: "Rate limiting active under stress"
+
+# Custom API metrics
+metrics:
+  - name: "api_endpoint_response_time"
+    unit: "ms"
+  - name: "api_error_rate_by_endpoint"
+    unit: "percent"
+  - name: "api_throughput"
+    unit: "requests_per_second"
+  - name: "database_connection_pool_usage"
+    unit: "percent"
+  - name: "cache_hit_rate"
+    unit: "percent"

@@ -1,0 +1,51 @@
+# Logstash Configuration for AUSTA Cockpit
+
+# Node Configuration
+node.name: austa-logstash
+cluster.name: austa-cluster
+
+# Pipeline Configuration
+pipeline.id: austa-main
+pipeline.workers: 4
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+# Path Configuration
+path.data: /usr/share/logstash/data
+path.logs: /usr/share/logstash/logs
+path.config: /usr/share/logstash/pipeline
+path.settings: /usr/share/logstash/config
+
+# API Configuration
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Monitoring Configuration
+monitoring.enabled: true
+monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+monitoring.elasticsearch.username: "elastic"
+monitoring.elasticsearch.password: "austa123"
+
+# Queue Configuration
+queue.type: persisted
+queue.max_events: 10000
+queue.max_bytes: 1gb
+queue.checkpoint.acks: 1024
+queue.checkpoint.writes: 1024
+
+# Dead Letter Queue Configuration
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1gb
+
+# Performance Tuning
+pipeline.unsafe_shutdown: false
+pipeline.separate_logs: true
+
+# Logging Configuration
+log.level: info
+log.format: json
+
+# Security Configuration
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.username: "elastic"
+xpack.monitoring.elasticsearch.password: "austa123"

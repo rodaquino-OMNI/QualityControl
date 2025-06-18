@@ -1,0 +1,79 @@
+{
+  "database_schema": {
+    "overview": "AUSTA Cockpit PostgreSQL database schema for healthcare quality control and authorization management",
+    "version": "1.0.0",
+    "created": "2025-01-18",
+    "schemas": {
+      "auth": {
+        "description": "Authentication and user management with organizations, users, sessions, and RBAC",
+        "tables": ["organizations", "users", "sessions", "permissions", "role_permissions"],
+        "key_features": ["Multi-tenant support", "Role-based access control", "Session management", "Account security"]
+      },
+      "medical": {
+        "description": "Medical cases including patients, procedures, authorizations, decisions, and claims",
+        "tables": ["patients", "procedures", "authorization_requests", "authorization_decisions", "claims"],
+        "key_features": ["Anonymized patient data", "Authorization workflow", "Claim processing", "Decision tracking"]
+      },
+      "ai": {
+        "description": "AI models, analysis results, fraud indicators, and detection tracking",
+        "tables": ["models", "analysis_results", "fraud_indicators", "fraud_detections"],
+        "key_features": ["Model versioning", "Fraud detection", "Risk scoring", "Pattern analysis"]
+      },
+      "audit": {
+        "description": "Activity logs, decision trails, and compliance violation tracking",
+        "tables": ["activity_logs", "decision_trails", "compliance_violations"],
+        "key_features": ["Complete audit trail", "Decision documentation", "Compliance monitoring", "Change tracking"]
+      },
+      "analytics": {
+        "description": "Performance metrics, provider metrics, and user activity summaries",
+        "tables": ["performance_metrics", "provider_metrics", "user_activity_summary"],
+        "key_features": ["Time-series data", "Provider scoring", "User productivity", "Quality metrics"]
+      }
+    },
+    "security_features": {
+      "authentication": ["Password hashing with pgcrypto", "Session token management", "Account lockout protection"],
+      "authorization": ["Row-level security", "Organization-based isolation", "Role-based permissions"],
+      "audit": ["All actions logged", "User attribution", "Timestamp tracking", "Change history"]
+    },
+    "compliance_features": {
+      "hipaa": ["Patient anonymization", "Access controls", "Audit trails", "Minimum necessary access"],
+      "regulatory": ["Decision documentation", "Appeal tracking", "Violation management", "Reference tracking"]
+    },
+    "performance_optimizations": {
+      "indexes": ["Primary keys (UUID)", "Foreign key relationships", "Status fields", "Timestamp ranges", "Composite patterns"],
+      "triggers": ["Automatic timestamp updates", "Data validation", "Audit generation"],
+      "extensions": ["uuid-ossp for UUID generation", "pgcrypto for encryption", "pg_trgm for text search"]
+    },
+    "core_workflows": {
+      "authorization": {
+        "flow": "Request → Review (Human/AI) → Decision → Claim",
+        "statuses": ["pending", "in_review", "approved", "denied", "expired", "cancelled"]
+      },
+      "fraud_detection": {
+        "flow": "Indicator → Detection → Investigation → Resolution",
+        "statuses": ["pending", "investigating", "confirmed", "dismissed"]
+      },
+      "claims": {
+        "flow": "Submission → Processing → Decision → Payment",
+        "statuses": ["submitted", "processing", "approved", "denied", "appealed", "paid"]
+      }
+    },
+    "integration_points": {
+      "orm": "Prisma with multi-schema support",
+      "api": "RESTful endpoints for each entity",
+      "events": "Audit log triggers for all changes",
+      "analytics": "Time-series aggregation support"
+    },
+    "files": {
+      "schema": "/db/schemas/austa_cockpit_schema.sql",
+      "migration": "/db/migrations/001_initial_schema.sql",
+      "prisma": "/db/schema.prisma",
+      "documentation": "/db/SCHEMA_DOCUMENTATION.md",
+      "erd": "/db/ERD.md",
+      "seeds": {
+        "permissions": "/db/seeds/01_permissions.sql",
+        "fraud_indicators": "/db/seeds/02_fraud_indicators.sql"
+      }
+    }
+  }
+}

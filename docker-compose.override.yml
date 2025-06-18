@@ -1,0 +1,64 @@
+# Docker Compose Override for Development
+# This file is automatically loaded by docker-compose in development
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: builder  # Use builder stage for development
+    command: npm run dev
+    volumes:
+      - ./frontend:/app:delegated
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - WATCHPACK_POLLING=true
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: builder  # Use builder stage for development
+    command: npm run dev
+    volumes:
+      - ./backend:/app:delegated
+      - /app/node_modules
+      - /app/dist
+    environment:
+      - NODE_ENV=development
+      - DEBUG=app:*
+      - LOG_LEVEL=debug
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai-service
+      target: builder  # Use builder stage for development
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    volumes:
+      - ./ai-service:/app:delegated
+      - ai-venv:/opt/venv
+    environment:
+      - ENV=development
+      - LOG_LEVEL=DEBUG
+      - PYTHONDONTWRITEBYTECODE=1
+
+  # Development-only services
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: austa-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - austa-network
+    profiles:
+      - dev-tools
+
+volumes:
+  ai-venv:

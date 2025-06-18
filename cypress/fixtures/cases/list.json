@@ -1,0 +1,80 @@
+{
+  "success": true,
+  "data": {
+    "cases": [
+      {
+        "id": "case_001",
+        "title": "Cardiac Surgery Pre-Authorization",
+        "patientId": "PT-2024-001",
+        "status": "pending_review",
+        "priority": "high",
+        "createdAt": "2024-07-15T09:00:00Z",
+        "updatedAt": "2024-07-15T09:00:00Z",
+        "assignedTo": "auditor@austa.com",
+        "procedureCode": "33518",
+        "diagnosisCode": "I25.10",
+        "claimAmount": 125000,
+        "provider": {
+          "id": "PRV-001",
+          "name": "CardioVascular Associates",
+          "npi": "1234567890"
+        },
+        "urgencyLevel": "immediate",
+        "flags": ["high_cost"]
+      },
+      {
+        "id": "case_002",
+        "title": "Orthopedic Joint Replacement Review",
+        "patientId": "PT-2024-002",
+        "status": "under_review",
+        "priority": "medium",
+        "createdAt": "2024-07-14T14:30:00Z",
+        "updatedAt": "2024-07-15T08:15:00Z",
+        "assignedTo": "reviewer@austa.com",
+        "procedureCode": "27447",
+        "diagnosisCode": "M17.11",
+        "claimAmount": 45000,
+        "provider": {
+          "id": "PRV-002",
+          "name": "Orthopedic Specialists Group",
+          "npi": "0987654321"
+        },
+        "urgencyLevel": "routine",
+        "flags": []
+      },
+      {
+        "id": "case_003",
+        "title": "Emergency Surgery Authorization",
+        "patientId": "PT-2024-003",
+        "status": "approved",
+        "priority": "urgent",
+        "createdAt": "2024-07-13T22:45:00Z",
+        "updatedAt": "2024-07-14T01:30:00Z",
+        "assignedTo": "emergency@austa.com",
+        "procedureCode": "44970",
+        "diagnosisCode": "K35.9",
+        "claimAmount": 75000,
+        "provider": {
+          "id": "PRV-003",
+          "name": "Metropolitan Emergency Hospital",
+          "npi": "1122334455"
+        },
+        "urgencyLevel": "emergency",
+        "flags": ["emergency_approval"]
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 156,
+      "totalPages": 16
+    },
+    "filters": {
+      "status": null,
+      "priority": null,
+      "dateRange": null,
+      "assignedTo": null
+    }
+  },
+  "message": "Cases retrieved successfully"
+}

@@ -1,0 +1,326 @@
+# Falco Runtime Security Monitoring
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: falco-system
+  labels:
+    name: falco-system
+---
+# ServiceAccount for Falco
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: falco
+  namespace: falco-system
+---
+# ClusterRole for Falco to read system events
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: falco
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "pods", "events", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "daemonsets"]
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/healthz", "/metrics"]
+  verbs: ["get"]
+---
+# ClusterRoleBinding for Falco
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: falco
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: falco
+subjects:
+- kind: ServiceAccount
+  name: falco
+  namespace: falco-system
+---
+# Falco Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-config
+  namespace: falco-system
+data:
+  falco.yaml: |
+    rules_file:
+      - /etc/falco/falco_rules.yaml
+      - /etc/falco/falco_rules.local.yaml
+      - /etc/falco/k8s_audit_rules.yaml
+      - /etc/falco/rules.d
+    
+    time_format_iso_8601: true
+    json_output: true
+    json_include_output_property: true
+    json_include_tags_property: true
+    
+    log_stderr: true
+    log_syslog: true
+    log_level: info
+    
+    priority: debug
+    
+    buffered_outputs: false
+    
+    syscall_event_drops:
+      actions:
+        - log
+        - alert
+      rate: 0.03333
+      max_burst: 1000
+    
+    outputs:
+      rate: 1
+      max_burst: 1000
+    
+    syslog_output:
+      enabled: true
+    
+    program_output:
+      enabled: false
+      keep_alive: false
+      program: "jq '{text: .output}' | curl -d @- -X POST https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    
+    http_output:
+      enabled: true
+      url: "http://falcosidekick:2801/"
+      user_agent: "falcosecurity/falco"
+    
+    grpc:
+      enabled: false
+      bind_address: "0.0.0.0:5060"
+      threadiness: 8
+    
+    grpc_output:
+      enabled: false
+    
+    webserver:
+      enabled: true
+      listen_port: 8765
+      k8s_healthz_endpoint: /healthz
+      ssl_enabled: false
+      ssl_certificate: /etc/ssl/falco/falco.pem
+  
+  falco_rules.local.yaml: |
+    # Custom rules for AUSTA Cockpit
+    - rule: Suspicious Network Activity in AUSTA Namespace
+      desc: Detect suspicious network activity in AUSTA namespace
+      condition: >
+        k8s_audit and
+        ka.target.namespace = "austa-cockpit" and
+        ka.verb in (create, update, patch) and
+        ka.target.resource = "networkpolicies"
+      output: >
+        Suspicious network policy change in AUSTA namespace
+        (user=%ka.user.name verb=%ka.verb target=%ka.target.resource reason=%ka.reason.reason)
+      priority: WARNING
+      tags: [network, k8s_audit, austa]
+    
+    - rule: Database Access Outside Business Hours
+      desc: Detect database access outside of business hours (7 AM - 7 PM UTC)
+      condition: >
+        spawned_process and
+        container.image.repository contains "postgres" and
+        not (k8s.ns.name = "austa-cockpit" and
+             user.name in (postgres, austa-backend-sa, austa-ai-service-sa)) and
+        not time_in_range("07:00:00", "19:00:00")
+      output: >
+        Database access outside business hours
+        (user=%user.name command=%proc.cmdline container=%container.name time=%evt.time)
+      priority: HIGH
+      tags: [database, anomaly, austa]
+    
+    - rule: Suspicious Container Execution in AUSTA
+      desc: Detect suspicious processes in AUSTA containers
+      condition: >
+        spawned_process and
+        k8s.ns.name = "austa-cockpit" and
+        proc.name in (nc, netcat, nmap, wireshark, tcpdump, ncat, socat, curl, wget) and
+        not container.image.repository in (austa-frontend, austa-backend, austa-ai-service)
+      output: >
+        Suspicious process execution in AUSTA container
+        (user=%user.name process=%proc.name container=%container.name image=%container.image.repository)
+      priority: HIGH
+      tags: [process, anomaly, austa]
+    
+    - rule: Unauthorized Secret Access
+      desc: Detect unauthorized access to secrets
+      condition: >
+        k8s_audit and
+        ka.target.namespace = "austa-cockpit" and
+        ka.target.resource = "secrets" and
+        ka.verb in (get, list, watch) and
+        not ka.user.name in (system:serviceaccount:austa-cockpit:austa-backend-sa,
+                            system:serviceaccount:austa-cockpit:austa-ai-service-sa,
+                            system:serviceaccount:austa-cockpit:austa-monitoring-sa)
+      output: >
+        Unauthorized secret access in AUSTA namespace
+        (user=%ka.user.name verb=%ka.verb target=%ka.target.name)
+      priority: CRITICAL
+      tags: [secrets, unauthorized, austa]
+    
+    - rule: HIPAA Data Access Violation
+      desc: Detect potential HIPAA data access violations
+      condition: >
+        open_read and
+        fd.name contains "/data/patient" and
+        not proc.name in (austa-backend, austa-ai-service) and
+        not user.name in (austa-backend-sa, austa-ai-service-sa)
+      output: >
+        Potential HIPAA data access violation
+        (user=%user.name process=%proc.name file=%fd.name container=%container.name)
+      priority: CRITICAL
+      tags: [hipaa, compliance, data_access, austa]
+---
+# Falco DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: falco
+  namespace: falco-system
+  labels:
+    app: falco
+spec:
+  selector:
+    matchLabels:
+      app: falco
+  template:
+    metadata:
+      labels:
+        app: falco
+    spec:
+      serviceAccountName: falco
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+      containers:
+      - name: falco
+        image: falcosecurity/falco-no-driver:0.36.2
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 512Mi
+        securityContext:
+          privileged: true
+          readOnlyRootFilesystem: true
+          runAsNonRoot: false
+          runAsUser: 0
+        args:
+          - /usr/bin/falco
+          - --cri=/run/containerd/containerd.sock
+          - --cri=/run/crio/crio.sock
+          - --k8s-api
+          - --k8s-api-cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          - --k8s-api-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+        env:
+        - name: FALCO_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: FALCO_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - mountPath: /etc/falco
+          name: falco-config
+        - mountPath: /host/var/run/docker.sock
+          name: docker-socket
+          readOnly: true
+        - mountPath: /host/run/containerd/containerd.sock
+          name: containerd-socket
+          readOnly: true
+        - mountPath: /host/dev
+          name: dev-fs
+          readOnly: true
+        - mountPath: /host/proc
+          name: proc-fs
+          readOnly: true
+        - mountPath: /host/boot
+          name: boot-fs
+          readOnly: true
+        - mountPath: /host/lib/modules
+          name: lib-modules
+          readOnly: true
+        - mountPath: /host/usr
+          name: usr-fs
+          readOnly: true
+        - mountPath: /host/etc
+          name: etc-fs
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8765
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8765
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: falco-config
+        configMap:
+          name: falco-config
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+      - name: containerd-socket
+        hostPath:
+          path: /run/containerd/containerd.sock
+      - name: dev-fs
+        hostPath:
+          path: /dev
+      - name: proc-fs
+        hostPath:
+          path: /proc
+      - name: boot-fs
+        hostPath:
+          path: /boot
+      - name: lib-modules
+        hostPath:
+          path: /lib/modules
+      - name: usr-fs
+        hostPath:
+          path: /usr
+      - name: etc-fs
+        hostPath:
+          path: /etc
+      hostNetwork: true
+      hostPID: true
+---
+# Falco Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: falco
+  namespace: falco-system
+  labels:
+    app: falco
+spec:
+  selector:
+    app: falco
+  ports:
+  - name: grpc
+    port: 5060
+    targetPort: 5060
+    protocol: TCP
+  - name: metrics
+    port: 8765
+    targetPort: 8765
+    protocol: TCP

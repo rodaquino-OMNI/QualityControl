@@ -1,0 +1,105 @@
+# Namespace with Pod Security Standards
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: austa-cockpit
+  labels:
+    # Pod Security Standards enforcement
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # Additional security labels
+    security.hardened: "true"
+    compliance.hipaa: "true"
+    compliance.gdpr: "true"
+    environment: production
+---
+# Pod Security Policy for restricted workloads
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: austa-restricted-psp
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: security
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: true
+  seLinux:
+    rule: RunAsAny
+  seccompProfile:
+    type: RuntimeDefault
+---
+# Pod Security Policy for database workloads (slightly less restrictive)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: austa-database-psp
+  namespace: austa-cockpit
+  labels:
+    app: austa-cockpit
+    component: database
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  allowedCapabilities:
+    - CHOWN
+    - DAC_OVERRIDE
+    - FOWNER
+    - SETGID
+    - SETUID
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: false
+  seLinux:
+    rule: RunAsAny
+  seccompProfile:
+    type: RuntimeDefault

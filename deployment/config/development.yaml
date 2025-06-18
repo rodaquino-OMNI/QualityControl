@@ -1,0 +1,112 @@
+# Development Environment Configuration
+environment: development
+version: "1.0.0"
+
+# Application Configuration
+app:
+  name: "austa-cockpit-dev"
+  domain: "dev.austa-cockpit.local"
+  port: 3000
+  debug: true
+  log_level: "debug"
+
+# Database Configuration
+database:
+  host: "localhost"
+  port: 5432
+  name: "austa_cockpit_dev"
+  ssl: false
+  pool_size: 10
+  timeout: 30
+  migrations:
+    auto_run: true
+    backup_before: false
+
+# Redis Configuration
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: ""
+  ssl: false
+
+# MongoDB Configuration
+mongodb:
+  host: "localhost"
+  port: 27017
+  database: "austa_cockpit_dev"
+  auth_source: "admin"
+  ssl: false
+
+# AI Service Configuration
+ai_service:
+  host: "localhost"
+  port: 8000
+  models:
+    - name: "bert-medical"
+      enabled: true
+      memory_limit: "2GB"
+    - name: "gpt4-medical"
+      enabled: false
+      api_key_required: true
+    - name: "lstm-patterns"
+      enabled: true
+      memory_limit: "1GB"
+    - name: "xgboost-fraud"
+      enabled: true
+      memory_limit: "512MB"
+
+# Security Configuration
+security:
+  jwt:
+    secret: "dev-secret-key"
+    expiry: "24h"
+  cors:
+    origins: ["http://localhost:3000", "http://localhost:5173"]
+    credentials: true
+  rate_limiting:
+    enabled: false
+    requests_per_minute: 1000
+
+# Features Configuration
+features:
+  audit_logging: true
+  performance_monitoring: true
+  real_time_analytics: true
+  blockchain_integration: false
+  advanced_ml_models: false
+
+# Deployment Configuration
+deployment:
+  strategy: "rolling"
+  replicas: 1
+  health_check:
+    enabled: true
+    endpoint: "/health"
+    timeout: 30
+    retries: 3
+  resources:
+    cpu: "0.5"
+    memory: "1Gi"
+    storage: "10Gi"
+
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+  grafana:
+    enabled: true
+    port: 3001
+  alerts:
+    enabled: false
+    webhook_url: ""
+
+# Backup Configuration
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  retention: "7d"
+  destinations:
+    - type: "local"
+      path: "/tmp/backups"

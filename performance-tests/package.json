@@ -1,0 +1,38 @@
+{
+  "name": "austa-cockpit-performance-tests",
+  "version": "1.0.0",
+  "description": "Performance testing suite for AUSTA Cockpit",
+  "scripts": {
+    "test:load": "k6 run scripts/k6/load-test.js",
+    "test:auth": "k6 run scripts/k6/auth-load-test.js",
+    "test:cases": "k6 run scripts/k6/case-processing-test.js",
+    "test:ai": "k6 run scripts/k6/ai-service-test.js",
+    "test:dashboard": "k6 run scripts/k6/dashboard-stress-test.js",
+    "test:stress": "artillery run scripts/artillery/stress-test.yml",
+    "test:auth-stress": "artillery run scripts/artillery/auth-stress.yml",
+    "test:api-stress": "artillery run scripts/artillery/api-stress.yml",
+    "test:lighthouse": "node scripts/lighthouse/lighthouse-runner.js",
+    "test:jmeter": "jmeter -n -t scripts/jmeter/workflow-test.jmx -l results/jmeter/workflow-results.jtl",
+    "test:all": "npm run test:load && npm run test:stress && npm run test:lighthouse",
+    "test:regression": "node scripts/regression/performance-regression.js",
+    "monitor": "node scripts/monitoring/performance-monitor.js",
+    "report": "node scripts/reporting/generate-report.js",
+    "baseline": "node scripts/baseline/create-baseline.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "artillery": "^2.0.0",
+    "k6": "^0.47.0",
+    "lighthouse": "^11.0.0",
+    "puppeteer": "^21.0.0",
+    "axios": "^1.5.0",
+    "dotenv": "^16.0.0",
+    "uuid": "^9.0.0",
+    "influxdb": "^5.9.0",
+    "prometheus-client": "^1.0.0",
+    "grafana-api": "^1.0.0"
+  },
+  "keywords": ["performance", "testing", "k6", "artillery", "lighthouse", "jmeter", "austa"],
+  "author": "AUSTA Performance Team",
+  "license": "MIT"
+}

@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consul-config
+  labels:
+    app: consul
+data:
+  consul.hcl: |
+    datacenter = "austa-cockpit"
+    data_dir = "/consul/data"
+    log_level = "INFO"
+    server = true
+    bootstrap_expect = 3
+    ui_config {
+      enabled = true
+    }
+    connect {
+      enabled = true
+    }
+    client_addr = "0.0.0.0"
+    bind_addr = "0.0.0.0"
+    ports {
+      grpc = 8502
+    }
+    retry_join = [
+      "consul-0.consul.default.svc.cluster.local",
+      "consul-1.consul.default.svc.cluster.local",
+      "consul-2.consul.default.svc.cluster.local"
+    ]
+    acl = {
+      enabled = true
+      default_policy = "allow"
+      enable_token_persistence = true
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul
+  labels:
+    app: consul
+spec:
+  clusterIP: None
+  selector:
+    app: consul
+  ports:
+  - name: http
+    port: 8500
+    targetPort: 8500
+  - name: rpc
+    port: 8400
+    targetPort: 8400
+  - name: serflan-tcp
+    protocol: TCP
+    port: 8301
+    targetPort: 8301
+  - name: serflan-udp
+    protocol: UDP
+    port: 8301
+    targetPort: 8301
+  - name: serfwan-tcp
+    protocol: TCP
+    port: 8302
+    targetPort: 8302
+  - name: serfwan-udp
+    protocol: UDP
+    port: 8302
+    targetPort: 8302
+  - name: server
+    port: 8300
+    targetPort: 8300
+  - name: consuldns
+    port: 8600
+    targetPort: 8600
+  - name: grpc
+    port: 8502
+    targetPort: 8502
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: consul
+  labels:
+    app: consul
+spec:
+  serviceName: consul
+  replicas: 3
+  selector:
+    matchLabels:
+      app: consul
+  template:
+    metadata:
+      labels:
+        app: consul
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: consul
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: consul
+        image: consul:1.16.1
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        args:
+        - "agent"
+        - "-config-file=/consul/config/consul.hcl"
+        - "-advertise=$(POD_IP)"
+        - "-node=$(NODE_NAME)"
+        volumeMounts:
+        - name: consul-config
+          mountPath: /consul/config
+        - name: consul-data
+          mountPath: /consul/data
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - consul leave
+        ports:
+        - containerPort: 8500
+          name: http
+        - containerPort: 8400
+          name: rpc
+        - containerPort: 8301
+          name: serflan-tcp
+          protocol: TCP
+        - containerPort: 8301
+          name: serflan-udp
+          protocol: UDP
+        - containerPort: 8302
+          name: serfwan-tcp
+          protocol: TCP
+        - containerPort: 8302
+          name: serfwan-udp
+          protocol: UDP
+        - containerPort: 8300
+          name: server
+        - containerPort: 8600
+          name: dns
+        - containerPort: 8502
+          name: grpc
+        readinessProbe:
+          exec:
+            command:
+            - "/bin/sh"
+            - "-ec"
+            - |
+              consul members | grep -E "$(hostname).*alive" || exit 1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - "/bin/sh"
+            - "-ec"
+            - |
+              consul members | grep -E "$(hostname).*alive" || exit 1
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+      volumes:
+      - name: consul-config
+        configMap:
+          name: consul-config
+  volumeClaimTemplates:
+  - metadata:
+      name: consul-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-ui
+  labels:
+    app: consul
+spec:
+  type: NodePort
+  selector:
+    app: consul
+  ports:
+  - name: http
+    port: 8500
+    targetPort: 8500
+    nodePort: 30850

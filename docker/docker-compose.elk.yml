@@ -1,0 +1,218 @@
+version: '3.8'
+
+services:
+  # Elasticsearch - Search and Analytics Engine
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: austa-elasticsearch
+    environment:
+      - node.name=austa-elasticsearch
+      - cluster.name=austa-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - ELASTIC_PASSWORD=austa123
+      - xpack.security.transport.ssl.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.license.self_generated.type=basic
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./elasticsearch/config/jvm.options:/usr/share/elasticsearch/config/jvm.options:ro
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - austa-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # Logstash - Data Processing Pipeline
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: austa-logstash
+    environment:
+      - "LS_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/patterns:/usr/share/logstash/patterns:ro
+      - logstash-data:/usr/share/logstash/data
+    ports:
+      - "5044:5044"  # Beats input
+      - "5000:5000/tcp"  # TCP input
+      - "5000:5000/udp"  # UDP input
+      - "9600:9600"  # Logstash monitoring
+    networks:
+      - austa-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # Kibana - Data Visualization Platform
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: austa-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+      - SERVER_NAME=austa-kibana
+      - SERVER_HOST=0.0.0.0
+      - XPACK_MONITORING_ENABLED=true
+      - XPACK_SECURITY_ENABLED=true
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - kibana-data:/usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    networks:
+      - austa-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+
+  # Filebeat - Log File Shipper
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: austa-filebeat
+    user: root
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+      - KIBANA_HOST=http://kibana:5601
+    volumes:
+      - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - filebeat-data:/usr/share/filebeat/data
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../backend/logs:/var/log/backend:ro
+      - ../ai-service/logs:/var/log/ai-service:ro
+    networks:
+      - austa-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      logstash:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Metricbeat - System and Service Metrics
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.11.0
+    container_name: austa-metricbeat
+    user: root
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+      - KIBANA_HOST=http://kibana:5601
+    volumes:
+      - ./metricbeat/config/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - metricbeat-data:/usr/share/metricbeat/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks:
+      - austa-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # APM Server - Application Performance Monitoring
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.11.0
+    container_name: austa-apm-server
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+      - KIBANA_HOST=http://kibana:5601
+    volumes:
+      - ./apm-server/config/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+      - apm-server-data:/usr/share/apm-server/data
+    ports:
+      - "8200:8200"
+    networks:
+      - austa-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Curator - Index Management
+  curator:
+    image: untergeek/curator:8.0.4
+    container_name: austa-curator
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=austa123
+    volumes:
+      - ./curator/config:/usr/share/curator/config:ro
+      - ./curator/actions:/usr/share/curator/actions:ro
+    networks:
+      - austa-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+    profiles:
+      - maintenance
+
+networks:
+  austa-logging:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  logstash-data:
+    driver: local
+  kibana-data:
+    driver: local
+  filebeat-data:
+    driver: local
+  metricbeat-data:
+    driver: local
+  apm-server-data:
+    driver: local

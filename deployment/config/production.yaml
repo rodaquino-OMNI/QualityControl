@@ -1,0 +1,307 @@
+# Production Environment Configuration
+environment: production
+version: "1.0.0"
+
+# Application Configuration
+app:
+  name: "austa-cockpit-prod"
+  domain: "austa-cockpit.com"
+  port: 3000
+  debug: false
+  log_level: "warn"
+
+# Database Configuration
+database:
+  host: "${DB_HOST}"
+  port: 5432
+  name: "austa_cockpit_prod"
+  ssl: true
+  ssl_mode: "require"
+  pool_size: 50
+  timeout: 30
+  connection_limit: 100
+  migrations:
+    auto_run: false
+    backup_before: true
+    approval_required: true
+
+# Redis Configuration
+redis:
+  cluster_mode: true
+  nodes:
+    - host: "${REDIS_NODE_1_HOST}"
+      port: 6379
+    - host: "${REDIS_NODE_2_HOST}"
+      port: 6379
+    - host: "${REDIS_NODE_3_HOST}"
+      port: 6379
+  password: "${REDIS_PASSWORD}"
+  ssl: true
+  max_connections: 1000
+
+# MongoDB Configuration
+mongodb:
+  replica_set: "austa-cockpit-rs"
+  hosts:
+    - "${MONGODB_HOST_1}:27017"
+    - "${MONGODB_HOST_2}:27017"
+    - "${MONGODB_HOST_3}:27017"
+  database: "austa_cockpit_prod"
+  auth_source: "admin"
+  ssl: true
+  ssl_cert_validation: true
+  username: "${MONGODB_USERNAME}"
+  password: "${MONGODB_PASSWORD}"
+  read_preference: "secondaryPreferred"
+
+# AI Service Configuration
+ai_service:
+  cluster_mode: true
+  nodes:
+    - host: "ai-service-prod-1"
+      port: 8000
+    - host: "ai-service-prod-2"
+      port: 8000
+    - host: "ai-service-prod-3"
+      port: 8000
+  load_balancer: "round-robin"
+  models:
+    - name: "bert-medical"
+      enabled: true
+      memory_limit: "8GB"
+      replicas: 3
+    - name: "gpt4-medical"
+      enabled: true
+      api_key_required: true
+      memory_limit: "16GB"
+      replicas: 2
+    - name: "lstm-patterns"
+      enabled: true
+      memory_limit: "4GB"
+      replicas: 2
+    - name: "xgboost-fraud"
+      enabled: true
+      memory_limit: "2GB"
+      replicas: 3
+
+# Security Configuration
+security:
+  jwt:
+    secret: "${JWT_SECRET}"
+    expiry: "4h"
+    refresh_expiry: "7d"
+  cors:
+    origins: ["https://austa-cockpit.com", "https://www.austa-cockpit.com"]
+    credentials: true
+    max_age: 86400
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    burst_limit: 10
+    whitelist_ips: ["${ADMIN_IP_RANGE}"]
+  ssl:
+    enabled: true
+    cert_path: "/etc/ssl/certs/production.crt"
+    key_path: "/etc/ssl/private/production.key"
+    hsts_enabled: true
+    hsts_max_age: 31536000
+  firewall:
+    enabled: true
+    rules:
+      - port: 443
+        protocol: "tcp"
+        source: "0.0.0.0/0"
+      - port: 80
+        protocol: "tcp"
+        source: "0.0.0.0/0"
+        action: "redirect-to-https"
+
+# Features Configuration
+features:
+  audit_logging: true
+  performance_monitoring: true
+  real_time_analytics: true
+  blockchain_integration: true
+  advanced_ml_models: true
+  compliance_reporting: true
+  advanced_security: true
+
+# Deployment Configuration
+deployment:
+  strategy: "canary"
+  canary_percentage: 5
+  canary_duration: "30m"
+  approval_required: true
+  rollback_threshold: 5  # Error rate percentage
+  replicas: 10
+  health_check:
+    enabled: true
+    endpoint: "/health"
+    timeout: 10
+    retries: 3
+    interval: 30
+  readiness_probe:
+    endpoint: "/ready"
+    timeout: 5
+    retries: 3
+    interval: 10
+  liveness_probe:
+    endpoint: "/health"
+    timeout: 5
+    retries: 3
+    interval: 30
+  resources:
+    cpu: "2"
+    memory: "4Gi"
+    storage: "100Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+  autoscaling:
+    enabled: true
+    min_replicas: 5
+    max_replicas: 50
+    cpu_threshold: 60
+    memory_threshold: 70
+    custom_metrics:
+      - name: "request_latency"
+        threshold: 500
+      - name: "error_rate"
+        threshold: 1
+
+# Load Balancer Configuration
+load_balancer:
+  type: "application"
+  scheme: "internet-facing"
+  ssl_policy: "ELBSecurityPolicy-TLS-1-2-2019-07"
+  deletion_protection: true
+  health_check:
+    path: "/health"
+    interval: 30
+    timeout: 5
+    healthy_threshold: 2
+    unhealthy_threshold: 5
+    matcher: "200"
+  stickiness:
+    enabled: true
+    duration: 86400
+  waf:
+    enabled: true
+    rules:
+      - "AWSManagedRulesCommonRuleSet"
+      - "AWSManagedRulesKnownBadInputsRuleSet"
+      - "AWSManagedRulesSQLiRuleSet"
+
+# CDN Configuration
+cdn:
+  enabled: true
+  provider: "cloudflare"
+  caching:
+    static_assets: "1y"
+    api_responses: "5m"
+    html_pages: "1h"
+  compression: true
+  minification: true
+  security_headers: true
+
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    retention: "90d"
+    storage: "500Gi"
+    alertmanager:
+      enabled: true
+      webhook_url: "${ALERTMANAGER_WEBHOOK_URL}"
+  grafana:
+    enabled: true
+    port: 3001
+    admin_password: "${GRAFANA_ADMIN_PASSWORD}"
+    persistence: true
+    storage: "50Gi"
+  alerts:
+    enabled: true
+    channels:
+      - type: "slack"
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#alerts-production"
+      - type: "email"
+        smtp_server: "${SMTP_SERVER}"
+        recipients: ["devops@austa.com", "oncall@austa.com"]
+      - type: "pagerduty"
+        integration_key: "${PAGERDUTY_INTEGRATION_KEY}"
+  logging:
+    centralized: true
+    provider: "elasticsearch"
+    retention: "180d"
+    storage: "1Ti"
+
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 1 * * *"
+  retention: "90d"
+  encryption: true
+  compression: true
+  verification: true
+  destinations:
+    - type: "s3"
+      bucket: "austa-cockpit-prod-backups"
+      region: "us-east-1"
+      storage_class: "STANDARD_IA"
+    - type: "gcs"
+      bucket: "austa-cockpit-prod-backups"
+      project: "austa-cockpit-prod"
+      storage_class: "NEARLINE"
+    - type: "azure"
+      storage_account: "austacockpitbackups"
+      container: "production-backups"
+      tier: "cool"
+  cross_region_replication: true
+  disaster_recovery:
+    enabled: true
+    rpo: "1h"  # Recovery Point Objective
+    rto: "4h"  # Recovery Time Objective
+
+# Network Configuration
+network:
+  vpc_cidr: "10.0.0.0/16"
+  public_subnets:
+    - "10.0.1.0/24"
+    - "10.0.2.0/24"
+    - "10.0.3.0/24"
+  private_subnets:
+    - "10.0.10.0/24"
+    - "10.0.11.0/24"
+    - "10.0.12.0/24"
+  database_subnets:
+    - "10.0.20.0/24"
+    - "10.0.21.0/24"
+    - "10.0.22.0/24"
+  availability_zones:
+    - "us-east-1a"
+    - "us-east-1b"
+    - "us-east-1c"
+  nat_gateway: true
+  vpc_endpoints:
+    - service: "s3"
+    - service: "dynamodb"
+    - service: "secretsmanager"
+
+# Compliance Configuration
+compliance:
+  enabled: true
+  frameworks:
+    - "SOC2"
+    - "HIPAA"
+    - "GDPR"
+    - "ISO27001"
+  audit_trail: true
+  data_encryption:
+    at_rest: true
+    in_transit: true
+    key_rotation: true
+  access_logging: true
+  vulnerability_scanning: true
+  penetration_testing: true

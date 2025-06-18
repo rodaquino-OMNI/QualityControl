@@ -1,0 +1,33 @@
+apiVersion: v2
+name: austa-cockpit
+description: AUSTA Cockpit - Healthcare Quality Control Platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://github.com/austa/cockpit
+sources:
+  - https://github.com/austa/cockpit
+maintainers:
+  - name: AUSTA Team
+    email: devops@austa.com
+keywords:
+  - healthcare
+  - quality-control
+  - ai
+  - analytics
+dependencies:
+  - name: postgresql
+    version: 12.1.9
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: 17.11.3
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: mongodb
+    version: 13.15.1
+    repository: https://charts.bitnami.com/bitnami
+    condition: mongodb.enabled
+annotations:
+  category: Healthcare
+  licenses: MIT
