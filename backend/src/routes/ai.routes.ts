@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { body, param, validationResult } from 'express-validator';
+const { body, param, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
 import { logger } from '../utils/logger';
@@ -66,7 +66,7 @@ router.post(
     body('forceReanalysis').optional().isBoolean(),
     body('analysisType').optional().isIn(['full', 'quick', 'fraud_only', 'medical_only']),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -81,7 +81,7 @@ router.post(
         where: { id: caseId },
         include: {
           patient: true,
-          documents: true,
+          attachments: true,
         },
       });
 
@@ -105,7 +105,7 @@ router.post(
       const analysis = await aiService.analyzeCase(caseData, analysisType);
 
       // Store analysis in database
-      const savedAnalysis = await prisma.aiAnalysis.create({
+      const savedAnalysis = await prisma.aIAnalysis.create({
         data: {
           caseId,
           analysisType,
@@ -131,12 +131,16 @@ router.post(
       await prisma.case.update({
         where: { id: caseId },
         data: {
-          aiScore: analysis.confidence,
-          fraudScore: analysis.riskFactors.find(f => f.factor === 'fraud')?.score || 0,
+          metadata: {
+            ...caseData.metadata as object,
+            aiScore: analysis.confidence,
+            fraudScore: analysis.riskFactors.find(f => f.factor === 'fraud')?.score || 0,
+          },
         },
       });
 
-      logger.logAudit('ai.analysis.completed', req.user!.id, {
+      logger.info('ai.analysis.completed', {
+        userId: req.user!.id,
         caseId,
         analysisType,
         recommendation: analysis.recommendation,
@@ -210,7 +214,7 @@ router.post(
     body('caseId').isUUID(),
     body('conversationId').optional().isUUID(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -224,7 +228,7 @@ router.post(
         where: { id: caseId },
         include: {
           patient: true,
-          aiAnalyses: {
+          aIAnalyses: {
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
@@ -238,7 +242,7 @@ router.post(
       // Get or create conversation
       let conversation;
       if (conversationId) {
-        conversation = await prisma.aiConversation.findUnique({
+        conversation = await prisma.aIConversation.findUnique({
           where: { id: conversationId },
           include: {
             messages: {
@@ -250,7 +254,7 @@ router.post(
       }
 
       if (!conversation) {
-        conversation = await prisma.aiConversation.create({
+        conversation = await prisma.aIConversation.create({
           data: {
             caseId,
             userId: req.user!.id,
@@ -269,7 +273,7 @@ router.post(
       });
 
       // Save message and response
-      await prisma.aiMessage.createMany({
+      await prisma.aIMessage.createMany({
         data: [
           {
             conversationId: conversation.id,
@@ -285,7 +289,8 @@ router.post(
         ],
       });
 
-      logger.logAudit('ai.chat.message', req.user!.id, {
+      logger.info('ai.chat.message', {
+        userId: req.user!.id,
         caseId,
         conversationId: conversation.id,
         messageLength: message.length,
@@ -359,7 +364,7 @@ router.post(
   '/fraud-detection/:caseId',
   authorize('admin', 'auditor'),
   [param('caseId').isUUID()],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -396,11 +401,15 @@ router.post(
       // Save fraud detection result
       await prisma.fraudDetection.create({
         data: {
-          caseId,
-          score: fraudResult.fraudScore,
-          riskLevel: fraudResult.riskLevel,
-          indicators: fraudResult.indicators,
-          modelVersion: fraudResult.modelVersion,
+          entityType: 'CASE',
+          entityId: caseId,
+          indicatorId: '00000000-0000-0000-0000-000000000001',
+          confidenceScore: fraudResult.fraudScore,
+          evidence: {
+            riskLevel: fraudResult.riskLevel,
+            indicators: fraudResult.indicators,
+            modelVersion: fraudResult.modelVersion,
+          },
         },
       });
 
@@ -408,16 +417,20 @@ router.post(
       await prisma.case.update({
         where: { id: caseId },
         data: {
-          fraudScore: fraudResult.fraudScore,
+          metadata: {
+            ...caseData.metadata as object,
+            fraudScore: fraudResult.fraudScore,
+          },
         },
       });
 
       // If high risk, create alert
       if (fraudResult.riskLevel === 'high' || fraudResult.riskLevel === 'critical') {
-        await prisma.alert.create({
+        await prisma.notification.create({
           data: {
-            type: 'fraud_detection',
-            severity: fraudResult.riskLevel,
+            userId: req.user!.id,
+            type: 'alert' as const,
+            priority: fraudResult.riskLevel === 'critical' ? 'high' as const : 'medium' as const,
             title: `High fraud risk detected for case ${caseId}`,
             description: `Fraud score: ${fraudResult.fraudScore}. ${fraudResult.indicators.length} risk indicators found.`,
             metadata: {
@@ -429,7 +442,8 @@ router.post(
         });
       }
 
-      logger.logAudit('ai.fraud.detection', req.user!.id, {
+      logger.info('ai.fraud.detection', {
+        userId: req.user!.id,
         caseId,
         fraudScore: fraudResult.fraudScore,
         riskLevel: fraudResult.riskLevel,
@@ -505,7 +519,7 @@ router.get(
     param('caseId').isUUID(),
     body('limit').optional().isInt({ min: 1, max: 20 }).toInt(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {

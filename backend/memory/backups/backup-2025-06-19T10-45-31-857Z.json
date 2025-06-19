@@ -1,0 +1,118 @@
+{
+  "timestamp": "2025-06-19T10:45:31.857Z",
+  "version": "1.0",
+  "entries": [
+    {
+      "id": "entry_mc398z0v_y7axdzupu",
+      "key": "swarm-auto-centralized-1750329808634/typescript-scanner/error-analysis",
+      "value": {
+        "summary": {
+          "total_errors": 150,
+          "grouped_errors": {
+            "missing_return_values": 6,
+            "property_name_mismatches": 15,
+            "missing_properties": 45,
+            "type_mismatches": 25,
+            "missing_imports": 2,
+            "undefined_references": 15,
+            "wrong_method_arguments": 5,
+            "export_conflicts": 3,
+            "implicit_any": 2,
+            "unknown_properties": 32
+          }
+        },
+        "priority_fixes": [
+          "Fix Prisma client property names",
+          "Add missing return statements",
+          "Fix logger.logAudit method calls",
+          "Fix CaseStatus enum values",
+          "Fix missing properties in type definitions",
+          "Fix import issues for OpenTelemetry"
+        ]
+      },
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T10:45:31.856Z",
+      "updatedAt": "2025-06-19T10:45:31.856Z",
+      "lastAccessedAt": "2025-06-19T10:45:31.856Z",
+      "version": 1,
+      "size": 549,
+      "compressed": false,
+      "checksum": "5a053eeb3d375bdca57f259e58f646562b8b28f1d4030af134e07b062068c1f4",
+      "references": [],
+      "dependencies": []
+    }
+  ],
+  "statistics": {
+    "overview": {
+      "totalEntries": 1,
+      "totalSize": 549,
+      "compressedEntries": 0,
+      "compressionRatio": 1,
+      "indexSize": 50,
+      "memoryUsage": 9231136,
+      "diskUsage": 0
+    },
+    "distribution": {
+      "byNamespace": {
+        "default": {
+          "count": 1,
+          "size": 549
+        }
+      },
+      "byType": {
+        "object": {
+          "count": 1,
+          "size": 549
+        }
+      },
+      "byOwner": {
+        "system": {
+          "count": 1,
+          "size": 549
+        }
+      },
+      "byAccessLevel": {
+        "shared": {
+          "count": 1,
+          "size": 549
+        }
+      }
+    },
+    "temporal": {
+      "entriesCreatedLast24h": 1,
+      "entriesUpdatedLast24h": 1,
+      "entriesAccessedLast24h": 1,
+      "oldestEntry": "2025-06-19T10:45:31.856Z",
+      "newestEntry": "2025-06-19T10:45:31.856Z"
+    },
+    "performance": {
+      "averageQueryTime": 0,
+      "averageWriteTime": 1,
+      "cacheHitRatio": 0,
+      "indexEfficiency": 0.95
+    },
+    "health": {
+      "expiredEntries": 0,
+      "orphanedReferences": 0,
+      "duplicateKeys": 0,
+      "corruptedEntries": 0,
+      "recommendedCleanup": false
+    },
+    "optimization": {
+      "suggestions": [],
+      "potentialSavings": {
+        "compression": 0,
+        "cleanup": 0,
+        "deduplication": 0
+      },
+      "indexOptimization": [
+        "Consider periodic index rebuilding for optimal performance"
+      ]
+    }
+  }
+}

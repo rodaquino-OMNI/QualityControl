@@ -318,10 +318,10 @@ Guidelines:
 5. Consider cost-effectiveness without compromising care quality
 
 Previous AI Analysis:
-${caseContext.aiAnalyses?.[0] ? `
-- Recommendation: ${caseContext.aiAnalyses[0].recommendation}
-- Confidence: ${caseContext.aiAnalyses[0].confidence}
-- Key factors: ${caseContext.aiAnalyses[0].explanation}
+${caseContext.aIAnalyses?.[0] ? `
+- Recommendation: ${caseContext.aIAnalyses[0].recommendation}
+- Confidence: ${caseContext.aIAnalyses[0].confidence}
+- Key factors: ${caseContext.aIAnalyses[0].explanation}
 ` : 'No previous analysis available'}
 
 Please provide helpful, accurate, and medically sound advice.`;

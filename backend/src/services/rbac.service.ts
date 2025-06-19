@@ -1,13 +1,7 @@
 import { PrismaClient, User, Role, Permission } from '@prisma/client';
 
 export interface UserWithRolesAndPermissions extends User {
-  roles: Array<{
-    role: Role & {
-      permissions: Array<{
-        permission: Permission;
-      }>;
-    };
-  }>;
+  permissions?: string[];
 }
 
 export class RBACService {
@@ -156,7 +150,7 @@ export class RBACService {
   /**
    * Assign role to user
    */
-  async assignRole(userId: string, roleName: string, assignedBy?: string): Promise<void> {
+  async assignRole(userId: string, roleName: string): Promise<void> {
     const role = await this.prisma.role.findUnique({
       where: { name: roleName },
     });
@@ -169,7 +163,6 @@ export class RBACService {
       data: {
         userId,
         roleId: role.id,
-        assignedBy,
       },
     });
 
@@ -207,16 +200,12 @@ export class RBACService {
    */
   async createRole(
     name: string,
-    displayName: string,
-    description?: string,
-    isSystem = false
+    description?: string
   ): Promise<Role> {
     return await this.prisma.role.create({
       data: {
         name,
-        displayName,
         description,
-        isSystem,
       },
     });
   }
@@ -333,16 +322,12 @@ export class RBACService {
     const defaultRoles = [
       {
         name: 'admin',
-        displayName: 'Administrator',
-        description: 'Full system access',
-        isSystem: true,
+        description: 'Administrator - Full system access',
         permissions: defaultPermissions.map((p) => `${p.resource}:${p.action}`),
       },
       {
         name: 'auditor',
-        displayName: 'Medical Auditor',
-        description: 'Can audit medical cases',
-        isSystem: true,
+        description: 'Medical Auditor - Can audit medical cases',
         permissions: [
           'cases:read',
           'cases:update',
@@ -355,9 +340,7 @@ export class RBACService {
       },
       {
         name: 'viewer',
-        displayName: 'Viewer',
-        description: 'Read-only access',
-        isSystem: true,
+        description: 'Viewer - Read-only access',
         permissions: ['cases:read', 'reports:read'],
       },
     ];
@@ -369,9 +352,7 @@ export class RBACService {
         update: {},
         create: {
           name: roleData.name,
-          displayName: roleData.displayName,
           description: roleData.description,
-          isSystem: roleData.isSystem,
         },
       });
 

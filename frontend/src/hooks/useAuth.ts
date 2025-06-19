@@ -81,7 +81,7 @@ export const useAuth = () => {
     return auth.user?.roles.some(role => roleNames.includes(role.name)) || false;
   }, [auth.user]);
 
-  const hasPermission = useCallback((resource: string, action: string): boolean => {
+  const hasPermission = useCallback((): boolean => {
     // For now, admins have all permissions
     if (hasRole('admin')) return true;
     

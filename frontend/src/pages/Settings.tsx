@@ -9,9 +9,10 @@ const Settings: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState('profile');
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     email: user?.email || '',
-    role: user?.role || '',
+    role: user?.roles?.[0]?.displayName || '',
   });
 
   const tabs = [
@@ -67,15 +68,27 @@ const Settings: React.FC = () => {
               </h2>
               <form onSubmit={handleProfileUpdate} className="space-y-6">
                 <div>
-                  <label htmlFor="name" className="label">
-                    Full Name
+                  <label htmlFor="firstName" className="label">
+                    First Name
                   </label>
                   <input
-                    id="name"
+                    id="firstName"
                     type="text"
                     className="input"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                    value={profileData.firstName}
+                    onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="label">
+                    Last Name
+                  </label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    className="input"
+                    value={profileData.lastName}
+                    onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
                   />
                 </div>
                 <div>

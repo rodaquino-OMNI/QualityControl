@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
+import { logger, logError } from '../utils/logger';
 
 export class AppError extends Error {
   statusCode: number;
@@ -18,7 +18,6 @@ export class AppError extends Error {
     this.isOperational = true;
     this.code = code;
     this.details = details;
-
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -30,7 +29,7 @@ export const errorHandler = (
   next: NextFunction
 ) => {
   // Log error
-  logger.logError(err, {
+  logError(err, {
     url: req.url,
     method: req.method,
     ip: req.ip,
@@ -42,7 +41,7 @@ export const errorHandler = (
     message: 'Internal Server Error',
     code: 'INTERNAL_ERROR',
     statusCode: 500,
-    details: null,
+    details: null as any,
   };
 
   // Handle known errors

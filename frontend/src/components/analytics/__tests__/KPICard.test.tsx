@@ -1,14 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/test-utils';
-import { KPICard } from '../KPICard';
+import KPICard from '../KPICard';
+import type { KPIMetric } from '../../../types/analytics';
 
 describe('KPICard', () => {
-  const defaultProps = {
-    title: 'Total Cases',
+  const defaultMetric: KPIMetric = {
+    id: '1',
+    name: 'Total Cases',
     value: 42,
-    icon: 'cases',
-    trend: 15,
-    trendDirection: 'up' as const,
+    target: 50,
+    percentage: 15,
+    trend: 'up',
+    period: 'daily'
+  };
+
+  const defaultProps = {
+    metric: defaultMetric
   };
 
   it('renders the KPI card with all props', () => {
@@ -22,9 +29,11 @@ describe('KPICard', () => {
   it('shows negative trend correctly', () => {
     render(
       <KPICard
-        {...defaultProps}
-        trend={-10}
-        trendDirection="down"
+        metric={{
+          ...defaultMetric,
+          percentage: -10,
+          trend: 'down'
+        }}
       />
     );
     
@@ -34,33 +43,46 @@ describe('KPICard', () => {
   it('handles zero trend', () => {
     render(
       <KPICard
-        {...defaultProps}
-        trend={0}
-        trendDirection="neutral"
+        metric={{
+          ...defaultMetric,
+          percentage: 0,
+          trend: 'neutral'
+        }}
       />
     );
     
     expect(screen.getByText('0%')).toBeInTheDocument();
   });
 
-  it('formats large numbers correctly', () => {
+  it('formats target correctly', () => {
     render(
       <KPICard
-        {...defaultProps}
-        value={1234567}
+        metric={{
+          ...defaultMetric,
+          target: 100
+        }}
       />
     );
     
-    // Assuming the component formats large numbers
-    expect(screen.getByText(/1\.23M|1,234,567/)).toBeInTheDocument();
+    expect(screen.getByText(/Meta: 100/)).toBeInTheDocument();
   });
 
-  it('renders without trend data', () => {
-    const { trend, trendDirection, ...propsWithoutTrend } = defaultProps;
-    render(<KPICard {...propsWithoutTrend} />);
+  it('applies selected styles when isSelected is true', () => {
+    const { container } = render(
+      <KPICard {...defaultProps} isSelected={true} />
+    );
     
-    expect(screen.getByText('Total Cases')).toBeInTheDocument();
-    expect(screen.getByText('42')).toBeInTheDocument();
-    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    const card = container.firstChild;
+    expect(card).toHaveClass('ring-2', 'ring-blue-500');
+  });
+
+  it('calls onClick when clicked', () => {
+    const handleClick = vi.fn();
+    render(<KPICard {...defaultProps} onClick={handleClick} />);
+    
+    const card = screen.getByText('Total Cases').closest('div');
+    card?.click();
+    
+    expect(handleClick).toHaveBeenCalledTimes(1);
   });
 });

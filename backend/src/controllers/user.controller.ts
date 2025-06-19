@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { body, query, validationResult } from 'express-validator';
+const { body, query, validationResult } = require('express-validator');
 import argon2 from 'argon2';
 import { RBACService } from '../services/rbac.service';
 
@@ -23,7 +23,6 @@ export class UserController {
     query('search').optional().trim(),
     query('role').optional().trim(),
     query('isActive').optional().isBoolean().toBoolean(),
-
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -31,11 +30,11 @@ export class UserController {
           return res.status(400).json({ errors: errors.array() });
         }
 
-        const page = req.query.page as number || 1;
-        const limit = req.query.limit as number || 20;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
         const search = req.query.search as string;
         const role = req.query.role as string;
-        const isActive = req.query.isActive as boolean;
+        const isActive = req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined;
 
         const skip = (page - 1) * limit;
 
@@ -52,13 +51,7 @@ export class UserController {
         }
 
         if (role) {
-          where.roles = {
-            some: {
-              role: {
-                name: role,
-              },
-            },
-          };
+          where.role = role;
         }
 
         if (isActive !== undefined) {
@@ -79,20 +72,10 @@ export class UserController {
               lastName: true,
               avatar: true,
               isActive: true,
-              isEmailVerified: true,
               mfaEnabled: true,
+              role: true,
               createdAt: true,
               updatedAt: true,
-              roles: {
-                select: {
-                  role: {
-                    select: {
-                      name: true,
-                      displayName: true,
-                    },
-                  },
-                },
-              },
             },
             orderBy: {
               createdAt: 'desc',
@@ -101,10 +84,10 @@ export class UserController {
           this.prisma.user.count({ where }),
         ]);
 
-        res.json({
+        return res.json({
           users: users.map((user) => ({
             ...user,
-            roles: user.roles.map((r) => r.role),
+            roles: [user.role],
           })),
           pagination: {
             page,
@@ -114,7 +97,7 @@ export class UserController {
           },
         });
       } catch (error: any) {
-        res.status(500).json({
+        return res.status(500).json({
           error: 'Failed to fetch users',
           code: 'FETCH_USERS_FAILED',
         });
@@ -140,29 +123,14 @@ export class UserController {
           lastName: true,
           avatar: true,
           isActive: true,
-          isEmailVerified: true,
-          emailVerifiedAt: true,
           mfaEnabled: true,
+          role: true,
           createdAt: true,
           updatedAt: true,
-          roles: {
-            select: {
-              assignedAt: true,
-              role: {
-                select: {
-                  id: true,
-                  name: true,
-                  displayName: true,
-                  description: true,
-                },
-              },
-            },
-          },
-          loginHistory: {
+          loginHistories: {
             select: {
               ipAddress: true,
               userAgent: true,
-              loginMethod: true,
               success: true,
               createdAt: true,
             },
@@ -181,16 +149,12 @@ export class UserController {
         });
       }
 
-      // Get permissions
-      const permissions = await this.rbacService.getUserPermissions(id);
-
-      res.json({
+      return res.json({
         ...user,
-        roles: user.roles.map((r) => r.role),
-        permissions: Array.from(permissions),
+        roles: [user.role],
       });
     } catch (error: any) {
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to fetch user',
         code: 'FETCH_USER_FAILED',
       });
@@ -207,9 +171,8 @@ export class UserController {
     body('firstName').trim().notEmpty(),
     body('lastName').trim().notEmpty(),
     body('username').optional().trim().isLength({ min: 3 }),
-    body('roles').isArray().optional(),
+    body('role').optional().trim(),
     body('isActive').optional().isBoolean(),
-
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -217,7 +180,7 @@ export class UserController {
           return res.status(400).json({ errors: errors.array() });
         }
 
-        const { email, password, firstName, lastName, username, roles, isActive } = req.body;
+        const { email, password, firstName, lastName, username, role, isActive } = req.body;
 
         // Check if user exists
         const existing = await this.prisma.user.findUnique({
@@ -239,23 +202,12 @@ export class UserController {
           data: {
             email,
             password: hashedPassword,
+            name: `${firstName} ${lastName}`,
             firstName,
             lastName,
             username,
+            role: role || 'auditor',
             isActive: isActive ?? true,
-            roles: {
-              create: roles?.map((roleName: string) => ({
-                role: {
-                  connect: { name: roleName },
-                },
-                assignedBy: req.user?.id,
-              })) || [
-                {
-                  role: { connect: { name: 'auditor' } },
-                  assignedBy: req.user?.id,
-                },
-              ],
-            },
           },
           select: {
             id: true,
@@ -264,25 +216,16 @@ export class UserController {
             lastName: true,
             username: true,
             isActive: true,
-            roles: {
-              select: {
-                role: {
-                  select: {
-                    name: true,
-                    displayName: true,
-                  },
-                },
-              },
-            },
+            role: true,
           },
         });
 
-        res.status(201).json({
+        return res.status(201).json({
           ...user,
-          roles: user.roles.map((r) => r.role),
+          roles: [user.role],
         });
       } catch (error: any) {
-        res.status(500).json({
+        return res.status(500).json({
           error: 'Failed to create user',
           code: 'CREATE_USER_FAILED',
         });
@@ -300,7 +243,6 @@ export class UserController {
     body('lastName').optional().trim().notEmpty(),
     body('username').optional().trim().isLength({ min: 3 }),
     body('isActive').optional().isBoolean(),
-
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -324,15 +266,19 @@ export class UserController {
         }
 
         // Update user
+        const updateData: any = {};
+        if (email) updateData.email = email;
+        if (firstName) updateData.firstName = firstName;
+        if (lastName) updateData.lastName = lastName;
+        if (firstName || lastName) {
+          updateData.name = `${firstName || existing.firstName || ''} ${lastName || existing.lastName || ''}`.trim();
+        }
+        if (username) updateData.username = username;
+        if (isActive !== undefined) updateData.isActive = isActive;
+
         const user = await this.prisma.user.update({
           where: { id },
-          data: {
-            email,
-            firstName,
-            lastName,
-            username,
-            isActive,
-          },
+          data: updateData,
           select: {
             id: true,
             email: true,
@@ -340,25 +286,16 @@ export class UserController {
             lastName: true,
             username: true,
             isActive: true,
-            roles: {
-              select: {
-                role: {
-                  select: {
-                    name: true,
-                    displayName: true,
-                  },
-                },
-              },
-            },
+            role: true,
           },
         });
 
-        res.json({
+        return res.json({
           ...user,
-          roles: user.roles.map((r) => r.role),
+          roles: [user.role],
         });
       } catch (error: any) {
-        res.status(500).json({
+        return res.status(500).json({
           error: 'Failed to update user',
           code: 'UPDATE_USER_FAILED',
         });
@@ -402,9 +339,9 @@ export class UserController {
         },
       });
 
-      res.json({ message: 'User deactivated successfully' });
+      return res.json({ message: 'User deactivated successfully' });
     } catch (error: any) {
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to delete user',
         code: 'DELETE_USER_FAILED',
       });
@@ -416,9 +353,7 @@ export class UserController {
    * PUT /api/users/:id/roles
    */
   updateUserRoles = [
-    body('roles').isArray(),
-    body('roles.*').isString(),
-
+    body('role').isString(),
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -427,7 +362,7 @@ export class UserController {
         }
 
         const { id } = req.params;
-        const { roles } = req.body;
+        const { role } = req.body;
 
         // Check if user exists
         const existing = await this.prisma.user.findUnique({
@@ -441,41 +376,23 @@ export class UserController {
           });
         }
 
-        // Remove all existing roles
-        await this.prisma.userRole.deleteMany({
-          where: { userId: id },
-        });
-
-        // Add new roles
-        for (const roleName of roles) {
-          await this.rbacService.assignRole(id, roleName, req.user?.id);
-        }
-
-        // Fetch updated user
-        const user = await this.prisma.user.findUnique({
+        // Update user role
+        const user = await this.prisma.user.update({
           where: { id },
+          data: { role },
           select: {
             id: true,
             email: true,
-            roles: {
-              select: {
-                role: {
-                  select: {
-                    name: true,
-                    displayName: true,
-                  },
-                },
-              },
-            },
+            role: true,
           },
         });
 
-        res.json({
+        return res.json({
           ...user,
-          roles: user?.roles.map((r) => r.role) || [],
+          roles: [user.role],
         });
       } catch (error: any) {
-        res.status(500).json({
+        return res.status(500).json({
           error: 'Failed to update user roles',
           code: 'UPDATE_ROLES_FAILED',
         });
@@ -489,7 +406,6 @@ export class UserController {
    */
   resetPassword = [
     body('password').isLength({ min: 8 }),
-
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -523,9 +439,9 @@ export class UserController {
           },
         });
 
-        res.json({ message: 'Password reset successfully' });
+        return res.json({ message: 'Password reset successfully' });
       } catch (error: any) {
-        res.status(500).json({
+        return res.status(500).json({
           error: 'Failed to reset password',
           code: 'RESET_PASSWORD_FAILED',
         });

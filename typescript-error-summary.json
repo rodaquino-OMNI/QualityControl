@@ -1,0 +1,23 @@
+{
+  "backend_errors": {
+    "total_errors": 75,
+    "categories": {
+      "return_value_errors": 5,
+      "property_errors": 31,
+      "argument_errors": 8,
+      "export_conflicts": 3,
+      "module_errors": 4,
+      "type_errors": 24
+    }
+  },
+  "frontend_errors": {
+    "total_errors": 43,
+    "categories": {
+      "unused_imports": 15,
+      "property_errors": 8,
+      "module_not_found": 6,
+      "type_incompatibility": 14
+    }
+  },
+  "timestamp": "2025-06-19T07:45:41-03:00"
+}

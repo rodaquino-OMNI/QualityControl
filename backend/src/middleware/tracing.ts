@@ -5,10 +5,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
-import { NodeTracerProvider } from '@opentelemetry/sdk-node';
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { Resource } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { ConsoleSpanExporter, BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { ConsoleSpanExporter, BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
@@ -55,7 +55,6 @@ export function initializeTracing(): void {
     exporters.push(
       new JaegerExporter({
         endpoint: process.env.JAEGER_ENDPOINT,
-        headers: {},
         username: process.env.JAEGER_USERNAME,
         password: process.env.JAEGER_PASSWORD,
       })
@@ -76,13 +75,13 @@ export function initializeTracing(): void {
       new HttpInstrumentation({
         requestHook: (span, request) => {
           span.setAttributes({
-            'http.request.header.user-agent': request.getHeader('user-agent'),
-            'http.request.header.x-forwarded-for': request.getHeader('x-forwarded-for'),
+            'http.request.header.user-agent': (request as any).headers?.['user-agent'],
+            'http.request.header.x-forwarded-for': (request as any).headers?.['x-forwarded-for'],
           });
         },
         responseHook: (span, response) => {
           span.setAttributes({
-            'http.response.header.content-type': response.getHeader('content-type'),
+            'http.response.header.content-type': (response as any).getHeader?.('content-type'),
           });
         },
       }),
@@ -135,7 +134,7 @@ export const tracingMiddleware = (req: Request, res: Response, next: NextFunctio
       'http.user_agent': req.get('user-agent'),
       'http.request_content_length': req.get('content-length'),
       'user.id': req.user?.id,
-      'user.role': req.user?.role,
+      'user.roles': req.user?.roles,
       'request.id': req.id,
       'trace.id': traceId,
       'span.id': spanId,
@@ -236,7 +235,9 @@ export function getTraceHeaders(req: Request): Record<string, string> {
 
   if (req.traceId) {
     headers['X-Trace-ID'] = req.traceId;
-    headers['X-Parent-Span-ID'] = req.spanId;
+    if (req.spanId) {
+      headers['X-Parent-Span-ID'] = req.spanId;
+    }
   }
 
   // Add W3C Trace Context header

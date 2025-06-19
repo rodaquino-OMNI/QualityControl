@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { format, subDays } from 'date-fns';
-import type { DashboardFilter, KPIMetric, TimeSeriesData } from '../../types/analytics';
+import React, { useState } from 'react';
+import { subDays } from 'date-fns';
+import type { DashboardFilter, KPIMetric } from '../../types/analytics';
 import KPICard from './KPICard';
 import MetricsOverview from './MetricsOverview';
 import CaseAnalysisChart from './CaseAnalysisChart';
@@ -12,7 +11,6 @@ import FilterPanel from './FilterPanel';
 import RealTimeMetrics from './RealTimeMetrics';
 
 const AnalyticsDashboard: React.FC = () => {
-  const dispatch = useDispatch();
   const [filters, setFilters] = useState<DashboardFilter>({
     dateRange: {
       start: subDays(new Date(), 30),

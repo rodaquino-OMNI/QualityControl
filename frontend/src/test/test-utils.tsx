@@ -3,16 +3,16 @@ import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
-import type { PreloadedState } from '@reduxjs/toolkit';
 import type { RenderResult } from '@testing-library/react';
-import { RootState } from '@store/index';
+import { RootState } from '../store/index';
 
 // Import your reducers here
-// import userReducer from '@store/slices/userSlice';
-// import casesReducer from '@store/slices/casesSlice';
+import authReducer from '../store/slices/authSlice';
+import uiReducer from '../store/slices/uiSlice';
+import { api } from '../store/api/apiSlice';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
-  preloadedState?: PreloadedState<RootState>;
+  preloadedState?: Partial<RootState>;
   store?: any;
 }
 
@@ -22,11 +22,17 @@ export function renderWithProviders(
     preloadedState = {},
     store = configureStore({
       reducer: {
-        // Add your reducers here
-        // user: userReducer,
-        // cases: casesReducer,
+        auth: authReducer,
+        ui: uiReducer,
+        [api.reducerPath]: api.reducer,
       },
-      preloadedState,
+      preloadedState: preloadedState as any,
+      middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware({
+          serializableCheck: {
+            ignoredActions: ['persist/PERSIST'],
+          },
+        }).concat(api.middleware),
     }),
     ...renderOptions
   }: ExtendedRenderOptions = {}
@@ -41,7 +47,8 @@ export function renderWithProviders(
     );
   }
 
-  return { store, ...render(ui, { wrapper: Wrapper, ...renderOptions }) };
+  const renderResult = render(ui, { wrapper: Wrapper, ...renderOptions });
+  return { ...renderResult, store };
 }
 
 // Re-export everything
@@ -52,8 +59,14 @@ export { renderWithProviders as render };
 export const createMockUser = (overrides = {}) => ({
   id: '1',
   email: 'test@example.com',
-  name: 'Test User',
-  role: 'auditor',
+  firstName: 'Test',
+  lastName: 'User',
+  username: 'testuser',
+  isActive: true,
+  isEmailVerified: true,
+  mfaEnabled: false,
+  createdAt: new Date().toISOString(),
+  roles: [{ name: 'auditor', displayName: 'Auditor' }],
   ...overrides,
 });
 
@@ -79,7 +92,7 @@ export const createMockAudit = (overrides = {}) => ({
 });
 
 // API mock utilities
-export const mockApiResponse = <T>(data: T, delay = 0) => {
+export const mockApiResponse = <T,>(data: T, delay = 0) => {
   return new Promise<{ data: T }>((resolve) => {
     setTimeout(() => {
       resolve({ data });

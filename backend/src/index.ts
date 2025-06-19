@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
-import { logger, stream } from './utils/logger';
+import { logger } from './utils/logger';
 import analyticsRoutes from './routes/analyticsRoutes';
 import metricsRoutes, { metricsMiddleware } from './routes/metrics.routes';
 import { RedisService } from './services/redisService';
@@ -33,7 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(metricsMiddleware);
 
 // Request logging
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
     userAgent: req.get('user-agent')
@@ -46,7 +46,7 @@ app.use('/api', analyticsRoutes);
 app.use('/', metricsRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -55,7 +55,7 @@ app.get('/health', (req, res) => {
 });
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
   
   res.status(err.status || 500).json({
@@ -68,7 +68,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // 404 handler
-app.use((req, res) => {
+app.use((_req, res) => {
   res.status(404).json({
     success: false,
     error: 'Route not found'

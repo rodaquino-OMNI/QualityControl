@@ -1,0 +1,46 @@
+[
+  {
+    "id": "entry_mc398z0v_y7axdzupu",
+    "key": "swarm-auto-centralized-1750329808634/typescript-scanner/error-analysis",
+    "value": {
+      "summary": {
+        "total_errors": 150,
+        "grouped_errors": {
+          "missing_return_values": 6,
+          "property_name_mismatches": 15,
+          "missing_properties": 45,
+          "type_mismatches": 25,
+          "missing_imports": 2,
+          "undefined_references": 15,
+          "wrong_method_arguments": 5,
+          "export_conflicts": 3,
+          "implicit_any": 2,
+          "unknown_properties": 32
+        }
+      },
+      "priority_fixes": [
+        "Fix Prisma client property names",
+        "Add missing return statements",
+        "Fix logger.logAudit method calls",
+        "Fix CaseStatus enum values",
+        "Fix missing properties in type definitions",
+        "Fix import issues for OpenTelemetry"
+      ]
+    },
+    "type": "object",
+    "namespace": "default",
+    "tags": [],
+    "metadata": {},
+    "owner": "system",
+    "accessLevel": "shared",
+    "createdAt": "2025-06-19T10:45:31.856Z",
+    "updatedAt": "2025-06-19T10:45:31.856Z",
+    "lastAccessedAt": "2025-06-19T10:45:31.856Z",
+    "version": 1,
+    "size": 549,
+    "compressed": false,
+    "checksum": "5a053eeb3d375bdca57f259e58f646562b8b28f1d4030af134e07b062068c1f4",
+    "references": [],
+    "dependencies": []
+  }
+]

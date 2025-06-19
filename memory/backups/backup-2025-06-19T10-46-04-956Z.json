@@ -1,0 +1,94 @@
+{
+  "timestamp": "2025-06-19T10:46:04.956Z",
+  "version": "1.0",
+  "entries": [
+    {
+      "id": "entry_mc399ok9_eamab3ejr",
+      "key": "swarm-auto-centralized-1750329808634/memory-analyst/findings",
+      "value": "{\"analysis_timestamp\":\"2025-06-19T10:45:00Z\",\"project_overview\":{\"name\":\"AUSTA Cockpit\",\"type\":\"Full-Stack Healthcare Application\",\"architecture\":\"Microservices\",\"status\":\"Critical issues preventing operation\"},\"typescript_errors_summary\":{\"frontend\":{\"error_count\":44,\"error_types\":[\"Missing type declarations\",\"Interface mismatches\",\"Import/export inconsistencies\",\"Environment variable issues\"],\"build_status\":\"failing\"},\"backend\":{\"compilation_errors\":[\"Cannot find module express-validator\",\"Cannot find module @prisma/client\",\"Cannot find module axios\",\"Cannot find module argon2\",\"Cannot find module openid-client\",\"Cannot find module speakeasy\",\"Cannot find module jsonwebtoken\"],\"test_errors\":[\"Missing Jest types\",\"Global utilities not typed\",\"Setup file errors\"],\"service_status\":\"not_running\",\"impact\":\"Backend service cannot start\"}},\"configuration_analysis\":{\"frontend_tsconfig\":{\"target\":\"ES2022\",\"module\":\"ESNext\",\"strict\":true,\"path_aliases_configured\":true,\"issues\":\"Module resolution conflicts with missing dependencies\"},\"backend_tsconfig\":{\"target\":\"ES2022\",\"module\":\"commonjs\",\"strict\":true,\"noUnusedLocals\":false,\"issues\":\"Dependencies not installed despite correct configuration\"}},\"root_causes\":{\"missing_dependencies\":{\"backend_packages\":[\"express-validator\",\"@prisma/client\",\"axios\",\"argon2\",\"openid-client\",\"speakeasy\",\"jsonwebtoken\"],\"frontend_issues\":\"Type declaration mismatches\",\"prisma\":\"Client not generated\"},\"database\":{\"migrations\":\"not_executed\",\"client\":\"not_generated\"}},\"contradiction_found\":{\"integration_tests\":\"All passing (100% success rate)\",\"actual_status\":\"Services not running due to TypeScript errors\",\"explanation\":\"Tests may be running against mocked services or partial implementations\"},\"critical_findings\":[\"Backend TypeScript compilation blocked by 7 missing dependencies\",\"Frontend has 44 TypeScript errors preventing build\",\"Prisma client generation required but not executed\",\"Database migrations pending\",\"Despite architectural completeness, basic dependencies are missing\"],\"resolution_priority\":[\"1. Install missing backend dependencies\",\"2. Generate Prisma client\",\"3. Fix frontend TypeScript errors\",\"4. Run database migrations\",\"5. Verify service startup\"],\"memory_data_sources\":[\"memory/data/final_summary.json\",\"memory/data/docker_status.json\",\"memory/data/npm_install_status.json\",\"memory/data/project_type.json\"]}",
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T10:46:04.953Z",
+      "updatedAt": "2025-06-19T10:46:04.953Z",
+      "lastAccessedAt": "2025-06-19T10:46:04.953Z",
+      "version": 1,
+      "size": 2612,
+      "compressed": true,
+      "checksum": "bc83f04f3223d407db4df658bd7409d89d9c91ba600704f022276ecb19f9b4b2",
+      "references": [],
+      "dependencies": []
+    }
+  ],
+  "statistics": {
+    "overview": {
+      "totalEntries": 1,
+      "totalSize": 2612,
+      "compressedEntries": 1,
+      "compressionRatio": 0,
+      "indexSize": 50,
+      "memoryUsage": 9305448,
+      "diskUsage": 0
+    },
+    "distribution": {
+      "byNamespace": {
+        "default": {
+          "count": 1,
+          "size": 2612
+        }
+      },
+      "byType": {
+        "object": {
+          "count": 1,
+          "size": 2612
+        }
+      },
+      "byOwner": {
+        "system": {
+          "count": 1,
+          "size": 2612
+        }
+      },
+      "byAccessLevel": {
+        "shared": {
+          "count": 1,
+          "size": 2612
+        }
+      }
+    },
+    "temporal": {
+      "entriesCreatedLast24h": 1,
+      "entriesUpdatedLast24h": 1,
+      "entriesAccessedLast24h": 1,
+      "oldestEntry": "2025-06-19T10:46:04.953Z",
+      "newestEntry": "2025-06-19T10:46:04.953Z"
+    },
+    "performance": {
+      "averageQueryTime": 0,
+      "averageWriteTime": 1,
+      "cacheHitRatio": 0,
+      "indexEfficiency": 0.95
+    },
+    "health": {
+      "expiredEntries": 0,
+      "orphanedReferences": 0,
+      "duplicateKeys": 0,
+      "corruptedEntries": 0,
+      "recommendedCleanup": false
+    },
+    "optimization": {
+      "suggestions": [],
+      "potentialSavings": {
+        "compression": 0,
+        "cleanup": 0,
+        "deduplication": 0
+      },
+      "indexOptimization": [
+        "Consider periodic index rebuilding for optimal performance"
+      ]
+    }
+  }
+}

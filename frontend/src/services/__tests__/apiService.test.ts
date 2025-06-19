@@ -30,7 +30,7 @@ describe('apiService', () => {
   });
 
   it('should create axios instance with correct config', async () => {
-    const { apiService } = await import('@/services/apiService');
+    await import('@/services/apiService');
     
     expect(mockedAxios.create).toHaveBeenCalledWith({
       baseURL: expect.stringContaining('/api'),
@@ -53,7 +53,7 @@ describe('apiService', () => {
     
     mockedAxios.create = vi.fn(() => axiosInstance);
     
-    const { apiService } = await import('@/services/apiService');
+    const { default: apiService } = await import('@/services/apiService');
     const result = await apiService.get('/test');
     
     expect(axiosInstance.get).toHaveBeenCalledWith('/test', undefined);
@@ -73,7 +73,7 @@ describe('apiService', () => {
     
     mockedAxios.create = vi.fn(() => axiosInstance);
     
-    const { apiService } = await import('@/services/apiService');
+    const { default: apiService } = await import('@/services/apiService');
     const result = await apiService.post('/items', postData);
     
     expect(axiosInstance.post).toHaveBeenCalledWith('/items', postData, undefined);
@@ -92,7 +92,7 @@ describe('apiService', () => {
     
     mockedAxios.create = vi.fn(() => axiosInstance);
     
-    const { apiService } = await import('@/services/apiService');
+    const { default: apiService } = await import('@/services/apiService');
     
     await expect(apiService.get('/test')).rejects.toThrow(errorMessage);
   });
@@ -131,8 +131,8 @@ describe('apiService', () => {
       interceptors: {
         request: { use: vi.fn() },
         response: {
-          use: vi.fn((success, error) => {
-            responseInterceptor = { success, error };
+          use: vi.fn((_, error) => {
+            responseInterceptor = { error };
           }),
         },
       },

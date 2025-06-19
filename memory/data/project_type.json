@@ -1,0 +1,48 @@
+{
+  "type": "Full-Stack Healthcare Application",
+  "name": "AUSTA Cockpit",
+  "description": "Platform for human and AI interaction deployed on quality control of production in Healthcare",
+  "architecture": "Microservices",
+  "components": {
+    "frontend": {
+      "framework": "React with TypeScript",
+      "build_tool": "Vite",
+      "state_management": "Redux Toolkit",
+      "ui_framework": "Tailwind CSS",
+      "testing": ["Jest", "Cypress"],
+      "node_version": ">=20.0.0"
+    },
+    "backend": {
+      "framework": "Express.js with TypeScript",
+      "runtime": "Node.js",
+      "databases": ["PostgreSQL (Prisma ORM)", "Redis", "MongoDB", "Elasticsearch"],
+      "monitoring": ["Prometheus", "Winston"],
+      "testing": ["Jest"]
+    },
+    "ai_service": {
+      "framework": "FastAPI (Python)",
+      "ml_frameworks": ["PyTorch", "Transformers", "XGBoost", "scikit-learn"],
+      "ai_integration": ["OpenAI", "LangChain"],
+      "language": "Python"
+    },
+    "infrastructure": {
+      "containerization": "Docker",
+      "orchestration": "Kubernetes (K8s)",
+      "cloud": "AWS (EKS, RDS)",
+      "ci_cd": "GitHub Actions",
+      "monitoring": ["ELK Stack", "Prometheus", "Grafana"],
+      "security": "OWASP compliance, HIPAA/SOC2 ready"
+    }
+  },
+  "key_features": [
+    "Healthcare quality control",
+    "AI-powered decision making",
+    "Fraud detection",
+    "Medical case analysis",
+    "Real-time analytics",
+    "RBAC authentication",
+    "Multi-tenant architecture",
+    "Disaster recovery",
+    "Compliance ready (HIPAA, LGPD/GDPR, SOC2)"
+  ]
+}

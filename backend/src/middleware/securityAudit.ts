@@ -499,8 +499,4 @@ setInterval(() => {
   }
 }, 3600000); // Run every hour
 
-export {
-  SecurityEventType,
-  AuditActionType,
-  SecurityRiskLevel,
-};
+// Enums are already exported at their definition

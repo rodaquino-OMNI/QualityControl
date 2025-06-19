@@ -10,7 +10,7 @@ interface ExportControlsProps {
   onExport: (options: ExportOptions) => void;
 }
 
-const ExportControls: React.FC<ExportControlsProps> = ({ onExport }) => {
+const ExportControls: React.FC<ExportControlsProps> = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     format: 'pdf',

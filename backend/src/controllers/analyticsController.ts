@@ -4,13 +4,12 @@ import { AnalyticsService } from '../services/analyticsService';
 import { RedisService } from '../services/redisService';
 import { validateAnalyticsQuery } from '../validators/analyticsValidator';
 import { logger } from '../utils/logger';
-import { parse, isValid } from 'date-fns';
 
 const redisService = new RedisService();
 const analyticsService = new AnalyticsService(redisService);
 
 export const getAnalytics = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, _next: NextFunction) => {
     const { error, value } = validateAnalyticsQuery(req.query);
     
     if (error) {
@@ -153,7 +152,7 @@ export const getKPIs = asyncHandler(
 );
 
 export const getRealTimeMetrics = asyncHandler(
-  async (req: Request, res: Response) => {
+  async (_req: Request, res: Response) => {
     const metrics = await analyticsService.getRealTimeMetrics();
 
     res.json({

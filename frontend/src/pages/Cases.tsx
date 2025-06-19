@@ -3,7 +3,7 @@ import CaseFilters from '@/components/cases/CaseFilters';
 import CaseListItem from '@/components/cases/CaseListItem';
 
 const Cases: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({});
 
   // Mock data - replace with API calls

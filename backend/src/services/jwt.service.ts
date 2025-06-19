@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import { sign, verify, decode, TokenExpiredError, JsonWebTokenError, SignOptions } from 'jsonwebtoken';
 import { authConfig } from '../config/auth.config';
 import { User } from '@prisma/client';
 
@@ -27,11 +27,13 @@ export class JWTService {
       type: 'access',
     };
 
-    return jwt.sign(payload, authConfig.jwt.accessTokenSecret, {
+    const options = {
       expiresIn: authConfig.jwt.accessTokenExpiry,
       issuer: authConfig.jwt.issuer,
       audience: authConfig.jwt.audience,
-    });
+    };
+    
+    return sign(payload, authConfig.jwt.accessTokenSecret as string, options as any);
   }
 
   /**
@@ -46,11 +48,13 @@ export class JWTService {
       deviceId,
     };
 
-    return jwt.sign(payload, authConfig.jwt.refreshTokenSecret, {
+    const options = {
       expiresIn: authConfig.jwt.refreshTokenExpiry,
       issuer: authConfig.jwt.issuer,
       audience: authConfig.jwt.audience,
-    });
+    };
+    
+    return sign(payload, authConfig.jwt.refreshTokenSecret as string, options as any);
   }
 
   /**
@@ -58,7 +62,7 @@ export class JWTService {
    */
   static verifyAccessToken(token: string): TokenPayload {
     try {
-      const decoded = jwt.verify(token, authConfig.jwt.accessTokenSecret, {
+      const decoded = verify(token, authConfig.jwt.accessTokenSecret, {
         issuer: authConfig.jwt.issuer,
         audience: authConfig.jwt.audience,
       }) as TokenPayload;
@@ -69,10 +73,10 @@ export class JWTService {
 
       return decoded;
     } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
+      if (error instanceof TokenExpiredError) {
         throw new Error('Access token expired');
       }
-      if (error instanceof jwt.JsonWebTokenError) {
+      if (error instanceof JsonWebTokenError) {
         throw new Error('Invalid access token');
       }
       throw error;
@@ -84,7 +88,7 @@ export class JWTService {
    */
   static verifyRefreshToken(token: string): RefreshTokenPayload {
     try {
-      const decoded = jwt.verify(token, authConfig.jwt.refreshTokenSecret, {
+      const decoded = verify(token, authConfig.jwt.refreshTokenSecret, {
         issuer: authConfig.jwt.issuer,
         audience: authConfig.jwt.audience,
       }) as RefreshTokenPayload;
@@ -95,10 +99,10 @@ export class JWTService {
 
       return decoded;
     } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
+      if (error instanceof TokenExpiredError) {
         throw new Error('Refresh token expired');
       }
-      if (error instanceof jwt.JsonWebTokenError) {
+      if (error instanceof JsonWebTokenError) {
         throw new Error('Invalid refresh token');
       }
       throw error;
@@ -129,6 +133,6 @@ export class JWTService {
    * Decode token without verification (for debugging)
    */
   static decodeToken(token: string): any {
-    return jwt.decode(token);
+    return decode(token);
   }
 }

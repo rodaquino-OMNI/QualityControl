@@ -1,6 +1,6 @@
 import { PrismaClient, User } from '@prisma/client';
 import argon2 from 'argon2';
-import { Issuer, generators } from 'openid-client';
+import { Issuer } from 'openid-client';
 import speakeasy from 'speakeasy';
 import { authConfig } from '../config/auth.config';
 import { JWTService } from './jwt.service';
@@ -58,24 +58,16 @@ export class AuthService {
       data: {
         email,
         password: hashedPassword,
+        name: `${firstName} ${lastName}`,
         firstName,
         lastName,
         username,
-        roles: {
-          create: {
-            role: {
-              connect: {
-                name: 'auditor', // Default role
-              },
-            },
-          },
-        },
+        role: 'auditor', // Default role
       },
     });
 
     // Log registration
     await this.logAuthEvent(user.id, 'register', true);
-
     return user;
   }
 
@@ -86,13 +78,6 @@ export class AuthService {
     // Find user
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: {
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
     });
 
     if (!user || !user.password) {
@@ -125,7 +110,7 @@ export class AuthService {
     }
 
     // Generate tokens
-    const roles = user.roles.map((ur) => ur.role.name);
+    const roles = [user.role];
     const { accessToken, refreshToken } = JWTService.generateTokenPair(user, roles, deviceId);
 
     // Store refresh token
@@ -147,13 +132,6 @@ export class AuthService {
   async verifyMFA(userId: string, token: string, deviceId?: string): Promise<LoginResult> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
     });
 
     if (!user || !user.mfaSecret) {
@@ -174,7 +152,7 @@ export class AuthService {
     }
 
     // Generate tokens
-    const roles = user.roles.map((ur) => ur.role.name);
+    const roles = [user.role];
     const { accessToken, refreshToken } = JWTService.generateTokenPair(user, roles, deviceId);
 
     // Store refresh token
@@ -230,26 +208,17 @@ export class AuthService {
     // Check if OAuth account exists
     let oauthAccount = await this.prisma.oAuthAccount.findUnique({
       where: {
-        provider_providerUserId: {
+        provider_providerId: {
           provider,
-          providerUserId: profile.id,
+          providerId: profile.id,
         },
       },
       include: {
-        user: {
-          include: {
-            roles: {
-              include: {
-                role: true,
-              },
-            },
-          },
-        },
+        user: true,
       },
     });
 
     let user: User;
-
     if (oauthAccount) {
       // Update user info
       user = await this.prisma.user.update({
@@ -257,16 +226,8 @@ export class AuthService {
         data: {
           firstName: profile.firstName,
           lastName: profile.lastName,
+          name: `${profile.firstName} ${profile.lastName}`,
           avatar: profile.avatar,
-          isEmailVerified: true,
-          emailVerifiedAt: new Date(),
-        },
-        include: {
-          roles: {
-            include: {
-              role: true,
-            },
-          },
         },
       });
     } else {
@@ -282,7 +243,7 @@ export class AuthService {
           data: {
             userId: existingUser.id,
             provider,
-            providerUserId: profile.id,
+            providerId: profile.id,
           },
         });
       } else {
@@ -290,33 +251,21 @@ export class AuthService {
         user = await this.prisma.user.create({
           data: {
             email: profile.email,
+            name: `${profile.firstName} ${profile.lastName}`,
             firstName: profile.firstName,
             lastName: profile.lastName,
             avatar: profile.avatar,
-            isEmailVerified: true,
-            emailVerifiedAt: new Date(),
-            oauthAccounts: {
-              create: {
-                provider,
-                providerUserId: profile.id,
-              },
-            },
-            roles: {
-              create: {
-                role: {
-                  connect: {
-                    name: 'auditor', // Default role
-                  },
-                },
-              },
-            },
+            role: 'auditor', // Default role
+            password: '', // OAuth users don't have passwords
           },
-          include: {
-            roles: {
-              include: {
-                role: true,
-              },
-            },
+        });
+
+        // Create OAuth account link
+        await this.prisma.oAuthAccount.create({
+          data: {
+            userId: user.id,
+            provider,
+            providerId: profile.id,
           },
         });
       }
@@ -329,7 +278,7 @@ export class AuthService {
     }
 
     // Generate tokens
-    const roles = user.roles.map((ur) => ur.role.name);
+    const roles = [user.role];
     const { accessToken, refreshToken } = JWTService.generateTokenPair(user, roles);
 
     // Store refresh token
@@ -356,19 +305,11 @@ export class AuthService {
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
       include: {
-        user: {
-          include: {
-            roles: {
-              include: {
-                role: true,
-              },
-            },
-          },
-        },
+        user: true,
       },
     });
 
-    if (!storedToken || storedToken.revokedAt) {
+    if (!storedToken) {
       throw new Error('Invalid refresh token');
     }
 
@@ -377,28 +318,13 @@ export class AuthService {
       throw new Error('Refresh token expired');
     }
 
-    // Update last used
-    await this.prisma.refreshToken.update({
-      where: { id: storedToken.id },
-      data: { lastUsedAt: new Date() },
-    });
-
     // Generate new tokens
-    const roles = storedToken.user.roles.map((ur) => ur.role.name);
+    const roles = [storedToken.user.role];
     const newTokens = JWTService.generateTokenPair(
       storedToken.user,
       roles,
       payload.deviceId
     );
-
-    // Revoke old refresh token
-    await this.prisma.refreshToken.update({
-      where: { id: storedToken.id },
-      data: {
-        revokedAt: new Date(),
-        revokedReason: 'Token refreshed',
-      },
-    });
 
     // Store new refresh token
     await this.storeRefreshToken(storedToken.userId, newTokens.refreshToken, payload.deviceId);
@@ -411,28 +337,18 @@ export class AuthService {
    */
   async logout(userId: string, refreshToken?: string): Promise<void> {
     if (refreshToken) {
-      // Revoke specific refresh token
-      await this.prisma.refreshToken.updateMany({
+      // Delete specific refresh token
+      await this.prisma.refreshToken.deleteMany({
         where: {
           userId,
           token: refreshToken,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: new Date(),
-          revokedReason: 'User logout',
         },
       });
     } else {
-      // Revoke all refresh tokens for user
-      await this.prisma.refreshToken.updateMany({
+      // Delete all refresh tokens for user
+      await this.prisma.refreshToken.deleteMany({
         where: {
           userId,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: new Date(),
-          revokedReason: 'User logout (all devices)',
         },
       });
     }
@@ -469,7 +385,6 @@ export class AuthService {
       data: {
         token,
         userId,
-        deviceId,
         expiresAt,
       },
     });
@@ -484,15 +399,15 @@ export class AuthService {
     success: boolean,
     details?: string
   ): Promise<void> {
-    await this.prisma.loginHistory.create({
-      data: {
-        userId: userId || '',
-        ipAddress: '0.0.0.0', // Should be extracted from request
-        userAgent: '', // Should be extracted from request
-        loginMethod: action,
-        success,
-        failureReason: success ? null : details,
-      },
-    });
+    if (userId) {
+      await this.prisma.loginHistory.create({
+        data: {
+          userId,
+          ipAddress: '0.0.0.0', // Should be extracted from request
+          userAgent: '', // Should be extracted from request
+          success,
+        },
+      });
+    }
   }
 }

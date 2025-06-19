@@ -10,7 +10,7 @@ import {
   RealTimeMetric,
   FraudPattern
 } from '../types/analytics';
-import { startOfDay, endOfDay, eachDayOfInterval, format } from 'date-fns';
+import { eachDayOfInterval, format } from 'date-fns';
 import { RedisService } from './redisService';
 import { logger } from '../utils/logger';
 
@@ -60,7 +60,7 @@ export class AnalyticsService {
     }
   }
 
-  async getCaseMetrics(query: AnalyticsQuery): Promise<CaseMetrics> {
+  async getCaseMetrics(_query: AnalyticsQuery): Promise<CaseMetrics> {
     // Mock implementation - replace with actual database queries
     const totalCases = Math.floor(Math.random() * 500) + 1000;
     const approvedCases = Math.floor(totalCases * 0.76);
@@ -103,7 +103,7 @@ export class AnalyticsService {
       }));
   }
 
-  async getFraudMetrics(query: AnalyticsQuery): Promise<FraudMetrics> {
+  async getFraudMetrics(_query: AnalyticsQuery): Promise<FraudMetrics> {
     const totalDetections = Math.floor(Math.random() * 50) + 100;
     const confirmedFrauds = Math.floor(totalDetections * 0.68);
     const falsePositives = Math.floor(totalDetections * 0.06);
@@ -143,7 +143,7 @@ export class AnalyticsService {
     };
   }
 
-  async getAIMetrics(query: AnalyticsQuery): Promise<AIMetrics> {
+  async getAIMetrics(_query: AnalyticsQuery): Promise<AIMetrics> {
     return {
       aiUsageRate: 87.5,
       averageConfidenceScore: 92.3,
@@ -170,7 +170,7 @@ export class AnalyticsService {
     }));
   }
 
-  async getKPIs(query: AnalyticsQuery): Promise<KPIData[]> {
+  async getKPIs(_query: AnalyticsQuery): Promise<KPIData[]> {
     return [
       {
         id: 'processing-time',

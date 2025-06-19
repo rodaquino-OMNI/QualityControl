@@ -34,8 +34,7 @@
   },
   "include": [
     "src/**/*",
-    "tests/**/*",
-    "vite.config.ts"
+    "tests/**/*"
   ],
   "exclude": [
     "node_modules",

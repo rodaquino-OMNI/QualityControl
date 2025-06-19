@@ -7,7 +7,7 @@ import { cache } from '../config/redis';
 interface JWTPayload {
   userId: string;
   email: string;
-  role: string;
+  roles: string[];
 }
 
 declare global {
@@ -16,7 +16,7 @@ declare global {
       user?: {
         id: string;
         email: string;
-        role: string;
+        roles: string[];
       };
     }
   }
@@ -65,7 +65,7 @@ export const authenticate = async (
     req.user = {
       id: user.id,
       email: user.email,
-      role: user.role,
+      roles: [user.role],
     };
 
     next();
@@ -86,7 +86,7 @@ export const authorize = (...roles: string[]) => {
       return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!req.user.roles.some(role => roles.includes(role))) {
       return next(
         new AppError(
           'Insufficient permissions',
@@ -131,7 +131,7 @@ export const optionalAuth = async (
       req.user = {
         id: user.id,
         email: user.email,
-        role: user.role,
+        roles: [user.role],
       };
     }
 

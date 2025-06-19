@@ -1,0 +1,15 @@
+{
+  "version": "1.0.70",
+  "project": {
+    "name": "QualityControl",
+    "type": "claude-flow",
+    "created": "2025-06-18T22:44:52.708Z"
+  },
+  "features": {
+    "swarm": true,
+    "sparc": true,
+    "memory": true,
+    "terminal": true,
+    "mcp": true
+  }
+}

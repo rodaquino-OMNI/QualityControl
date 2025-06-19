@@ -1,0 +1,60 @@
+{
+  "status": "completed",
+  "fixes_completed": [
+    {
+      "file": "backend/src/routes/case.routes.ts",
+      "changes": [
+        "Line 208: aiAnalyses -> aIAnalyses (commented out - relation doesn't exist)",
+        "Line 321: queues.aiAnalysis -> queues.aIAnalysis",
+        "Line 196-210: Commented out decisions and aIAnalyses relations (not in schema)",
+        "Line 263: documents -> attachments (in swagger)",
+        "Line 289: body('documents') -> body('attachments')",
+        "Line 298: documents variable -> attachments",
+        "Line 310-311: documents field -> attachments field",
+        "Line 504: caseId -> id (undefined variable fix)"
+      ]
+    },
+    {
+      "file": "backend/src/routes/ai.routes.ts",
+      "changes": [
+        "Line 231: Already correct - aIAnalyses"
+      ]
+    },
+    {
+      "file": "backend/src/services/ai.service.ts",
+      "changes": [
+        "Line 321-324: caseContext.aiAnalyses -> caseContext.aIAnalyses"
+      ]
+    },
+    {
+      "file": "src/types/index.ts",
+      "changes": [
+        "Line 23: aiAnalysis -> aIAnalysis"
+      ]
+    },
+    {
+      "file": "backend/src/config/queues.ts",
+      "changes": [
+        "Line 18: aiAnalysis -> aIAnalysis"
+      ]
+    }
+  ],
+  "critical_issues_found": [
+    {
+      "type": "schema_mismatch",
+      "severity": "critical",
+      "description": "Major schema mismatches between code and Prisma schema",
+      "details": [
+        "Case model missing fields: procedureCode, procedureDescription, value, requestDate",
+        "Case model missing relations: decisions, aIAnalyses",
+        "Code expects 'documents' but schema has 'attachments'"
+      ],
+      "affected_operations": [
+        "POST /cases - Cannot create cases with required fields",
+        "GET /cases/:id - Cannot include decisions and AI analyses"
+      ],
+      "recommendation": "Either update the Prisma schema to match the code expectations or refactor the code to match the existing schema"
+    }
+  ],
+  "summary": "Fixed all Prisma naming convention issues (aiAnalysis -> aIAnalysis, etc.) and some undefined variables. However, discovered critical schema mismatches where the code expects fields and relations that don't exist in the Prisma schema. The application will likely fail at runtime when trying to create or query cases."
+}

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useRegisterMutation } from '../../services/authService';
 import { useAppDispatch } from '../../store/hooks';
 import { clearError } from '../../store/slices/authSlice';
-import { Mail, Lock, User, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User, Loader2, CheckCircle } from 'lucide-react';
 
 export const RegisterForm: React.FC = () => {
   const navigate = useNavigate();

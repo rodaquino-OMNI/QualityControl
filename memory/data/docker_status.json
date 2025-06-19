@@ -1,0 +1,21 @@
+{
+  "docker_installed": true,
+  "docker_version": "28.1.1",
+  "docker_compose_installed": true,
+  "docker_compose_version": "v2.35.1-desktop.1",
+  "docker_compose_yml_exists": true,
+  "docker_compose_status": "failed_to_start",
+  "error": "TypeScript compilation errors in backend service - missing dependencies in package.json",
+  "error_details": [
+    "Cannot find module 'express-validator'",
+    "Cannot find module '@prisma/client'", 
+    "Cannot find module 'axios'",
+    "Cannot find module 'argon2'",
+    "Cannot find module 'openid-client'",
+    "Cannot find module 'speakeasy'",
+    "Cannot find module 'jsonwebtoken'"
+  ],
+  "containers_running": 4,
+  "containers_total": 18,
+  "timestamp": "2025-06-18T20:04:00-03:00"
+}

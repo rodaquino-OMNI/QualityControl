@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../store/hooks';
 import { useGetCurrentUserQuery } from '../../services/authService';
@@ -26,7 +26,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ requiredRoles = [], require
 
   // Check permission requirements
   const hasRequiredPermissions = requiredPermissions.length === 0 || 
-    (user && requiredPermissions.every(({ resource, action }) => {
+    (user && requiredPermissions.every(() => {
       // This would need to be implemented based on your permission structure
       // For now, admins have all permissions
       return user.roles.some(r => r.name === 'admin');

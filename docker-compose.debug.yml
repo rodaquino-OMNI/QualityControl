@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: austa-postgres-debug
+    environment:
+      - POSTGRES_DB=austa_db
+      - POSTGRES_USER=austa
+      - POSTGRES_PASSWORD=austa123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U austa -d austa_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - austa-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: austa-redis-debug
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - austa-network
+
+  # Backend Service (Development mode)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: development
+    container_name: austa-backend-debug
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://austa:austa123@postgres:5432/austa_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=development-jwt-secret
+      - SESSION_SECRET=development-session-secret
+      - CORS_ORIGIN=http://localhost:3000
+      - LOG_LEVEL=debug
+    volumes:
+      - ./backend:/app:delegated
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - austa-network
+    restart: unless-stopped
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  austa-network:
+    driver: bridge

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   RadarChart,
   PolarGrid,
@@ -25,7 +25,7 @@ interface AuditorPerformanceChartProps {
   auditors?: string[];
 }
 
-const AuditorPerformanceChart: React.FC<AuditorPerformanceChartProps> = ({ dateRange, auditors }) => {
+const AuditorPerformanceChart: React.FC<AuditorPerformanceChartProps> = ({ auditors }) => {
   const [viewType, setViewType] = useState<'bar' | 'radar'>('bar');
   const [selectedMetric, setSelectedMetric] = useState<'cases' | 'time' | 'accuracy' | 'ai'>('cases');
   

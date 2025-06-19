@@ -32,17 +32,18 @@ export class AuthMiddleware {
   /**
    * Authenticate user from JWT token
    */
-  authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Extract token from header
       const authHeader = req.headers.authorization;
       const token = JWTService.extractTokenFromHeader(authHeader);
 
       if (!token) {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Authentication required',
           code: 'NO_TOKEN',
         });
+        return;
       }
 
       // Verify token
@@ -59,10 +60,11 @@ export class AuthMiddleware {
       });
 
       if (!user || !user.isActive) {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Invalid token',
           code: 'INVALID_USER',
         });
+        return;
       }
 
       // Attach user to request
@@ -75,13 +77,14 @@ export class AuthMiddleware {
       next();
     } catch (error: any) {
       if (error.message === 'Access token expired') {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Token expired',
           code: 'TOKEN_EXPIRED',
         });
+        return;
       }
 
-      return res.status(401).json({
+      res.status(401).json({
         error: 'Invalid token',
         code: 'INVALID_TOKEN',
       });
@@ -126,12 +129,13 @@ export class AuthMiddleware {
    * Require specific permission
    */
   requirePermission = (resource: string, action: string) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.user) {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Authentication required',
           code: 'NO_AUTH',
         });
+        return;
       }
 
       const hasPermission = await this.rbacService.hasPermission(
@@ -141,11 +145,12 @@ export class AuthMiddleware {
       );
 
       if (!hasPermission) {
-        return res.status(403).json({
+        res.status(403).json({
           error: 'Insufficient permissions',
           code: 'FORBIDDEN',
           required: `${resource}:${action}`,
         });
+        return;
       }
 
       next();
@@ -156,12 +161,13 @@ export class AuthMiddleware {
    * Require any of the specified permissions
    */
   requireAnyPermission = (permissions: Array<{ resource: string; action: string }>) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.user) {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Authentication required',
           code: 'NO_AUTH',
         });
+        return;
       }
 
       const hasPermission = await this.rbacService.hasAnyPermission(
@@ -170,11 +176,12 @@ export class AuthMiddleware {
       );
 
       if (!hasPermission) {
-        return res.status(403).json({
+        res.status(403).json({
           error: 'Insufficient permissions',
           code: 'FORBIDDEN',
           required: permissions.map((p) => `${p.resource}:${p.action}`),
         });
+        return;
       }
 
       next();
@@ -185,12 +192,13 @@ export class AuthMiddleware {
    * Require all of the specified permissions
    */
   requireAllPermissions = (permissions: Array<{ resource: string; action: string }>) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.user) {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Authentication required',
           code: 'NO_AUTH',
         });
+        return;
       }
 
       const hasPermissions = await this.rbacService.hasAllPermissions(
@@ -199,11 +207,12 @@ export class AuthMiddleware {
       );
 
       if (!hasPermissions) {
-        return res.status(403).json({
+        res.status(403).json({
           error: 'Insufficient permissions',
           code: 'FORBIDDEN',
           required: permissions.map((p) => `${p.resource}:${p.action}`),
         });
+        return;
       }
 
       next();
@@ -214,22 +223,24 @@ export class AuthMiddleware {
    * Require specific role
    */
   requireRole = (role: string) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.user) {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Authentication required',
           code: 'NO_AUTH',
         });
+        return;
       }
 
       const hasRole = await this.rbacService.hasRole(req.user.id, role);
 
       if (!hasRole) {
-        return res.status(403).json({
+        res.status(403).json({
           error: 'Insufficient role',
           code: 'FORBIDDEN',
           required: role,
         });
+        return;
       }
 
       next();
@@ -240,22 +251,24 @@ export class AuthMiddleware {
    * Require any of the specified roles
    */
   requireAnyRole = (roles: string[]) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.user) {
-        return res.status(401).json({
+        res.status(401).json({
           error: 'Authentication required',
           code: 'NO_AUTH',
         });
+        return;
       }
 
       const hasRole = await this.rbacService.hasAnyRole(req.user.id, roles);
 
       if (!hasRole) {
-        return res.status(403).json({
+        res.status(403).json({
           error: 'Insufficient role',
           code: 'FORBIDDEN',
           required: roles,
         });
+        return;
       }
 
       next();
@@ -274,7 +287,7 @@ export class AuthMiddleware {
     const max = options?.max || 100;
     const keyGenerator = options?.keyGenerator || ((req) => req.ip || 'unknown');
 
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       const key = keyGenerator(req);
       const result = await this.redisService.checkRateLimit(key, max, windowMs);
 
@@ -284,11 +297,12 @@ export class AuthMiddleware {
       res.setHeader('X-RateLimit-Reset', result.resetAt.toISOString());
 
       if (!result.allowed) {
-        return res.status(429).json({
+        res.status(429).json({
           error: 'Too many requests',
           code: 'RATE_LIMITED',
           retryAfter: result.resetAt,
         });
+        return;
       }
 
       next();
@@ -299,16 +313,16 @@ export class AuthMiddleware {
    * Log audit event
    */
   auditLog = (action: string, resource: string) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       // Log on response finish
       res.on('finish', async () => {
         if (res.statusCode >= 200 && res.statusCode < 400) {
-          await this.prisma.auditLog.create({
+          await this.prisma.activityLog.create({
             data: {
               userId: req.user?.id,
               action,
-              resource,
-              resourceId: req.params.id,
+              entityType: resource,
+              entityId: req.params.id,
               ipAddress: req.ip || 'unknown',
               userAgent: req.get('user-agent'),
             },

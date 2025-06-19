@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { body, param, query, validationResult } from 'express-validator';
+const { body, param, query, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
 import { queues } from '../config/queues';

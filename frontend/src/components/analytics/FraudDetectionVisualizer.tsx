@@ -106,7 +106,7 @@ const FraudDetectionVisualizer: React.FC<FraudDetectionVisualizerProps> = ({ ris
       .enter().append('g')
       .attr('class', 'node')
       .style('cursor', 'pointer')
-      .on('click', (event, d) => setSelectedPattern(d as FraudPattern));
+      .on('click', (_, d) => setSelectedPattern(d as FraudPattern));
 
     // Add circles
     node.append('circle')

@@ -1,6 +1,5 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { MetricData } from '../../types/analytics';
 
 interface MetricsOverviewProps {
   selectedMetric: string;
@@ -10,7 +9,7 @@ interface MetricsOverviewProps {
   };
 }
 
-const MetricsOverview: React.FC<MetricsOverviewProps> = ({ selectedMetric, dateRange }) => {
+const MetricsOverview: React.FC<MetricsOverviewProps> = ({ selectedMetric }) => {
   // Mock data based on selected metric
   const getMetricData = () => {
     switch (selectedMetric) {

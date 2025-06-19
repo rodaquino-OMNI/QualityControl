@@ -15,7 +15,7 @@ const defaultJobOptions = {
 
 // Create queues
 export const queues = {
-  aiAnalysis: new Bull('ai-analysis', {
+  aIAnalysis: new Bull('ai-analysis', {
     redis: process.env.REDIS_URL || 'redis://localhost:6379',
     defaultJobOptions,
   }),

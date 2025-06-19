@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
   ComposedChart
 } from 'recharts';
-import { format, eachDayOfInterval, subDays } from 'date-fns';
+import { format, eachDayOfInterval } from 'date-fns';
 
 interface CaseAnalysisChartProps {
   dateRange: {

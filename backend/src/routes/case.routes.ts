@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { body, query, param, validationResult } from 'express-validator';
+const { body, query, param, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
 import { queues } from '../config/queues';
-import { logger } from '../utils/logger';
+import { logger, logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -70,7 +70,7 @@ router.get(
     query('sortBy').optional().isIn(['createdAt', 'updatedAt', 'priority', 'value']),
     query('sortOrder').optional().isIn(['asc', 'desc']),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -111,15 +111,12 @@ router.get(
             patient: {
               select: {
                 id: true,
-                name: true,
-                age: true,
+                patientCode: true,
+                birthYear: true,
                 gender: true,
               },
             },
-            decisions: {
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
+            // No decisions relation on Case model
           },
         }),
         prisma.case.count({ where }),
@@ -182,7 +179,7 @@ router.get(
 router.get(
   '/:id',
   [param('id').isUUID()],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -195,22 +192,22 @@ router.get(
         where: { id },
         include: {
           patient: true,
-          documents: true,
-          decisions: {
-            include: {
-              auditor: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-            orderBy: { createdAt: 'desc' },
-          },
-          aiAnalyses: {
-            orderBy: { createdAt: 'desc' },
-          },
+          attachments: true,
+          // decisions: { // Removed - not in schema
+          //   include: {
+          //     auditor: {
+          //       select: {
+          //         id: true,
+          //         name: true,
+          //         email: true,
+          //       },
+          //     },
+          //   },
+          //   orderBy: { createdAt: 'desc' },
+          // },
+          // aIAnalyses: { // Removed - not in schema
+          //   orderBy: { createdAt: 'desc' },
+          // },
         },
       });
 
@@ -219,7 +216,7 @@ router.get(
       }
 
       // Log access
-      logger.logAudit('case.viewed', req.user!.id, { caseId: id });
+      logAuditEvent('case.viewed', req.user!.id, id, {});
 
       res.json({
         success: true,
@@ -263,7 +260,7 @@ router.get(
  *               priority:
  *                 type: string
  *                 enum: [low, medium, high, urgent]
- *               documents:
+ *               attachments:
  *                 type: array
  *                 items:
  *                   type: object
@@ -289,16 +286,16 @@ router.post(
     body('procedureDescription').notEmpty().trim(),
     body('value').isFloat({ min: 0 }),
     body('priority').isIn(['low', 'medium', 'high', 'urgent']),
-    body('documents').optional().isArray(),
+    body('attachments').optional().isArray(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         throw new AppError('Validation failed', 400, 'VALIDATION_ERROR', errors.array());
       }
 
-      const { patientId, procedureCode, procedureDescription, value, priority, documents } = req.body;
+      const { patientId, procedureCode, procedureDescription, value, priority, attachments } = req.body;
 
       // Create case
       const newCase = await prisma.case.create({
@@ -308,20 +305,20 @@ router.post(
           procedureDescription,
           value,
           priority,
-          status: 'pending',
+          status: 'open',
           requestDate: new Date(),
-          documents: documents ? {
-            create: documents,
+          attachments: attachments ? {
+            create: attachments,
           } : undefined,
         },
         include: {
           patient: true,
-          documents: true,
+          attachments: true,
         },
       });
 
       // Queue AI analysis
-      await queues.aiAnalysis.add('analyze-case', {
+      await queues.aIAnalysis.add('analyze-case', {
         caseId: newCase.id,
         priority: newCase.priority,
       }, {
@@ -332,14 +329,14 @@ router.post(
       await queues.fraudDetection.add('check-fraud', {
         caseId: newCase.id,
         patientId: newCase.patientId,
-        procedureCode: newCase.procedureCode,
-        value: newCase.value,
+        title: newCase.title,
+        status: newCase.status,
       });
 
       // Invalidate cache
       await cache.invalidatePattern('cases:*');
 
-      logger.logAudit('case.created', req.user!.id, {
+      logAuditEvent('case.created', req.user!.id, newCase.id, {
         caseId: newCase.id,
         patientId,
         procedureCode,
@@ -397,7 +394,7 @@ router.patch(
     param('id').isUUID(),
     body('status').isIn(['pending', 'in_review', 'approved', 'denied', 'partial']),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -418,7 +415,7 @@ router.patch(
       // Invalidate cache
       await cache.invalidatePattern(`cases:*`);
 
-      logger.logAudit('case.statusUpdated', req.user!.id, {
+      logAuditEvent('case.statusUpdated', req.user!.id, id, {
         caseId: id,
         oldStatus: updatedCase.status,
         newStatus: status,
@@ -475,7 +472,7 @@ router.post(
     param('id').isUUID(),
     body('auditorId').isUUID(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -489,7 +486,7 @@ router.post(
         where: { id },
         data: {
           assignedTo: auditorId,
-          status: 'in_review',
+          status: 'in_progress',
           assignedAt: new Date(),
         },
       });
@@ -504,7 +501,7 @@ router.post(
         },
       });
 
-      logger.logAudit('case.assigned', req.user!.id, {
+      logAuditEvent('case.assigned', req.user!.id, id, {
         caseId: id,
         auditorId,
       });

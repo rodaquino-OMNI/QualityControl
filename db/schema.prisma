@@ -41,15 +41,21 @@ model User {
   id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   organizationId      String?   @map("organization_id") @db.Uuid
   email               String    @unique @db.VarChar(255)
-  passwordHash        String    @map("password_hash") @db.VarChar(255)
-  fullName            String    @map("full_name") @db.VarChar(255)
-  role                UserRole
+  name                String    @db.VarChar(255) // Keep existing name field
+  password            String    @db.VarChar(255) // Simplified from passwordHash for compatibility
+  firstName           String?   @map("first_name") @db.VarChar(255)
+  lastName            String?   @map("last_name") @db.VarChar(255)
+  username            String?   @unique @db.VarChar(100)
+  avatar              String?   @db.VarChar(500)
+  role                String    @db.VarChar(50) // Simplified from UserRole enum for compatibility
   licenseNumber       String?   @map("license_number") @db.VarChar(100)
   specialization      String?   @db.VarChar(100)
-  status              UserStatus @default(active)
-  lastLogin           DateTime? @map("last_login") @db.Timestamptz(6)
+  isActive            Boolean   @default(true) @map("is_active")
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz(6)
   failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
   lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
+  mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret           String?   @map("mfa_secret") @db.VarChar(255)
   metadata            Json      @default("{}")
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -62,6 +68,16 @@ model User {
   activityLogs          ActivityLog[]
   decisionTrails        DecisionTrail[]
   userActivitySummaries UserActivitySummary[]
+  refreshTokens         RefreshToken[]
+  loginHistories        LoginHistory[]
+  oauthAccounts         OAuthAccount[]
+  assignedCases         Case[]           @relation("AssignedCases")
+  createdCases          Case[]           @relation("CreatedCases")
+  notes                 Note[]
+  attachments           Attachment[]
+  activities            Activity[]
+  notifications         Notification[]
+  roles                 UserRole[]
   
   @@index([email])
   @@index([organizationId])
@@ -100,15 +116,218 @@ model Permission {
   @@schema("auth")
 }
 
+model Role {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  userRoles   UserRole[]
+  permissions RolePermission[]
+  
+  @@map("roles")
+  @@schema("auth")
+}
+
+model UserRole {
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@id([userId, roleId])
+  @@map("user_roles")
+  @@schema("auth")
+}
+
 model RolePermission {
-  role         String   @db.VarChar(50)
+  roleId       String   @map("role_id") @db.Uuid
   permissionId String   @map("permission_id") @db.Uuid
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   
-  @@id([role, permissionId])
+  @@id([roleId, permissionId])
   @@map("role_permissions")
+  @@schema("auth")
+}
+
+model RefreshToken {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("refresh_tokens")
+  @@schema("auth")
+}
+
+model LoginHistory {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  ipAddress String?  @map("ip_address") @db.Inet
+  userAgent String?  @map("user_agent") @db.Text
+  success   Boolean
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("login_history")
+  @@schema("auth")
+}
+
+model APIKey {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String   @db.VarChar(255)
+  key         String   @unique @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  
+  @@map("api_keys")
+  @@schema("auth")
+}
+
+model OAuthAccount {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  provider     String   @db.VarChar(50)
+  providerId   String   @map("provider_id") @db.VarChar(255)
+  accessToken  String?  @map("access_token") @db.Text
+  refreshToken String?  @map("refresh_token") @db.Text
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("oauth_accounts")
+  @@schema("auth")
+}
+
+// =====================================================
+// CASES AND ATTACHMENTS
+// =====================================================
+
+model Case {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title         String   @db.VarChar(255)
+  description   String?  @db.Text
+  patientId     String?  @map("patient_id") @db.Uuid
+  patientName   String?  @map("patient_name") @db.VarChar(255)
+  priority      CasePriority @default(medium)
+  status        CaseStatus @default(open)
+  assignedTo    String?  @map("assigned_to") @db.Uuid
+  createdBy     String   @map("created_by") @db.Uuid
+  tags          Json     @default("[]")
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  patient       Patient?     @relation(fields: [patientId], references: [id])
+  assignedUser  User?        @relation("AssignedCases", fields: [assignedTo], references: [id])
+  creator       User         @relation("CreatedCases", fields: [createdBy], references: [id])
+  notes         Note[]
+  attachments   Attachment[]
+  activities    Activity[]
+  
+  @@index([patientId])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([priority])
+  @@map("cases")
+  @@schema("medical")
+}
+
+model Note {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  caseId      String   @map("case_id") @db.Uuid
+  content     String   @db.Text
+  author      String   @db.VarChar(255)
+  authorId    String   @map("author_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorUser  User     @relation(fields: [authorId], references: [id])
+  
+  @@index([caseId])
+  @@index([authorId])
+  @@map("notes")
+  @@schema("medical")
+}
+
+model Attachment {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  caseId      String   @map("case_id") @db.Uuid
+  fileName    String   @map("file_name") @db.VarChar(255)
+  fileSize    Int      @map("file_size")
+  fileType    String   @map("file_type") @db.VarChar(100)
+  url         String   @db.VarChar(500)
+  uploadedBy  String   @map("uploaded_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploader    User     @relation(fields: [uploadedBy], references: [id])
+  
+  @@index([caseId])
+  @@index([uploadedBy])
+  @@map("attachments")
+  @@schema("medical")
+}
+
+model Activity {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  type        String   @db.VarChar(100)
+  description String   @db.Text
+  entityId    String   @map("entity_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  userId      String?  @map("user_id") @db.Uuid  
+  user        String?  @db.VarChar(255)
+  timestamp   DateTime @default(now()) @db.Timestamptz(6)
+  metadata    Json     @default("{}")
+  
+  case        Case?    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  userEntity  User?    @relation(fields: [userId], references: [id])
+  
+  @@index([entityId, entityType])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("activities")
+  @@schema("medical")
+}
+
+model Notification {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  type        NotificationType
+  message     String   @db.Text
+  title       String?  @db.VarChar(255)
+  isRead      Boolean  @default(false) @map("is_read")
+  priority    NotificationPriority @default(medium)
+  entityId    String?  @map("entity_id") @db.Uuid
+  entityType  String?  @map("entity_type") @db.VarChar(50)
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
+  
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
   @@schema("auth")
 }
 
@@ -130,6 +349,7 @@ model Patient {
   
   authorizationRequests AuthorizationRequest[]
   claims               Claim[]
+  cases                Case[]
   
   @@map("patients")
   @@schema("medical")
@@ -276,6 +496,49 @@ model AnalysisResult {
   
   @@index([entityType, entityId])
   @@map("analysis_results")
+  @@schema("ai")
+}
+
+model AIAnalysis {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entityType   String   @map("entity_type") @db.VarChar(50)
+  entityId     String   @map("entity_id") @db.Uuid
+  analysisType String   @map("analysis_type") @db.VarChar(100)
+  result       Json
+  confidence   Decimal  @db.Decimal(5, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  @@index([entityType, entityId])
+  @@map("ai_analysis")
+  @@schema("ai")
+}
+
+model AIConversation {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String?  @db.VarChar(255)
+  context   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  messages AIMessage[]
+  
+  @@map("ai_conversations")
+  @@schema("ai")
+}
+
+model AIMessage {
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  conversationId String         @map("conversation_id") @db.Uuid
+  role           String         @db.VarChar(20)
+  content        String         @db.Text
+  metadata       Json           @default("{}")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([conversationId])
+  @@map("ai_messages")
   @@schema("ai")
 }
 
@@ -568,7 +831,6 @@ enum Severity {
   medium
   high
   critical
-  @@map("severity")
   
   minor
   moderate
@@ -604,4 +866,39 @@ enum ViolationStatus {
   resolved
   escalated
   @@map("violation_status")
+}
+
+enum CasePriority {
+  low
+  medium
+  high
+  critical
+  @@map("case_priority")
+}
+
+enum CaseStatus {
+  open
+  in_progress
+  resolved
+  closed
+  cancelled
+  @@map("case_status")
+}
+
+enum NotificationType {
+  info
+  warning
+  error
+  success
+  case_update
+  system_alert
+  @@map("notification_type")
+}
+
+enum NotificationPriority {
+  low
+  medium
+  high
+  urgent
+  @@map("notification_priority")
 }

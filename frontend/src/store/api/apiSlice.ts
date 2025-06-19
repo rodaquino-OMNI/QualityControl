@@ -1,9 +1,10 @@
 import { createApi, fetchBaseQuery, BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '../index';
 import { setCredentials, logout } from '../slices/authSlice';
+import type { AuthTokens } from '../../../../shared/types';
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseUrl: (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api',
   credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.accessToken;
@@ -37,7 +38,7 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
       );
 
       if (refreshResult.data) {
-        const { accessToken, refreshToken: newRefreshToken } = refreshResult.data as any;
+        const { accessToken, refreshToken: newRefreshToken } = refreshResult.data as AuthTokens;
         const user = (api.getState() as RootState).auth.user;
         
         // Store the new tokens
@@ -68,8 +69,11 @@ export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['Case', 'User', 'Dashboard', 'Notification', 'Analytics'],
-  endpoints: (builder) => ({}),
+  endpoints: () => ({}),
 });
+
+// Export the API slice
+export const api = apiSlice;
 
 // Export hooks for usage in functional components
 export const {} = apiSlice;

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthService } from '../services/auth.service';
-import { body, validationResult } from 'express-validator';
+const { body, validationResult } = require('express-validator');
 import { generators } from 'openid-client';
 
 export class AuthController {
@@ -24,7 +24,6 @@ export class AuthController {
     body('firstName').trim().notEmpty(),
     body('lastName').trim().notEmpty(),
     body('username').optional().trim().isLength({ min: 3 }),
-
     async (req: Request, res: Response) => {
       try {
         // Check validation errors
@@ -34,7 +33,6 @@ export class AuthController {
         }
 
         const { email, password, firstName, lastName, username } = req.body;
-
         const user = await this.authService.register(
           email,
           password,
@@ -43,7 +41,7 @@ export class AuthController {
           username
         );
 
-        res.status(201).json({
+        return res.status(201).json({
           message: 'User registered successfully',
           user: {
             id: user.id,
@@ -54,7 +52,7 @@ export class AuthController {
           },
         });
       } catch (error: any) {
-        res.status(400).json({
+        return res.status(400).json({
           error: error.message,
           code: 'REGISTRATION_FAILED',
         });
@@ -71,7 +69,6 @@ export class AuthController {
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty(),
     body('deviceId').optional().trim(),
-
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -91,7 +88,7 @@ export class AuthController {
           });
         }
 
-        res.json({
+        return res.json({
           user: {
             id: result.user.id,
             email: result.user.email,
@@ -103,7 +100,7 @@ export class AuthController {
           refreshToken: result.refreshToken,
         });
       } catch (error: any) {
-        res.status(401).json({
+        return res.status(401).json({
           error: error.message,
           code: 'LOGIN_FAILED',
         });
@@ -119,7 +116,6 @@ export class AuthController {
     body('userId').notEmpty(),
     body('token').matches(/^\d{6}$/),
     body('deviceId').optional().trim(),
-
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -130,7 +126,7 @@ export class AuthController {
         const { userId, token, deviceId } = req.body;
         const result = await this.authService.verifyMFA(userId, token, deviceId);
 
-        res.json({
+        return res.json({
           user: {
             id: result.user.id,
             email: result.user.email,
@@ -142,7 +138,7 @@ export class AuthController {
           refreshToken: result.refreshToken,
         });
       } catch (error: any) {
-        res.status(401).json({
+        return res.status(401).json({
           error: error.message,
           code: 'MFA_FAILED',
         });
@@ -161,14 +157,13 @@ export class AuthController {
       }
 
       const { secret, qrCode } = await this.authService.enableMFA(req.user.id);
-
-      res.json({
+      return res.json({
         secret,
         qrCode,
         message: 'Scan the QR code with your authenticator app',
       });
     } catch (error: any) {
-      res.status(400).json({
+      return res.status(400).json({
         error: error.message,
         code: 'MFA_ENABLE_FAILED',
       });
@@ -181,7 +176,6 @@ export class AuthController {
    */
   disableMFA = [
     body('token').matches(/^\d{6}$/),
-
     async (req: Request, res: Response) => {
       try {
         if (!req.user) {
@@ -205,9 +199,9 @@ export class AuthController {
           },
         });
 
-        res.json({ message: 'MFA disabled successfully' });
+        return res.json({ message: 'MFA disabled successfully' });
       } catch (error: any) {
-        res.status(400).json({
+        return res.status(400).json({
           error: error.message,
           code: 'MFA_DISABLE_FAILED',
         });
@@ -221,7 +215,6 @@ export class AuthController {
    */
   refreshToken = [
     body('refreshToken').notEmpty(),
-
     async (req: Request, res: Response) => {
       try {
         const errors = validationResult(req);
@@ -231,10 +224,9 @@ export class AuthController {
 
         const { refreshToken } = req.body;
         const tokens = await this.authService.refreshToken(refreshToken);
-
-        res.json(tokens);
+        return res.json(tokens);
       } catch (error: any) {
-        res.status(401).json({
+        return res.status(401).json({
           error: error.message,
           code: 'REFRESH_FAILED',
         });
@@ -254,10 +246,9 @@ export class AuthController {
 
       const refreshToken = req.body.refreshToken;
       await this.authService.logout(req.user.id, refreshToken);
-
-      res.json({ message: 'Logged out successfully' });
+      return res.json({ message: 'Logged out successfully' });
     } catch (error: any) {
-      res.status(400).json({
+      return res.status(400).json({
         error: error.message,
         code: 'LOGOUT_FAILED',
       });
@@ -284,19 +275,8 @@ export class AuthController {
           lastName: true,
           avatar: true,
           isActive: true,
-          isEmailVerified: true,
           mfaEnabled: true,
           createdAt: true,
-          roles: {
-            select: {
-              role: {
-                select: {
-                  name: true,
-                  displayName: true,
-                },
-              },
-            },
-          },
         },
       });
 
@@ -304,12 +284,12 @@ export class AuthController {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.json({
+      return res.json({
         ...user,
-        roles: user.roles.map((r) => r.role),
+        roles: req.user.roles,
       });
     } catch (error: any) {
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to fetch user',
         code: 'FETCH_USER_FAILED',
       });
@@ -323,7 +303,6 @@ export class AuthController {
   initiateOAuth = async (req: Request, res: Response) => {
     try {
       const { provider } = req.params;
-
       if (provider !== 'google') {
         return res.status(400).json({
           error: 'Unsupported OAuth provider',
@@ -336,7 +315,7 @@ export class AuthController {
       const nonce = generators.nonce();
 
       // Store state in session for verification
-      req.session = { state, nonce };
+      (req as any).session = { state, nonce };
 
       const authUrl = client.authorizationUrl({
         scope: 'openid email profile',
@@ -344,9 +323,9 @@ export class AuthController {
         nonce,
       });
 
-      res.json({ authUrl });
+      return res.json({ authUrl });
     } catch (error: any) {
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Failed to initiate OAuth',
         code: 'OAUTH_INIT_FAILED',
       });
@@ -360,7 +339,6 @@ export class AuthController {
   handleOAuthCallback = async (req: Request, res: Response) => {
     try {
       const { code, state } = req.query;
-
       if (!code || !state) {
         return res.status(400).json({
           error: 'Missing OAuth parameters',
@@ -369,7 +347,7 @@ export class AuthController {
       }
 
       // Verify state
-      if (req.session?.state !== state) {
+      if ((req as any).session?.state !== state) {
         return res.status(400).json({
           error: 'Invalid state parameter',
           code: 'INVALID_STATE',
@@ -381,7 +359,7 @@ export class AuthController {
       const tokenSet = await client.callback(
         'http://localhost:3000/api/auth/callback',
         params,
-        { state: req.session.state, nonce: req.session.nonce }
+        { state: (req as any).session.state, nonce: (req as any).session.nonce }
       );
 
       const userinfo = await client.userinfo(tokenSet);
@@ -403,10 +381,9 @@ export class AuthController {
       const redirectUrl = new URL(process.env.FRONTEND_URL || 'http://localhost:5173');
       redirectUrl.searchParams.append('accessToken', result.accessToken);
       redirectUrl.searchParams.append('refreshToken', result.refreshToken);
-
-      res.redirect(redirectUrl.toString());
+      return res.redirect(redirectUrl.toString());
     } catch (error: any) {
-      res.status(400).json({
+      return res.status(400).json({
         error: error.message,
         code: 'OAUTH_CALLBACK_FAILED',
       });

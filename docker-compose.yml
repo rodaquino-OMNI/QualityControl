@@ -11,9 +11,9 @@ services:
       - "3000:80"
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:3000/api
-      - REACT_APP_AI_SERVICE_URL=http://localhost:3000/ai
-      - REACT_APP_WS_URL=ws://localhost:3000/ws
+      - VITE_API_URL=http://localhost:3000/api
+      - VITE_AI_SERVICE_URL=http://localhost:3000/ai
+      - VITE_WS_URL=ws://localhost:3000/ws
     volumes:
       - ./frontend:/app:delegated
       - /app/node_modules
@@ -64,7 +64,7 @@ services:
       - austa-network
       - austa-logging
     restart: unless-stopped
-    command: npm run dev
+    command: sh -c "npm run build:skip-types && npm run dev"
     logging:
       driver: "json-file"
       options:

@@ -56,7 +56,7 @@ const Header: React.FC = () => {
             <div className="flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
               <UserIcon className="w-5 h-5 text-gray-600 dark:text-gray-300 mr-2" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                {user?.name || 'User'}
+                {user ? `${user.firstName} ${user.lastName}` : 'User'}
               </span>
             </div>
             <button

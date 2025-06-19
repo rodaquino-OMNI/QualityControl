@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { authConfig } from '../config/auth.config';
@@ -115,7 +115,7 @@ export const sanitizeRequest = (req: Request, res: Response, next: NextFunction)
 /**
  * Request size limiting
  */
-export const requestSizeLimit = (limit: string = '10mb') => {
+export const requestSizeLimit = (limit: string = '10mb'): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     const contentLength = req.headers['content-length'];
     if (contentLength) {
@@ -167,7 +167,7 @@ export const ipFilter = (options: {
   whitelist?: string[];
   blacklist?: string[];
   trustProxy?: boolean;
-}) => {
+}): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     const ip = options.trustProxy
       ? req.headers['x-forwarded-for']?.toString().split(',')[0] || req.ip

@@ -1,0 +1,109 @@
+{
+  "totalWorkflows": 6,
+  "successfulWorkflows": 4,
+  "successRate": 66.7,
+  "status": "🟡 GOOD",
+  "details": {
+    "userRegistration": {
+      "userExists": false,
+      "totalUsers": 1,
+      "adminExists": true
+    },
+    "dataAnalysis": {
+      "case analytics": {
+        "status": "success",
+        "responseTime": 41,
+        "dataReceived": true
+      },
+      "performance analytics": {
+        "status": "success",
+        "responseTime": 4,
+        "dataReceived": true
+      },
+      "fraud detection analytics": {
+        "status": "success",
+        "responseTime": 2,
+        "dataReceived": true
+      },
+      "ai analytics": {
+        "status": "success",
+        "responseTime": 2,
+        "dataReceived": true
+      }
+    },
+    "systemPerformance": {
+      "metricsEndpoint": true,
+      "httpMetrics": true,
+      "systemHealth": {
+        "status": "healthy",
+        "uptime": 155.821337791
+      }
+    },
+    "realTimeMetrics": {
+      "accessible": true,
+      "dataStructure": "valid",
+      "responseData": [
+        {
+          "metric": "cases_per_hour",
+          "value": 127,
+          "timestamp": "2025-06-19T00:33:56.122Z",
+          "change": 5.2,
+          "trend": [
+            120,
+            125,
+            122,
+            128,
+            127
+          ]
+        },
+        {
+          "metric": "approval_rate",
+          "value": 76.8,
+          "timestamp": "2025-06-19T00:33:56.122Z",
+          "change": -1.2,
+          "trend": [
+            75,
+            76,
+            77,
+            76.5,
+            76.8
+          ]
+        },
+        {
+          "metric": "avg_processing_time",
+          "value": 3.7,
+          "timestamp": "2025-06-19T00:33:56.122Z",
+          "change": -0.3,
+          "trend": [
+            4.2,
+            4,
+            3.9,
+            3.8,
+            3.7
+          ]
+        },
+        {
+          "metric": "ai_confidence",
+          "value": 92.3,
+          "timestamp": "2025-06-19T00:33:56.122Z",
+          "change": 0.5,
+          "trend": [
+            91,
+            91.5,
+            92,
+            92.1,
+            92.3
+          ]
+        }
+      ]
+    },
+    "dataExport": {
+      "accessible": false
+    },
+    "errorScenarios": {
+      "404 error": "passed",
+      "bad request": "passed",
+      "invalid analytics endpoint": "passed"
+    }
+  }
+}

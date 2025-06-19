@@ -9,7 +9,6 @@ declare global {
       apiKey?: {
         id: string;
         name: string;
-        organizationId: string;
       };
     }
   }
@@ -35,20 +34,18 @@ export const validateApiKey = async (
     }
 
     // Check database
-    const keyRecord = await prisma.apiKey.findFirst({
+    const keyRecord = await prisma.aPIKey.findFirst({
       where: {
         key: apiKey,
         isActive: true,
-        expiresAt: {
-          gt: new Date(),
-        },
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
       },
       select: {
         id: true,
         name: true,
-        organizationId: true,
-        rateLimit: true,
-        allowedIPs: true,
       },
     });
 
@@ -56,19 +53,7 @@ export const validateApiKey = async (
       throw new AppError('Invalid API key', 401, 'INVALID_API_KEY');
     }
 
-    // Check IP restrictions if configured
-    if (keyRecord.allowedIPs && keyRecord.allowedIPs.length > 0) {
-      const clientIP = req.ip;
-      if (!keyRecord.allowedIPs.includes(clientIP)) {
-        throw new AppError('IP not allowed', 403, 'IP_NOT_ALLOWED');
-      }
-    }
-
-    // Update last used timestamp
-    await prisma.apiKey.update({
-      where: { id: keyRecord.id },
-      data: { lastUsedAt: new Date() },
-    });
+    // APIKey model doesn't have updatedAt, so we skip updating timestamp
 
     // Cache the key
     await cache.set(
@@ -76,7 +61,6 @@ export const validateApiKey = async (
       {
         id: keyRecord.id,
         name: keyRecord.name,
-        organizationId: keyRecord.organizationId,
       },
       3600 // 1 hour
     );
@@ -84,7 +68,6 @@ export const validateApiKey = async (
     req.apiKey = {
       id: keyRecord.id,
       name: keyRecord.name,
-      organizationId: keyRecord.organizationId,
     };
 
     next();

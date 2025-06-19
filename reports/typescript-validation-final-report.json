@@ -1,0 +1,98 @@
+{
+  "timestamp": "2025-06-19T10:47:00Z",
+  "validation_status": "FAILED",
+  "summary": {
+    "total_errors": 203,
+    "critical_issues": true,
+    "build_status": "FAILED",
+    "typescript_compliance": "0%"
+  },
+  "error_breakdown": {
+    "root_directory": {
+      "error_count": 52,
+      "build_status": "FAILED",
+      "key_issues": [
+        "Module import errors in tests",
+        "Property access errors",
+        "Type mismatches",
+        "Unused variable declarations"
+      ]
+    },
+    "backend": {
+      "error_count": 109,
+      "build_status": "FAILED",
+      "key_issues": [
+        "Prisma schema mismatches (aiAnalysis vs aIAnalysis)",
+        "Missing return values in functions",
+        "Property doesn't exist on types",
+        "OpenTelemetry module export issues",
+        "Logger method 'logAudit' not found",
+        "RBAC service type errors"
+      ],
+      "critical_files": [
+        "src/middleware/security.middleware.ts",
+        "src/middleware/securityAudit.ts",
+        "src/middleware/tracing.ts",
+        "src/routes/ai.routes.ts",
+        "src/routes/decision.routes.ts",
+        "src/routes/notification.routes.ts",
+        "src/services/rbac.service.ts"
+      ]
+    },
+    "frontend": {
+      "error_count": 42,
+      "build_status": "FAILED",
+      "key_issues": [
+        "Missing type declarations (@types/react-csv)",
+        "Module resolution errors",
+        "Unused imports",
+        "Property access errors on User type",
+        "Redux toolkit type issues"
+      ],
+      "critical_files": [
+        "src/components/analytics/ExportControls.tsx",
+        "src/components/auth/MFASettings.tsx",
+        "src/services/__tests__/apiService.test.ts",
+        "src/test/test-utils.tsx"
+      ]
+    }
+  },
+  "critical_findings": {
+    "prisma_naming_inconsistency": {
+      "severity": "HIGH",
+      "description": "Prisma client expects 'aIAnalysis' but code uses 'aiAnalysis'",
+      "affected_files": [
+        "backend/src/routes/ai.routes.ts"
+      ],
+      "recommendation": "Update Prisma schema or fix all references to match generated client"
+    },
+    "missing_dependencies": {
+      "severity": "MEDIUM",
+      "packages": [
+        "@types/react-csv",
+        "@types/ws",
+        "qrcode type declarations"
+      ],
+      "recommendation": "Install missing type definitions"
+    },
+    "import_export_mismatches": {
+      "severity": "HIGH",
+      "description": "Multiple files have incorrect import/export statements",
+      "recommendation": "Review and fix all module exports and imports"
+    }
+  },
+  "validation_conclusion": {
+    "status": "FAILED",
+    "reason": "Multiple TypeScript errors prevent successful compilation",
+    "compliance_percentage": 0,
+    "recommendation": "URGENT: Fix all TypeScript errors before deployment",
+    "next_steps": [
+      "1. Fix Prisma schema naming inconsistencies",
+      "2. Install missing type definitions",
+      "3. Correct all import/export statements",
+      "4. Fix return value issues in middleware",
+      "5. Update Logger interface to include logAudit method",
+      "6. Resolve RBAC service type errors"
+    ]
+  }
+}

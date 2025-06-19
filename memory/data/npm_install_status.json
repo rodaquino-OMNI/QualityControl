@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-06-18T23:05:00Z",
+  "installations": {
+    "root": {
+      "status": "success",
+      "packages_installed": 842,
+      "vulnerabilities": {
+        "moderate": 2
+      },
+      "notes": "Husky Git hooks installed successfully"
+    },
+    "backend": {
+      "status": "success",
+      "packages_audited": 673,
+      "vulnerabilities": {
+        "low": 3
+      },
+      "prisma": {
+        "status": "success",
+        "client_version": "6.10.1",
+        "installed_packages": ["@prisma/client", "prisma"],
+        "schema_location": "backend/prisma/schema.prisma"
+      }
+    },
+    "frontend": {
+      "status": "not_applicable",
+      "reason": "Frontend code is integrated in the root directory, not a separate folder"
+    }
+  },
+  "recommendations": [
+    "Run 'npm audit fix' in root directory to address moderate vulnerabilities",
+    "Run 'npm audit fix' in backend directory to address low vulnerabilities",
+    "Consider adding 'generate' script to backend/package.json: \"generate\": \"prisma generate\""
+  ]
+}

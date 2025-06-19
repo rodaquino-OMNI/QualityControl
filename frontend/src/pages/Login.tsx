@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '@/store/hooks';
-import { loginSuccess } from '@/store/slices/authSlice';
+import { setCredentials } from '@/store/slices/authSlice';
 
 const Login: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -38,17 +38,24 @@ const Login: React.FC = () => {
     
     // Mock login - replace with actual API call
     setTimeout(() => {
-      dispatch(loginSuccess({
+      dispatch(setCredentials({
         user: {
           id: '1',
           email: formData.email,
-          name: 'Dr. John Doe',
-          role: 'physician',
-          permissions: ['view_cases', 'create_cases', 'update_cases'],
+          firstName: 'John',
+          lastName: 'Doe',
+          username: 'johndoe',
+          isActive: true,
+          isEmailVerified: true,
+          mfaEnabled: false,
+          createdAt: new Date().toISOString(),
+          roles: [{ name: 'physician', displayName: 'Physician' }],
         },
-        token: 'mock-jwt-token',
+        accessToken: 'mock-jwt-token',
+        refreshToken: 'mock-refresh-token',
       }));
       navigate('/dashboard');
+      setIsLoading(false);
     }, 1000);
   };
 

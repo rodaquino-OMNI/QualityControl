@@ -1,0 +1,13 @@
+{
+  "objective": "Install application, run, test and debug",
+  "strategy": "auto",
+  "mode": "centralized",
+  "maxAgents": 10,
+  "timeout": 60,
+  "parallel": true,
+  "monitor": true,
+  "output": "json",
+  "outputDir": "./reports",
+  "timestamp": "2025-06-18T22:59:26.598Z",
+  "id": "swarm-auto-centralized-1750287566599"
+}

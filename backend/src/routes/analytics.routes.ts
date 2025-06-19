@@ -1,10 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { query, validationResult } from 'express-validator';
+const { query, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
-import { logger } from '../utils/logger';
+import { logger, logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
+import { queues } from '../config/queues';
 
 const router = Router();
 
@@ -101,18 +102,18 @@ router.get(
           where: { createdAt: { gte: startDate, lte: endDate } },
         }),
         prisma.case.count({
-          where: { status: 'pending' },
+          where: { status: 'open' },
         }),
-        prisma.decision.count({
+        prisma.authorizationDecision.count({
           where: { createdAt: { gte: startDate, lte: endDate } },
         }),
-        prisma.decision.aggregate({
+        prisma.authorizationDecision.aggregate({
           where: { createdAt: { gte: startDate, lte: endDate } },
           _avg: { processingTime: true },
         }),
         prisma.case.aggregate({
           where: { createdAt: { gte: startDate, lte: endDate } },
-          _sum: { value: true },
+          _count: true,
         }),
         prisma.$queryRaw<[{ rate: number }]>`
           SELECT 
@@ -144,10 +145,11 @@ router.get(
       const trendsData = await getTrendsData(startDate, endDate, period as string);
 
       // Get active alerts
-      const alerts = await prisma.alert.findMany({
+      const alerts = await prisma.notification.findMany({
         where: {
           createdAt: { gte: startDate },
-          resolved: false,
+          isRead: false,
+          type: 'alert',
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -469,7 +471,7 @@ router.post(
         requestedBy: req.user!.id,
       });
 
-      logger.logAudit('analytics.report.requested', req.user!.id, {
+      logAuditEvent('analytics.report.requested', req.user!.id, 'report', {
         reportType,
         startDate,
         endDate,

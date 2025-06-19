@@ -166,7 +166,7 @@ router.get('/security-metrics', async (req: Request, res: Response) => {
         });
       } else if (event.type === 'unauthorized_request') {
         securityMetrics.unauthorizedRequests.inc({
-          endpoint: event.endpoint,
+          endpoint: (event as any).endpoint,
           ip_address: event.ipAddress
         });
       }
@@ -276,6 +276,12 @@ async function getSecurityMetrics() {
         type: 'failed_login',
         ipAddress: '192.168.1.100',
         userAgent: 'Mozilla/5.0...',
+        timestamp: new Date()
+      },
+      {
+        type: 'unauthorized_request',
+        ipAddress: '192.168.1.101',
+        endpoint: '/api/admin',
         timestamp: new Date()
       }
     ]

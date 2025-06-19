@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
-import { NodeTracerProvider } from '@opentelemetry/sdk-node';
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { ConsoleSpanExporter, BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
 import { Resource } from '@opentelemetry/resources';
@@ -53,7 +53,7 @@ const init = () => {
         },
       }),
       new ExpressInstrumentation({
-        responseHook: (span, info) => {
+        applyCustomAttributesOnSpan: (span: any, request: any, response: any) => {
           span.setAttributes({
             'express.route': info.route || 'unknown',
             'express.method': info.request.method,

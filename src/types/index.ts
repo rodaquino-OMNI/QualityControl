@@ -20,7 +20,7 @@ export interface AuditCase {
   createdAt: string;
   updatedAt: string;
   assignedTo?: string;
-  aiAnalysis?: AIAnalysis;
+  aIAnalysis?: AIAnalysis;
 }
 
 export interface AIAnalysis {

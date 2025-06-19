@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": false,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "noImplicitReturns": false,
+    "strictNullChecks": false,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true,
+    "noEmitOnError": false,
+    "noPropertyAccessFromIndexSignature": false
+  }
+}

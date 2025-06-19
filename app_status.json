@@ -1,0 +1,14 @@
+{
+  "frontend": {
+    "url": "http://localhost:3000",
+    "status": "accessible",
+    "http_code": 200
+  },
+  "backend": {
+    "url": "http://localhost:3001/api/health",
+    "status": "not_accessible",
+    "http_code": "000 (connection refused)",
+    "error": "Backend service not running on port 3001"
+  },
+  "timestamp": "2025-06-18T23:39:00Z"
+}

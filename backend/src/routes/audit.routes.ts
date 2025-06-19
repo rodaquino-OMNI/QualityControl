@@ -1,10 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { query, param, validationResult } from 'express-validator';
+const { query, param, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
-import { logger } from '../utils/logger';
+import { logger, logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
+import { queues } from '../config/queues';
 
 const router = Router();
 
@@ -114,7 +115,7 @@ router.get(
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -146,7 +147,7 @@ router.get(
 
       // Get audit logs
       const [auditLogs, total] = await Promise.all([
-        prisma.auditLog.findMany({
+        prisma.activityLog.findMany({
           where,
           skip: ((page as number) - 1) * (limit as number),
           take: limit as number,
@@ -161,16 +162,16 @@ router.get(
             },
           },
         }),
-        prisma.auditLog.count({ where }),
+        prisma.activityLog.count({ where }),
       ]);
 
       res.json({
         success: true,
         data: {
-          auditLogs: auditLogs.map(log => ({
+          auditLogs: auditLogs.map((log: any) => ({
             ...log,
-            userName: log.user.name,
-            userEmail: log.user.email,
+            userName: log.user?.name,
+            userEmail: log.user?.email,
           })),
         },
         meta: {
@@ -248,7 +249,7 @@ router.get(
     query('endDate').isISO8601(),
     query('reportType').optional().isIn(['summary', 'detailed', 'regulatory']),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -279,10 +280,10 @@ router.get(
         prisma.case.count({
           where: { createdAt: { gte: start, lte: end } },
         }),
-        prisma.decision.count({
+        prisma.authorizationDecision.count({
           where: { createdAt: { gte: start, lte: end } },
         }),
-        prisma.decision.aggregate({
+        prisma.authorizationDecision.aggregate({
           where: { createdAt: { gte: start, lte: end } },
           _avg: { processingTime: true },
         }),
@@ -291,7 +292,7 @@ router.get(
           SELECT 
             CAST(COUNT(CASE WHEN d.decision = d.ai_recommendation THEN 1 END) AS FLOAT) / 
             NULLIF(COUNT(*), 0) as rate
-          FROM decisions d
+          FROM authorization_decisions d
           WHERE d.created_at BETWEEN ${start} AND ${end}
             AND d.ai_recommendation IS NOT NULL
         `,
@@ -300,7 +301,7 @@ router.get(
           SELECT 
             CAST(COUNT(DISTINCT a.case_id) AS FLOAT) / 
             NULLIF(COUNT(DISTINCT d.case_id), 0) as rate
-          FROM decisions d
+          FROM authorization_decisions d
           LEFT JOIN appeals a ON a.decision_id = d.id
           WHERE d.created_at BETWEEN ${start} AND ${end}
         `,
@@ -375,7 +376,7 @@ router.get(
       // Cache for 1 hour
       await cache.set(cacheKey, result, 3600);
 
-      logger.logAudit('compliance.report.generated', req.user!.id, {
+      logAuditEvent('compliance.report.generated', req.user!.id, 'report', {
         startDate,
         endDate,
         reportType,
@@ -439,7 +440,7 @@ router.get(
     query('endDate').isISO8601(),
     query('dataType').optional().isIn(['all', 'decisions', 'cases', 'appeals']),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -457,7 +458,7 @@ router.get(
         requestedBy: req.user!.id,
       });
 
-      logger.logAudit('audit.export.requested', req.user!.id, {
+      logAuditEvent('audit.export.requested', req.user!.id, 'export', {
         format,
         startDate,
         endDate,
