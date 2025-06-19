@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-06-19T11:02:15.582Z",
+  "timestamp": "2025-06-19T11:32:06.405Z",
   "version": "1.0",
   "entries": [
     {
@@ -14,7 +14,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:46:04.953Z",
       "updatedAt": "2025-06-19T10:46:04.953Z",
-      "lastAccessedAt": "2025-06-19T10:46:04.953Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 2612,
       "compressed": true,
@@ -34,7 +34,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:46:46.523Z",
       "updatedAt": "2025-06-19T10:46:46.523Z",
-      "lastAccessedAt": "2025-06-19T10:46:46.523Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 5627,
       "compressed": true,
@@ -45,7 +45,104 @@
     {
       "id": "entry_mc39bv73_3dym49gr7",
       "key": "swarm-auto-centralized-1750329808634/validation/final-report",
-      "value": "{\"timestamp\":\"2025-06-19T10:47:00Z\",\"validation_status\":\"FAILED\",\"summary\":{\"total_errors\":203,\"critical_issues\":true,\"build_status\":\"FAILED\",\"typescript_compliance\":\"0%\"},\"error_breakdown\":{\"root_directory\":{\"error_count\":52,\"build_status\":\"FAILED\",\"key_issues\":[\"Module import errors in tests\",\"Property access errors\",\"Type mismatches\",\"Unused variable declarations\"]},\"backend\":{\"error_count\":109,\"build_status\":\"FAILED\",\"key_issues\":[\"Prisma schema mismatches (aiAnalysis vs aIAnalysis)\",\"Missing return values in functions\",\"Property doesn't exist on types\",\"OpenTelemetry module export issues\",\"Logger method 'logAudit' not found\",\"RBAC service type errors\"],\"critical_files\":[\"src/middleware/security.middleware.ts\",\"src/middleware/securityAudit.ts\",\"src/middleware/tracing.ts\",\"src/routes/ai.routes.ts\",\"src/routes/decision.routes.ts\",\"src/routes/notification.routes.ts\",\"src/services/rbac.service.ts\"]},\"frontend\":{\"error_count\":42,\"build_status\":\"FAILED\",\"key_issues\":[\"Missing type declarations (@types/react-csv)\",\"Module resolution errors\",\"Unused imports\",\"Property access errors on User type\",\"Redux toolkit type issues\"],\"critical_files\":[\"src/components/analytics/ExportControls.tsx\",\"src/components/auth/MFASettings.tsx\",\"src/services/__tests__/apiService.test.ts\",\"src/test/test-utils.tsx\"]}},\"critical_findings\":{\"prisma_naming_inconsistency\":{\"severity\":\"HIGH\",\"description\":\"Prisma client expects 'aIAnalysis' but code uses 'aiAnalysis'\",\"affected_files\":[\"backend/src/routes/ai.routes.ts\"],\"recommendation\":\"Update Prisma schema or fix all references to match generated client\"},\"missing_dependencies\":{\"severity\":\"MEDIUM\",\"packages\":[\"@types/react-csv\",\"@types/ws\",\"qrcode type declarations\"],\"recommendation\":\"Install missing type definitions\"},\"import_export_mismatches\":{\"severity\":\"HIGH\",\"description\":\"Multiple files have incorrect import/export statements\",\"recommendation\":\"Review and fix all module exports and imports\"}},\"validation_conclusion\":{\"status\":\"FAILED\",\"reason\":\"Multiple TypeScript errors prevent successful compilation\",\"compliance_percentage\":0,\"recommendation\":\"URGENT: Fix all TypeScript errors before deployment\",\"next_steps\":[\"1. Fix Prisma schema naming inconsistencies\",\"2. Install missing type definitions\",\"3. Correct all import/export statements\",\"4. Fix return value issues in middleware\",\"5. Update Logger interface to include logAudit method\",\"6. Resolve RBAC service type errors\"]}}",
+      "value": {
+        "timestamp": "2025-06-19T10:47:00Z",
+        "validation_status": "FAILED",
+        "summary": {
+          "total_errors": 203,
+          "critical_issues": true,
+          "build_status": "FAILED",
+          "typescript_compliance": "0%"
+        },
+        "error_breakdown": {
+          "root_directory": {
+            "error_count": 52,
+            "build_status": "FAILED",
+            "key_issues": [
+              "Module import errors in tests",
+              "Property access errors",
+              "Type mismatches",
+              "Unused variable declarations"
+            ]
+          },
+          "backend": {
+            "error_count": 109,
+            "build_status": "FAILED",
+            "key_issues": [
+              "Prisma schema mismatches (aiAnalysis vs aIAnalysis)",
+              "Missing return values in functions",
+              "Property doesn't exist on types",
+              "OpenTelemetry module export issues",
+              "Logger method 'logAudit' not found",
+              "RBAC service type errors"
+            ],
+            "critical_files": [
+              "src/middleware/security.middleware.ts",
+              "src/middleware/securityAudit.ts",
+              "src/middleware/tracing.ts",
+              "src/routes/ai.routes.ts",
+              "src/routes/decision.routes.ts",
+              "src/routes/notification.routes.ts",
+              "src/services/rbac.service.ts"
+            ]
+          },
+          "frontend": {
+            "error_count": 42,
+            "build_status": "FAILED",
+            "key_issues": [
+              "Missing type declarations (@types/react-csv)",
+              "Module resolution errors",
+              "Unused imports",
+              "Property access errors on User type",
+              "Redux toolkit type issues"
+            ],
+            "critical_files": [
+              "src/components/analytics/ExportControls.tsx",
+              "src/components/auth/MFASettings.tsx",
+              "src/services/__tests__/apiService.test.ts",
+              "src/test/test-utils.tsx"
+            ]
+          }
+        },
+        "critical_findings": {
+          "prisma_naming_inconsistency": {
+            "severity": "HIGH",
+            "description": "Prisma client expects 'aIAnalysis' but code uses 'aiAnalysis'",
+            "affected_files": [
+              "backend/src/routes/ai.routes.ts"
+            ],
+            "recommendation": "Update Prisma schema or fix all references to match generated client"
+          },
+          "missing_dependencies": {
+            "severity": "MEDIUM",
+            "packages": [
+              "@types/react-csv",
+              "@types/ws",
+              "qrcode type declarations"
+            ],
+            "recommendation": "Install missing type definitions"
+          },
+          "import_export_mismatches": {
+            "severity": "HIGH",
+            "description": "Multiple files have incorrect import/export statements",
+            "recommendation": "Review and fix all module exports and imports"
+          }
+        },
+        "validation_conclusion": {
+          "status": "FAILED",
+          "reason": "Multiple TypeScript errors prevent successful compilation",
+          "compliance_percentage": 0,
+          "recommendation": "URGENT: Fix all TypeScript errors before deployment",
+          "next_steps": [
+            "1. Fix Prisma schema naming inconsistencies",
+            "2. Install missing type definitions",
+            "3. Correct all import/export statements",
+            "4. Fix return value issues in middleware",
+            "5. Update Logger interface to include logAudit method",
+            "6. Resolve RBAC service type errors"
+          ]
+        }
+      },
       "type": "object",
       "namespace": "default",
       "tags": [],
@@ -54,7 +151,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:47:46.863Z",
       "updatedAt": "2025-06-19T10:47:46.863Z",
-      "lastAccessedAt": "2025-06-19T10:47:46.863Z",
+      "lastAccessedAt": "2025-06-19T11:32:06.378Z",
       "version": 1,
       "size": 2665,
       "compressed": true,
@@ -65,7 +162,53 @@
     {
       "id": "entry_mc39qtv8_tsk870w6o",
       "key": "swarm-auto-centralized-1750329808634/error-resolver/fixes-applied",
-      "value": "{\"summary\":{\"total_fixes_applied\":85,\"files_modified\":[\"ai.routes.ts\",\"security.middleware.ts\",\"securityAudit.ts\",\"tracing.middleware.ts\",\"tracing.ts\",\"validateApiKey.ts\",\"analytics.routes.ts\",\"audit.routes.ts\",\"case.routes.ts\",\"logger.ts\"],\"main_fixes\":[\"Fixed Prisma client property names (aiAnalysis -> aIAnalysis)\",\"Added return types to async route handlers\",\"Fixed logger.logAudit to logAuditEvent\",\"Fixed CaseStatus enum values (pending -> open, in_review -> in_progress)\",\"Fixed missing properties and imports\",\"Created logger implementation\",\"Fixed OpenTelemetry imports\"]},\"remaining_errors\":{\"decision.routes.ts\":[\"prisma.decision -> prisma.authorizationDecision\",\"aiAnalyses property\",\"logAudit calls\"],\"health.routes.ts\":[\"Missing return values\",\"Extra properties in response objects\"],\"notification.routes.ts\":[\"read property -> isRead\",\"notificationPreference model\",\"Missing return values\"],\"rbac.service.ts\":[\"Role/Permission type issues\",\"displayName property\"]},\"next_steps\":\"Continue fixing remaining files with similar patterns\"}",
+      "value": {
+        "summary": {
+          "total_fixes_applied": 85,
+          "files_modified": [
+            "ai.routes.ts",
+            "security.middleware.ts",
+            "securityAudit.ts",
+            "tracing.middleware.ts",
+            "tracing.ts",
+            "validateApiKey.ts",
+            "analytics.routes.ts",
+            "audit.routes.ts",
+            "case.routes.ts",
+            "logger.ts"
+          ],
+          "main_fixes": [
+            "Fixed Prisma client property names (aiAnalysis -> aIAnalysis)",
+            "Added return types to async route handlers",
+            "Fixed logger.logAudit to logAuditEvent",
+            "Fixed CaseStatus enum values (pending -> open, in_review -> in_progress)",
+            "Fixed missing properties and imports",
+            "Created logger implementation",
+            "Fixed OpenTelemetry imports"
+          ]
+        },
+        "remaining_errors": {
+          "decision.routes.ts": [
+            "prisma.decision -> prisma.authorizationDecision",
+            "aiAnalyses property",
+            "logAudit calls"
+          ],
+          "health.routes.ts": [
+            "Missing return values",
+            "Extra properties in response objects"
+          ],
+          "notification.routes.ts": [
+            "read property -> isRead",
+            "notificationPreference model",
+            "Missing return values"
+          ],
+          "rbac.service.ts": [
+            "Role/Permission type issues",
+            "displayName property"
+          ]
+        },
+        "next_steps": "Continue fixing remaining files with similar patterns"
+      },
       "type": "object",
       "namespace": "default",
       "tags": [],
@@ -74,7 +217,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:59:24.980Z",
       "updatedAt": "2025-06-19T10:59:24.980Z",
-      "lastAccessedAt": "2025-06-19T10:59:24.980Z",
+      "lastAccessedAt": "2025-06-19T11:32:00.239Z",
       "version": 1,
       "size": 1156,
       "compressed": true,
@@ -94,61 +237,120 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T11:02:15.580Z",
       "updatedAt": "2025-06-19T11:02:15.580Z",
-      "lastAccessedAt": "2025-06-19T11:02:15.580Z",
+      "lastAccessedAt": "2025-06-19T11:31:53.797Z",
       "version": 1,
       "size": 437,
       "compressed": false,
       "checksum": "2403009021a80d324ead4559da7854acffebf0159c4ce1d5bda6ce3c4a8326ef",
       "references": [],
       "dependencies": []
+    },
+    {
+      "id": "entry_mc39wozr_bwwniw9xf",
+      "key": "swarm-auto-centralized-1750329808634/dependencies-installer/installed",
+      "value": {
+        "status": "completed",
+        "installedPackages": {
+          "root": [
+            "@types/ws@8.18.1"
+          ],
+          "frontend": [
+            "@types/react-csv@1.1.10",
+            "@types/qrcode@1.5.5",
+            "qrcode@1.5.4"
+          ]
+        },
+        "resolvedErrors": [
+          "Could not find a declaration file for module ws",
+          "Cannot find module @types/react-csv",
+          "Cannot find module @types/qrcode"
+        ],
+        "timestamp": "2025-06-19T11:03:58Z",
+        "notes": "All required TypeScript type definitions have been successfully installed. The main module resolution errors have been resolved."
+      },
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T11:03:58.599Z",
+      "updatedAt": "2025-06-19T11:03:58.599Z",
+      "lastAccessedAt": "2025-06-19T11:31:47.365Z",
+      "version": 1,
+      "size": 493,
+      "compressed": false,
+      "checksum": "ae978359ebe104193927a256e0badab79029fcd96f02aadaa55514446a7ef50a",
+      "references": [],
+      "dependencies": []
+    },
+    {
+      "id": "entry_mc3a0lew_6o8atr7pn",
+      "key": "swarm-auto-centralized-1750329808634/logger-implementer/implementation",
+      "value": "Logger TypeScript errors fixed: 1) Added logAudit method to logger object in logger.ts that wraps logAuditEvent function. 2) The method extracts resourceId from metadata (caseId, decisionId, appealId, or id) and calls logAuditEvent with proper signature. 3) This fixes logger.logAudit calls in notification.routes.ts and decision.routes.ts. 4) All logAuditEvent function calls across the codebase were verified to have consistent signature: action, userId, resourceId, details. The implementation ensures backward compatibility while maintaining proper audit logging functionality.",
+      "type": "string",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T11:07:00.584Z",
+      "updatedAt": "2025-06-19T11:07:00.584Z",
+      "lastAccessedAt": "2025-06-19T11:31:40.823Z",
+      "version": 1,
+      "size": 612,
+      "compressed": false,
+      "checksum": "5a3c5220d253674dac8548b26484ad84050e8421a739e90caa0a3d4f7104d197",
+      "references": [],
+      "dependencies": []
     }
   ],
   "statistics": {
     "overview": {
-      "totalEntries": 5,
-      "totalSize": 12497,
+      "totalEntries": 7,
+      "totalSize": 13602,
       "compressedEntries": 4,
-      "compressionRatio": -26.59725400457666,
-      "indexSize": 250,
-      "memoryUsage": 9064640,
+      "compressionRatio": -6.821011673151751,
+      "indexSize": 350,
+      "memoryUsage": 9068408,
       "diskUsage": 0
     },
     "distribution": {
       "byNamespace": {
         "default": {
-          "count": 5,
-          "size": 12497
+          "count": 7,
+          "size": 13602
         }
       },
       "byType": {
         "object": {
-          "count": 4,
-          "size": 12060
+          "count": 5,
+          "size": 12553
         },
         "string": {
-          "count": 1,
-          "size": 437
+          "count": 2,
+          "size": 1049
         }
       },
       "byOwner": {
         "system": {
-          "count": 5,
-          "size": 12497
+          "count": 7,
+          "size": 13602
         }
       },
       "byAccessLevel": {
         "shared": {
-          "count": 5,
-          "size": 12497
+          "count": 7,
+          "size": 13602
         }
       }
     },
     "temporal": {
-      "entriesCreatedLast24h": 5,
-      "entriesUpdatedLast24h": 5,
-      "entriesAccessedLast24h": 5,
+      "entriesCreatedLast24h": 7,
+      "entriesUpdatedLast24h": 7,
+      "entriesAccessedLast24h": 7,
       "oldestEntry": "2025-06-19T10:46:04.953Z",
-      "newestEntry": "2025-06-19T11:02:15.580Z"
+      "newestEntry": "2025-06-19T11:07:00.584Z"
     },
     "performance": {
       "averageQueryTime": 0,

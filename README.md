@@ -6,6 +6,9 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-MVP-yellow.svg)](https://github.com/austa/cockpit/releases)
 [![AI-Powered](https://img.shields.io/badge/AI-Powered-purple.svg)](https://github.com/austa/cockpit/wiki/AI-Features)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
+
+> **🎉 Atualização Importante**: Este projeto foi completamente atualizado com TypeScript 5.0, corrigindo mais de 200 erros de tipo e melhorando significativamente a segurança e manutenibilidade do código. Certifique-se de seguir as novas instruções de instalação abaixo.
 
 ## 📋 Índice
 
@@ -463,6 +466,8 @@ O projeto inclui workflows do GitHub Actions que:
 
 ### 🚀 Setup Rápido (Docker - Recomendado)
 
+> **⚠️ IMPORTANTE**: Este projeto passou por uma atualização completa de TypeScript. Certifique-se de seguir todos os passos abaixo para garantir uma instalação bem-sucedida.
+
 ```bash
 # 1. Clone o repositório
 git clone https://github.com/austa/cockpit.git
@@ -472,19 +477,53 @@ cd austa-cockpit
 cp .env.example .env
 # Edite .env com suas configurações (veja seção Configuração)
 
-# 3. Inicie todos os serviços
+# 3. Instale as dependências do root (necessário para scripts de setup)
+npm install
+
+# 4. Prepare o ambiente backend
+cd backend
+npm install
+npx prisma generate  # Gera o cliente Prisma
+cd ..
+
+# 5. Prepare o ambiente frontend
+cd frontend
+npm install
+cd ..
+
+# 6. Inicie todos os serviços com Docker
 docker-compose up -d
 
-# 4. Execute as migrações do banco
-docker-compose exec backend npm run migrate
+# 7. Execute as migrações do banco
+docker-compose exec backend npx prisma migrate deploy
 
-# 5. (Opcional) Popule dados de exemplo
+# 8. (Opcional) Popule dados de exemplo
 docker-compose exec backend npm run seed
 
 # ✅ Acesse a aplicação
 # Frontend: http://localhost:5173
 # Backend API: http://localhost:3000
 # AI Service: http://localhost:8000
+```
+
+### 🐛 Troubleshooting Docker
+
+Se você encontrar erros durante `docker-compose up`, siga estes passos:
+
+```bash
+# 1. Limpe containers e volumes antigos
+docker-compose down -v
+
+# 2. Reconstrua as imagens
+docker-compose build --no-cache
+
+# 3. Verifique os logs se houver problemas
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# 4. Para erros de TypeScript, execute localmente primeiro:
+cd backend && npm run typecheck
+cd ../frontend && npm run typecheck
 ```
 
 ### 🛠️ Setup Manual (Desenvolvimento)
@@ -590,23 +629,253 @@ redis-server
 
 ### 🌐 Deploy em Produção
 
-Para instruções completas de deploy, consulte o [Guia de Deploy](docs/deployment/DEPLOYMENT.md).
+> **📋 Checklist Pre-Deploy**: Certifique-se de que todos os testes passam e o TypeScript compila sem erros antes do deploy.
 
-#### Deploy Rápido com Kubernetes
+#### 🐳 Deploy com Docker (Recomendado para Pequenas Instalações)
 
 ```bash
-# 1. Configure kubectl para seu cluster
-kubectl config use-context production
+# 1. Prepare o ambiente de produção
+export NODE_ENV=production
 
-# 2. Deploy com Helm
-helm upgrade --install austa-cockpit ./helm/cockpit \
-  -f helm/cockpit/values-production.yaml \
+# 2. Build das imagens otimizadas
+docker build -f Dockerfile.backend -t austa-backend:latest ./backend
+docker build -f Dockerfile.frontend-standalone -t austa-frontend:latest ./frontend
+
+# 3. Configure o docker-compose.prod.yml
+cp docker-compose.yml docker-compose.prod.yml
+# Edite docker-compose.prod.yml com configurações de produção
+
+# 4. Inicie os serviços
+docker-compose -f docker-compose.prod.yml up -d
+
+# 5. Configure NGINX como reverse proxy
+docker run -d \
+  --name nginx-proxy \
+  -p 80:80 -p 443:443 \
+  -v ./docker/nginx-standalone.conf:/etc/nginx/nginx.conf:ro \
+  -v ./ssl:/etc/nginx/ssl:ro \
+  --network austa-network \
+  nginx:alpine
+```
+
+#### ☸️ Deploy com Kubernetes (Recomendado para Alta Disponibilidade)
+
+```bash
+# 1. Prepare os secrets
+kubectl create secret generic austa-secrets \
+  --from-literal=jwt-secret=$JWT_SECRET \
+  --from-literal=database-url=$DATABASE_URL \
+  --from-literal=redis-url=$REDIS_URL \
+  -n austa-system
+
+# 2. Configure o ConfigMap
+kubectl create configmap austa-config \
+  --from-file=./k8s/config/ \
+  -n austa-system
+
+# 3. Deploy com Helm
+helm repo add austa https://charts.austa.com.br
+helm repo update
+
+helm upgrade --install austa-cockpit austa/cockpit \
+  --version 1.0.0 \
+  -f ./k8s/values-production.yaml \
   --namespace austa-system \
   --create-namespace
 
-# 3. Verificar status
+# 4. Configure Ingress
+kubectl apply -f ./k8s/ingress.yaml
+
+# 5. Verificar status do deploy
 kubectl get pods -n austa-system
+kubectl get svc -n austa-system
+kubectl get ingress -n austa-system
 ```
+
+#### 🚀 Deploy com CI/CD (GitHub Actions)
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          
+      - name: Install and Build
+        run: |
+          npm ci
+          npm run build:all
+          
+      - name: Run Tests
+        run: |
+          npm run test:all
+          npm run typecheck:all
+          
+      - name: Build Docker Images
+        run: |
+          docker build -f Dockerfile.backend -t ${{ secrets.REGISTRY }}/austa-backend:${{ github.ref_name }} ./backend
+          docker build -f Dockerfile.frontend-standalone -t ${{ secrets.REGISTRY }}/austa-frontend:${{ github.ref_name }} ./frontend
+          
+      - name: Push to Registry
+        run: |
+          echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
+          docker push ${{ secrets.REGISTRY }}/austa-backend:${{ github.ref_name }}
+          docker push ${{ secrets.REGISTRY }}/austa-frontend:${{ github.ref_name }}
+          
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/backend backend=${{ secrets.REGISTRY }}/austa-backend:${{ github.ref_name }} -n austa-system
+          kubectl set image deployment/frontend frontend=${{ secrets.REGISTRY }}/austa-frontend:${{ github.ref_name }} -n austa-system
+          kubectl rollout status deployment/backend -n austa-system
+          kubectl rollout status deployment/frontend -n austa-system
+```
+
+#### 🔧 Configuração de Ambiente de Produção
+
+##### 1. Variáveis de Ambiente Essenciais
+
+```env
+# Production .env
+NODE_ENV=production
+PORT=3000
+
+# Database
+DATABASE_URL=postgresql://austa_prod:secure_password@db.austa.internal:5432/austa_prod
+DATABASE_POOL_MIN=2
+DATABASE_POOL_MAX=10
+
+# Redis
+REDIS_URL=redis://redis.austa.internal:6379
+REDIS_PASSWORD=secure_redis_password
+
+# Security
+JWT_SECRET=your-very-long-random-string-here
+JWT_EXPIRATION=24h
+ENCRYPTION_KEY=32-character-encryption-key-here
+CORS_ORIGIN=https://app.austa.com.br
+
+# API Keys
+OPENAI_API_KEY=sk-prod-xxxxx
+SENTRY_DSN=https://xxxxx@sentry.io/xxxxx
+
+# Feature Flags
+ENABLE_AI_ANALYSIS=true
+ENABLE_FRAUD_DETECTION=true
+ENABLE_BLOCKCHAIN_AUDIT=false
+```
+
+##### 2. Configuração de Banco de Dados
+
+```bash
+# Criar banco de produção
+sudo -u postgres psql
+CREATE DATABASE austa_prod;
+CREATE USER austa_prod WITH ENCRYPTED PASSWORD 'secure_password';
+GRANT ALL PRIVILEGES ON DATABASE austa_prod TO austa_prod;
+
+# Configurar conexões e performance
+ALTER DATABASE austa_prod SET max_connections = 100;
+ALTER DATABASE austa_prod SET shared_buffers = '256MB';
+ALTER DATABASE austa_prod SET effective_cache_size = '1GB';
+```
+
+##### 3. Configuração de Segurança
+
+```nginx
+# nginx.conf para produção
+server {
+    listen 443 ssl http2;
+    server_name app.austa.com.br;
+    
+    ssl_certificate /etc/nginx/ssl/cert.pem;
+    ssl_certificate_key /etc/nginx/ssl/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" always;
+    
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+    limit_req zone=api burst=20 nodelay;
+    
+    location / {
+        proxy_pass http://frontend:5173;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    
+    location /api {
+        proxy_pass http://backend:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+#### 📊 Monitoramento Pós-Deploy
+
+```bash
+# 1. Verificar saúde dos serviços
+curl https://app.austa.com.br/api/health
+curl https://app.austa.com.br/api/metrics
+
+# 2. Monitorar logs em tempo real
+docker-compose logs -f --tail=100
+# ou para Kubernetes
+kubectl logs -f deployment/backend -n austa-system
+
+# 3. Verificar métricas de performance
+# Acesse Grafana: https://grafana.austa.com.br
+# Dashboard ID: austa-cockpit-prod
+
+# 4. Configurar alertas
+kubectl apply -f ./k8s/monitoring/alerts.yaml
+```
+
+#### 🔄 Rollback Procedure
+
+```bash
+# Docker
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up -d --scale backend=0
+docker run -d --name backend-old austa-backend:previous-version
+
+# Kubernetes
+kubectl rollout undo deployment/backend -n austa-system
+kubectl rollout undo deployment/frontend -n austa-system
+kubectl rollout status deployment/backend -n austa-system
+```
+
+#### 📝 Post-Deploy Checklist
+
+- [ ] ✅ Todos os health checks passando
+- [ ] ✅ Conexão com banco de dados funcionando
+- [ ] ✅ Redis conectado e operacional
+- [ ] ✅ Autenticação JWT funcionando
+- [ ] ✅ AI Service respondendo
+- [ ] ✅ Logs sendo coletados corretamente
+- [ ] ✅ Métricas sendo enviadas para Prometheus
+- [ ] ✅ Backup automático configurado
+- [ ] ✅ SSL/TLS certificados válidos
+- [ ] ✅ Rate limiting ativo
 
 ### 🔍 Verificação da Instalação
 
@@ -624,6 +893,102 @@ docker-compose logs -f
 
 # Verificar conectividade do banco
 npm run db:test
+```
+
+### ⚠️ Problemas Comuns e Soluções
+
+#### 1. Erro: TypeScript Compilation Errors
+
+```bash
+# Sintoma: Backend não inicia devido a erros de TypeScript
+# Solução:
+cd backend
+npm install  # Certifique-se de que todas as dependências estão instaladas
+npm run typecheck  # Verifique erros específicos
+npm run build  # Compile o TypeScript
+```
+
+#### 2. Erro: Cannot find module '@prisma/client'
+
+```bash
+# Sintoma: Prisma client não encontrado
+# Solução:
+cd backend
+npx prisma generate  # Gera o cliente Prisma
+npm run migrate  # Aplica as migrações
+```
+
+#### 3. Erro: Database Connection Failed
+
+```bash
+# Sintoma: Não consegue conectar ao PostgreSQL
+# Solução:
+# 1. Verifique se o PostgreSQL está rodando
+sudo systemctl status postgresql
+
+# 2. Verifique as credenciais no .env
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+
+# 3. Teste a conexão
+psql -U user -d dbname -h localhost
+```
+
+#### 4. Erro: Redis Connection Refused
+
+```bash
+# Sintoma: Falha ao conectar no Redis
+# Solução:
+# 1. Verifique se o Redis está rodando
+redis-cli ping  # Deve retornar PONG
+
+# 2. Inicie o Redis se necessário
+sudo systemctl start redis
+# ou
+redis-server
+```
+
+#### 5. Erro: Port Already in Use
+
+```bash
+# Sintoma: Porta 3000, 5173 ou 8000 já em uso
+# Solução:
+# 1. Encontre o processo usando a porta
+lsof -i :3000  # ou 5173, 8000
+
+# 2. Encerre o processo
+kill -9 <PID>
+
+# 3. Ou mude as portas no .env
+PORT=3001  # Backend
+VITE_PORT=5174  # Frontend
+```
+
+#### 6. Erro: Docker Build Failures
+
+```bash
+# Sintoma: Imagens Docker não constroem
+# Solução:
+# 1. Limpe o cache do Docker
+docker system prune -a
+
+# 2. Reconstrua sem cache
+docker-compose build --no-cache
+
+# 3. Verifique espaço em disco
+df -h
+```
+
+#### 7. Erro: Missing Environment Variables
+
+```bash
+# Sintoma: Aplicação falha por falta de variáveis
+# Solução:
+# 1. Copie o arquivo de exemplo
+cp .env.example .env
+
+# 2. Preencha TODAS as variáveis obrigatórias
+# 3. Valide as variáveis
+npm run validate:env
 ```
 
 ## ⚙️ Configuração

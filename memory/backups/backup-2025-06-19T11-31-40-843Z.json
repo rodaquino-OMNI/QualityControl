@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-06-19T10:59:24.982Z",
+  "timestamp": "2025-06-19T11:31:40.843Z",
   "version": "1.0",
   "entries": [
     {
@@ -14,7 +14,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:46:04.953Z",
       "updatedAt": "2025-06-19T10:46:04.953Z",
-      "lastAccessedAt": "2025-06-19T10:46:04.953Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 2612,
       "compressed": true,
@@ -34,7 +34,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:46:46.523Z",
       "updatedAt": "2025-06-19T10:46:46.523Z",
-      "lastAccessedAt": "2025-06-19T10:46:46.523Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 5627,
       "compressed": true,
@@ -54,7 +54,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:47:46.863Z",
       "updatedAt": "2025-06-19T10:47:46.863Z",
-      "lastAccessedAt": "2025-06-19T10:47:46.863Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 2665,
       "compressed": true,
@@ -74,57 +74,140 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:59:24.980Z",
       "updatedAt": "2025-06-19T10:59:24.980Z",
-      "lastAccessedAt": "2025-06-19T10:59:24.980Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 1156,
       "compressed": true,
       "checksum": "ab0c4c130ea3768744b4171d00fe497a4e4cedb03fe1e521b14610137246fa64",
       "references": [],
       "dependencies": []
+    },
+    {
+      "id": "entry_mc39uhi4_hx7p3q0d0",
+      "key": "swarm-auto-centralized-1750329808634/rbac-fixer/fixes",
+      "value": "RBAC TypeScript errors fixed: 1) Added missing Role and Permission imports from @prisma/client, 2) Fixed createRole method to match Prisma schema (removed displayName and isSystem fields), 3) Updated initializeDefaultRolesAndPermissions to match schema, 4) Fixed assignRole method by removing assignedBy parameter that doesn't exist in UserRole model. All RBAC-related TypeScript errors have been resolved.",
+      "type": "string",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T11:02:15.580Z",
+      "updatedAt": "2025-06-19T11:02:15.580Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
+      "version": 1,
+      "size": 437,
+      "compressed": false,
+      "checksum": "2403009021a80d324ead4559da7854acffebf0159c4ce1d5bda6ce3c4a8326ef",
+      "references": [],
+      "dependencies": []
+    },
+    {
+      "id": "entry_mc39wozr_bwwniw9xf",
+      "key": "swarm-auto-centralized-1750329808634/dependencies-installer/installed",
+      "value": {
+        "status": "completed",
+        "installedPackages": {
+          "root": [
+            "@types/ws@8.18.1"
+          ],
+          "frontend": [
+            "@types/react-csv@1.1.10",
+            "@types/qrcode@1.5.5",
+            "qrcode@1.5.4"
+          ]
+        },
+        "resolvedErrors": [
+          "Could not find a declaration file for module ws",
+          "Cannot find module @types/react-csv",
+          "Cannot find module @types/qrcode"
+        ],
+        "timestamp": "2025-06-19T11:03:58Z",
+        "notes": "All required TypeScript type definitions have been successfully installed. The main module resolution errors have been resolved."
+      },
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T11:03:58.599Z",
+      "updatedAt": "2025-06-19T11:03:58.599Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
+      "version": 1,
+      "size": 493,
+      "compressed": false,
+      "checksum": "ae978359ebe104193927a256e0badab79029fcd96f02aadaa55514446a7ef50a",
+      "references": [],
+      "dependencies": []
+    },
+    {
+      "id": "entry_mc3a0lew_6o8atr7pn",
+      "key": "swarm-auto-centralized-1750329808634/logger-implementer/implementation",
+      "value": "Logger TypeScript errors fixed: 1) Added logAudit method to logger object in logger.ts that wraps logAuditEvent function. 2) The method extracts resourceId from metadata (caseId, decisionId, appealId, or id) and calls logAuditEvent with proper signature. 3) This fixes logger.logAudit calls in notification.routes.ts and decision.routes.ts. 4) All logAuditEvent function calls across the codebase were verified to have consistent signature: action, userId, resourceId, details. The implementation ensures backward compatibility while maintaining proper audit logging functionality.",
+      "type": "string",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T11:07:00.584Z",
+      "updatedAt": "2025-06-19T11:07:00.584Z",
+      "lastAccessedAt": "2025-06-19T11:31:40.823Z",
+      "version": 1,
+      "size": 612,
+      "compressed": false,
+      "checksum": "5a3c5220d253674dac8548b26484ad84050e8421a739e90caa0a3d4f7104d197",
+      "references": [],
+      "dependencies": []
     }
   ],
   "statistics": {
     "overview": {
-      "totalEntries": 4,
-      "totalSize": 12060,
+      "totalEntries": 7,
+      "totalSize": 13602,
       "compressedEntries": 4,
-      "compressionRatio": 0,
-      "indexSize": 200,
-      "memoryUsage": 9055376,
+      "compressionRatio": -6.821011673151751,
+      "indexSize": 350,
+      "memoryUsage": 9054000,
       "diskUsage": 0
     },
     "distribution": {
       "byNamespace": {
         "default": {
-          "count": 4,
-          "size": 12060
+          "count": 7,
+          "size": 13602
         }
       },
       "byType": {
         "object": {
-          "count": 4,
-          "size": 12060
+          "count": 5,
+          "size": 12553
+        },
+        "string": {
+          "count": 2,
+          "size": 1049
         }
       },
       "byOwner": {
         "system": {
-          "count": 4,
-          "size": 12060
+          "count": 7,
+          "size": 13602
         }
       },
       "byAccessLevel": {
         "shared": {
-          "count": 4,
-          "size": 12060
+          "count": 7,
+          "size": 13602
         }
       }
     },
     "temporal": {
-      "entriesCreatedLast24h": 4,
-      "entriesUpdatedLast24h": 4,
-      "entriesAccessedLast24h": 4,
+      "entriesCreatedLast24h": 7,
+      "entriesUpdatedLast24h": 7,
+      "entriesAccessedLast24h": 7,
       "oldestEntry": "2025-06-19T10:46:04.953Z",
-      "newestEntry": "2025-06-19T10:59:24.980Z"
+      "newestEntry": "2025-06-19T11:07:00.584Z"
     },
     "performance": {
       "averageQueryTime": 0,

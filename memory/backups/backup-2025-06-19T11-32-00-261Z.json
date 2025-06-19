@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-06-19T11:03:58.602Z",
+  "timestamp": "2025-06-19T11:32:00.261Z",
   "version": "1.0",
   "entries": [
     {
@@ -14,7 +14,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:46:04.953Z",
       "updatedAt": "2025-06-19T10:46:04.953Z",
-      "lastAccessedAt": "2025-06-19T10:46:04.953Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 2612,
       "compressed": true,
@@ -34,7 +34,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:46:46.523Z",
       "updatedAt": "2025-06-19T10:46:46.523Z",
-      "lastAccessedAt": "2025-06-19T10:46:46.523Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 5627,
       "compressed": true,
@@ -54,7 +54,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:47:46.863Z",
       "updatedAt": "2025-06-19T10:47:46.863Z",
-      "lastAccessedAt": "2025-06-19T10:47:46.863Z",
+      "lastAccessedAt": "2025-06-19T11:31:33.935Z",
       "version": 1,
       "size": 2665,
       "compressed": true,
@@ -65,7 +65,53 @@
     {
       "id": "entry_mc39qtv8_tsk870w6o",
       "key": "swarm-auto-centralized-1750329808634/error-resolver/fixes-applied",
-      "value": "{\"summary\":{\"total_fixes_applied\":85,\"files_modified\":[\"ai.routes.ts\",\"security.middleware.ts\",\"securityAudit.ts\",\"tracing.middleware.ts\",\"tracing.ts\",\"validateApiKey.ts\",\"analytics.routes.ts\",\"audit.routes.ts\",\"case.routes.ts\",\"logger.ts\"],\"main_fixes\":[\"Fixed Prisma client property names (aiAnalysis -> aIAnalysis)\",\"Added return types to async route handlers\",\"Fixed logger.logAudit to logAuditEvent\",\"Fixed CaseStatus enum values (pending -> open, in_review -> in_progress)\",\"Fixed missing properties and imports\",\"Created logger implementation\",\"Fixed OpenTelemetry imports\"]},\"remaining_errors\":{\"decision.routes.ts\":[\"prisma.decision -> prisma.authorizationDecision\",\"aiAnalyses property\",\"logAudit calls\"],\"health.routes.ts\":[\"Missing return values\",\"Extra properties in response objects\"],\"notification.routes.ts\":[\"read property -> isRead\",\"notificationPreference model\",\"Missing return values\"],\"rbac.service.ts\":[\"Role/Permission type issues\",\"displayName property\"]},\"next_steps\":\"Continue fixing remaining files with similar patterns\"}",
+      "value": {
+        "summary": {
+          "total_fixes_applied": 85,
+          "files_modified": [
+            "ai.routes.ts",
+            "security.middleware.ts",
+            "securityAudit.ts",
+            "tracing.middleware.ts",
+            "tracing.ts",
+            "validateApiKey.ts",
+            "analytics.routes.ts",
+            "audit.routes.ts",
+            "case.routes.ts",
+            "logger.ts"
+          ],
+          "main_fixes": [
+            "Fixed Prisma client property names (aiAnalysis -> aIAnalysis)",
+            "Added return types to async route handlers",
+            "Fixed logger.logAudit to logAuditEvent",
+            "Fixed CaseStatus enum values (pending -> open, in_review -> in_progress)",
+            "Fixed missing properties and imports",
+            "Created logger implementation",
+            "Fixed OpenTelemetry imports"
+          ]
+        },
+        "remaining_errors": {
+          "decision.routes.ts": [
+            "prisma.decision -> prisma.authorizationDecision",
+            "aiAnalyses property",
+            "logAudit calls"
+          ],
+          "health.routes.ts": [
+            "Missing return values",
+            "Extra properties in response objects"
+          ],
+          "notification.routes.ts": [
+            "read property -> isRead",
+            "notificationPreference model",
+            "Missing return values"
+          ],
+          "rbac.service.ts": [
+            "Role/Permission type issues",
+            "displayName property"
+          ]
+        },
+        "next_steps": "Continue fixing remaining files with similar patterns"
+      },
       "type": "object",
       "namespace": "default",
       "tags": [],
@@ -74,7 +120,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T10:59:24.980Z",
       "updatedAt": "2025-06-19T10:59:24.980Z",
-      "lastAccessedAt": "2025-06-19T10:59:24.980Z",
+      "lastAccessedAt": "2025-06-19T11:32:00.239Z",
       "version": 1,
       "size": 1156,
       "compressed": true,
@@ -94,7 +140,7 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T11:02:15.580Z",
       "updatedAt": "2025-06-19T11:02:15.580Z",
-      "lastAccessedAt": "2025-06-19T11:02:15.580Z",
+      "lastAccessedAt": "2025-06-19T11:31:53.797Z",
       "version": 1,
       "size": 437,
       "compressed": false,
@@ -133,30 +179,50 @@
       "accessLevel": "shared",
       "createdAt": "2025-06-19T11:03:58.599Z",
       "updatedAt": "2025-06-19T11:03:58.599Z",
-      "lastAccessedAt": "2025-06-19T11:03:58.599Z",
+      "lastAccessedAt": "2025-06-19T11:31:47.365Z",
       "version": 1,
       "size": 493,
       "compressed": false,
       "checksum": "ae978359ebe104193927a256e0badab79029fcd96f02aadaa55514446a7ef50a",
       "references": [],
       "dependencies": []
+    },
+    {
+      "id": "entry_mc3a0lew_6o8atr7pn",
+      "key": "swarm-auto-centralized-1750329808634/logger-implementer/implementation",
+      "value": "Logger TypeScript errors fixed: 1) Added logAudit method to logger object in logger.ts that wraps logAuditEvent function. 2) The method extracts resourceId from metadata (caseId, decisionId, appealId, or id) and calls logAuditEvent with proper signature. 3) This fixes logger.logAudit calls in notification.routes.ts and decision.routes.ts. 4) All logAuditEvent function calls across the codebase were verified to have consistent signature: action, userId, resourceId, details. The implementation ensures backward compatibility while maintaining proper audit logging functionality.",
+      "type": "string",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-19T11:07:00.584Z",
+      "updatedAt": "2025-06-19T11:07:00.584Z",
+      "lastAccessedAt": "2025-06-19T11:31:40.823Z",
+      "version": 1,
+      "size": 612,
+      "compressed": false,
+      "checksum": "5a3c5220d253674dac8548b26484ad84050e8421a739e90caa0a3d4f7104d197",
+      "references": [],
+      "dependencies": []
     }
   ],
   "statistics": {
     "overview": {
-      "totalEntries": 6,
-      "totalSize": 12990,
+      "totalEntries": 7,
+      "totalSize": 13602,
       "compressedEntries": 4,
-      "compressionRatio": -11.96774193548387,
-      "indexSize": 300,
-      "memoryUsage": 9056432,
+      "compressionRatio": -6.821011673151751,
+      "indexSize": 350,
+      "memoryUsage": 9071816,
       "diskUsage": 0
     },
     "distribution": {
       "byNamespace": {
         "default": {
-          "count": 6,
-          "size": 12990
+          "count": 7,
+          "size": 13602
         }
       },
       "byType": {
@@ -165,33 +231,33 @@
           "size": 12553
         },
         "string": {
-          "count": 1,
-          "size": 437
+          "count": 2,
+          "size": 1049
         }
       },
       "byOwner": {
         "system": {
-          "count": 6,
-          "size": 12990
+          "count": 7,
+          "size": 13602
         }
       },
       "byAccessLevel": {
         "shared": {
-          "count": 6,
-          "size": 12990
+          "count": 7,
+          "size": 13602
         }
       }
     },
     "temporal": {
-      "entriesCreatedLast24h": 6,
-      "entriesUpdatedLast24h": 6,
-      "entriesAccessedLast24h": 6,
+      "entriesCreatedLast24h": 7,
+      "entriesUpdatedLast24h": 7,
+      "entriesAccessedLast24h": 7,
       "oldestEntry": "2025-06-19T10:46:04.953Z",
-      "newestEntry": "2025-06-19T11:03:58.599Z"
+      "newestEntry": "2025-06-19T11:07:00.584Z"
     },
     "performance": {
       "averageQueryTime": 0,
-      "averageWriteTime": 1,
+      "averageWriteTime": 0,
       "cacheHitRatio": 0,
       "indexEfficiency": 0.95
     },
