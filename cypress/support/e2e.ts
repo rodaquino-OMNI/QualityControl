@@ -5,6 +5,8 @@
 // it by changing the "supportFile" configuration option.
 // ***********************************************************
 
+/// <reference path="./index.d.ts" />
+
 // Import commands.js using ES2015 syntax:
 import './commands';
 import { interceptAllApiCalls } from './commands';
@@ -13,6 +15,7 @@ import { interceptAllApiCalls } from './commands';
 import 'cypress-axe';
 import 'cypress-visual-regression/dist/command';
 import '@cypress/code-coverage/support';
+import 'cypress-file-upload';
 
 // Alternatively you can use CommonJS syntax:
 // require('./commands')
@@ -47,7 +50,7 @@ declare global {
 export {};
 
 // Configure Cypress behavior
-Cypress.on('uncaught:exception', (err, runnable) => {
+Cypress.on('uncaught:exception', (err, _runnable) => {
   // returning false here prevents Cypress from failing the test
   if (err.message.includes('ResizeObserver loop limit exceeded')) {
     return false;
@@ -82,7 +85,7 @@ Cypress.on('window:before:load', (win) => {
 beforeEach(() => {
   // Clear all storage
   cy.clearLocalStorage();
-  cy.clearSessionStorage();
+  cy.clearAllSessionStorage();
   cy.clearCookies();
   
   // Reset viewport to default
@@ -131,8 +134,10 @@ afterEach(() => {
   // Accessibility check (if enabled for test)
   if (Cypress.env('CHECK_ACCESSIBILITY')) {
     cy.checkA11y(undefined, {
-      includeTags: ['wcag2a', 'wcag2aa'],
-      excludeTags: ['experimental']
+      runOnly: {
+        type: 'tag',
+        values: ['wcag2a', 'wcag2aa']
+      }
     }, (violations) => {
       violations.forEach(violation => {
         cy.log(`Accessibility violation: ${violation.description}`);
@@ -141,7 +146,7 @@ afterEach(() => {
   }
   
   // Take screenshot on failure with enhanced naming
-  if (Cypress.currentTest.state === 'failed') {
+  if ((Cypress.currentTest as any).state === 'failed') {
     const testTitle = Cypress.currentTest.title.replace(/[^a-zA-Z0-9]/g, '_');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     cy.screenshot(`failed_${testTitle}_${timestamp}`, {
@@ -158,7 +163,7 @@ afterEach(() => {
   }
   
   // Visual regression comparison (if enabled)
-  if (Cypress.env('VISUAL_REGRESSION') && Cypress.currentTest.state === 'passed') {
+  if (Cypress.env('VISUAL_REGRESSION') && (Cypress.currentTest as any).state === 'passed') {
     const testName = Cypress.currentTest.title.replace(/[^a-zA-Z0-9]/g, '_');
     cy.compareSnapshot(testName);
   }
@@ -214,7 +219,7 @@ after(() => {
 });
 
 // Custom commands for enhanced error handling
-Cypress.Commands.overwrite('visit', (originalFn, url, options) => {
+Cypress.Commands.overwrite('visit', (originalFn, url, options?) => {
   return originalFn(url, {
     timeout: 30000,
     retryOnNetworkFailure: true,
@@ -237,7 +242,7 @@ Cypress.Commands.overwrite('log', (originalFn, message) => {
 });
 
 // Network failure retry logic
-Cypress.on('fail', (err, runnable) => {
+Cypress.on('fail', (err, _runnable) => {
   if (err.message.includes('Network Error') || err.message.includes('timeout')) {
     cy.log('Network error detected, implementing retry logic');
     // Custom retry logic can be implemented here

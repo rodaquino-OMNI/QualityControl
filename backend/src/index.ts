@@ -1,79 +1,19 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
 import dotenv from 'dotenv';
 import { logger } from './utils/logger';
-import analyticsRoutes from './routes/analyticsRoutes';
-import metricsRoutes, { metricsMiddleware } from './routes/metrics.routes';
+import { createApp } from './app';
 import { RedisService } from './services/redisService';
 import { DataAggregationService } from './services/dataAggregationService';
 
 // Load environment variables
 dotenv.config();
 
-const app = express();
+// Create app instance for production
+const app = createApp();
 const PORT = process.env.PORT || 3001;
 
-// Initialize services
+// Initialize services for production
 const redisService = new RedisService();
 const aggregationService = new DataAggregationService(redisService);
-
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
-app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Metrics middleware for tracking HTTP requests
-app.use(metricsMiddleware);
-
-// Request logging
-app.use((req, _res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
-  next();
-});
-
-// Routes
-app.use('/api', analyticsRoutes);
-app.use('/', metricsRoutes);
-
-// Health check endpoint
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
-
-// Error handling middleware
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('Unhandled error:', err);
-  
-  res.status(err.status || 500).json({
-    success: false,
-    error: {
-      message: err.message || 'Internal server error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
-  });
-});
-
-// 404 handler
-app.use((_req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Route not found'
-  });
-});
 
 // Start aggregation jobs
 const startAggregationJobs = async () => {
@@ -124,5 +64,7 @@ process.on('SIGTERM', () => {
     });
   });
 });
+
+// Export app instance for testing
 
 export default app;

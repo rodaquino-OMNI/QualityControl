@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-const { body, param, validationResult } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
 import { logger } from '../utils/logger';
@@ -93,11 +93,12 @@ router.post(
       if (!forceReanalysis) {
         const cachedAnalysis = await cache.get(`ai:analysis:${caseId}:${analysisType}`);
         if (cachedAnalysis) {
-          return res.json({
+          res.json({
             success: true,
             data: { analysis: cachedAnalysis },
             meta: { cached: true },
           });
+          return;
         }
       }
 
@@ -107,16 +108,20 @@ router.post(
       // Store analysis in database
       const savedAnalysis = await prisma.aIAnalysis.create({
         data: {
-          caseId,
+          entityType: 'CASE',
+          entityId: caseId,
           analysisType,
-          recommendation: analysis.recommendation,
+          result: {
+            recommendation: analysis.recommendation,
+            confidence: analysis.confidence,
+            explanation: analysis.explanation,
+            riskFactors: analysis.riskFactors,
+            similarCases: analysis.similarCases,
+            medicalContext: analysis.medicalContext,
+            modelVersion: analysis.modelVersion,
+            processingTime: analysis.processingTime,
+          },
           confidence: analysis.confidence,
-          explanation: analysis.explanation,
-          riskFactors: analysis.riskFactors,
-          similarCases: analysis.similarCases,
-          medicalContext: analysis.medicalContext,
-          modelVersion: analysis.modelVersion,
-          processingTime: analysis.processingTime,
         },
       });
 
@@ -228,11 +233,16 @@ router.post(
         where: { id: caseId },
         include: {
           patient: true,
-          aIAnalyses: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
         },
+      });
+      
+      // Get latest AI analysis for this case
+      const latestAnalysis = await prisma.aIAnalysis.findFirst({
+        where: {
+          entityType: 'CASE',
+          entityId: caseId,
+        },
+        orderBy: { createdAt: 'desc' },
       });
 
       if (!caseData) {
@@ -268,7 +278,10 @@ router.post(
       // Get AI response
       const aiResponse = await aiService.chat({
         message,
-        caseContext: caseData,
+        caseContext: {
+          ...caseData,
+          latestAnalysis: latestAnalysis,
+        },
         conversationHistory: conversation.messages,
       });
 
@@ -517,7 +530,7 @@ router.get(
   '/similar-cases/:caseId',
   [
     param('caseId').isUUID(),
-    body('limit').optional().isInt({ min: 1, max: 20 }).toInt(),
+    query('limit').optional().isInt({ min: 1, max: 20 }).toInt(),
   ],
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

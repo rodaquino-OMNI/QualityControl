@@ -1,441 +1,295 @@
-# AUSTA Cockpit Performance Testing Framework
-
-A comprehensive performance testing suite for AUSTA Cockpit featuring multiple testing tools, automated monitoring, and regression testing capabilities.
+# Performance Testing Suite
 
 ## Overview
 
-This framework provides:
-- **Load Testing** with k6 for realistic user scenarios
-- **Stress Testing** with Artillery for high-load conditions  
-- **Frontend Performance** testing with Lighthouse
-- **Complex Workflow Testing** with JMeter
-- **Real-time Monitoring** and metrics collection
-- **Performance Baselines** and SLA definitions
-- **Automated Regression Testing** pipeline
+This comprehensive performance testing suite analyzes and optimizes the AUSTA Cockpit platform's performance across multiple dimensions:
 
-## Directory Structure
+- **Database Performance**: Query optimization and index analysis
+- **Redis Caching**: Session management and caching strategies
+- **Load Testing**: Real-world usage simulation with K6
+- **Application Bottlenecks**: Code-level performance analysis
+- **Infrastructure Optimization**: System-level improvements
 
-```
-performance-tests/
-├── config/
-│   └── performance.config.js         # Main configuration
-├── scripts/
-│   ├── k6/                           # k6 load testing scripts
-│   │   ├── auth-load-test.js
-│   │   ├── case-processing-test.js
-│   │   ├── ai-service-test.js
-│   │   └── dashboard-stress-test.js
-│   ├── artillery/                    # Artillery stress testing
-│   │   ├── stress-test.yml
-│   │   ├── auth-stress.yml
-│   │   └── api-stress.yml
-│   ├── lighthouse/                   # Frontend performance testing
-│   │   ├── lighthouse-runner.js
-│   │   └── lighthouse-config.json
-│   ├── jmeter/                       # Complex workflow testing
-│   │   ├── workflow-test.jmx
-│   │   └── run-jmeter-test.sh
-│   ├── monitoring/                   # Performance monitoring
-│   │   ├── performance-monitor.js
-│   │   └── grafana-dashboard.json
-│   ├── baseline/                     # Baseline creation
-│   │   └── create-baseline.js
-│   └── regression/                   # Regression testing
-│       └── performance-regression.js
-├── results/                          # Test results and reports
-├── baselines/                        # Performance baselines
-└── package.json                      # Dependencies and scripts
-```
+## Critical Performance Paths Identified
 
-## Quick Start
+### 1. Analytics Dashboard (analytics.routes.ts)
+- **Location**: Lines 100-125
+- **Issue**: Complex SQL aggregations with multiple JOIN operations
+- **Impact**: P95 response time >2000ms under load
+- **Optimization**: Composite indexing + result caching
 
-### 1. Installation
+### 2. AI Analysis Pipeline (ai.routes.ts)
+- **Location**: Lines 105-157
+- **Issue**: ML model inference latency
+- **Impact**: 8-15 second processing times
+- **Optimization**: Model caching + parallel processing
 
+### 3. Audit Trail Queries (audit.routes.ts)
+- **Location**: Lines 149-165
+- **Issue**: Large dataset pagination with complex filters
+- **Impact**: High database load during reporting
+- **Optimization**: Query restructuring + selective indexing
+
+### 4. Redis Session Management (redis.service.ts)
+- **Location**: Throughout file
+- **Issue**: Serialization overhead and connection pooling
+- **Impact**: Session latency spikes under concurrent load
+- **Optimization**: Binary serialization + connection optimization
+
+## Performance Testing Tools
+
+### 1. Database Benchmark (`scripts/benchmarks/database-benchmark.js`)
 ```bash
-cd performance-tests
-npm install
-```
-
-### 2. Environment Setup
-
-Copy and configure environment variables:
-
-```bash
-cp .env.example .env
-# Edit .env with your settings
-```
-
-### 3. Create Performance Baseline
-
-```bash
-# Create initial performance baseline
-npm run baseline
-
-# Or run directly
-node scripts/baseline/create-baseline.js create
-```
-
-### 4. Run Performance Tests
-
-```bash
-# Run all tests
-npm run test:all
-
-# Run specific test types
-npm run test:load        # k6 load tests
-npm run test:stress      # Artillery stress tests
-npm run test:lighthouse  # Frontend performance
-npm run test:jmeter      # Complex workflows
-```
-
-### 5. Start Performance Monitoring
-
-```bash
-# Start real-time monitoring
-npm run monitor
-
-# Or run directly
-node scripts/monitoring/performance-monitor.js start
-```
-
-## Testing Tools
-
-### k6 Load Testing
-
-Simulates realistic user load patterns:
-
-```bash
-# Authentication load testing
-npm run test:auth
-
-# Case processing throughput
-npm run test:cases  
-
-# AI service performance
-npm run test:ai
-
-# Dashboard stress testing
-npm run test:dashboard
-```
-
-**Key Scenarios:**
-- Concurrent user logins (burst and sustained)
-- Case creation and processing workflows
-- AI analysis and chat interactions
-- Real-time dashboard updates
-- Database query performance
-
-### Artillery Stress Testing
-
-High-load stress testing for breaking points:
-
-```bash
-# General stress test
-npm run test:stress
-
-# Authentication-focused stress
-artillery run scripts/artillery/auth-stress.yml
-
-# API endpoint stress testing
-artillery run scripts/artillery/api-stress.yml
+node scripts/benchmarks/database-benchmark.js
 ```
 
 **Features:**
-- Progressive load increase
-- Spike testing
-- Error rate monitoring
-- Rate limiting validation
-- Recovery testing
+- Tests critical database queries from actual codebase
+- Measures P50, P95, P99 latencies
+- Concurrent operation testing
+- Statistical analysis with standard deviation
+- Generates detailed performance reports
 
-### Lighthouse Frontend Performance
+**Key Metrics:**
+- Analytics dashboard query performance
+- AI analysis data retrieval
+- Audit trail query optimization
+- Fraud detection aggregations
+- Concurrent load handling
 
-Automated frontend performance auditing:
-
+### 2. Redis Benchmark (`scripts/benchmarks/redis-benchmark.js`)
 ```bash
-# Run Lighthouse tests
+node scripts/benchmarks/redis-benchmark.js
+```
+
+**Features:**
+- Tests Redis operations across different payload sizes
+- Session management performance analysis
+- Rate limiting operation benchmarks
+- Pipeline and concurrent operation testing
+- Memory usage optimization recommendations
+
+**Key Metrics:**
+- GET/SET operation latencies
+- Session creation/retrieval/deletion times
+- Rate limiting performance
+- Cache hit rate analysis
+- Throughput measurements (ops/sec)
+
+### 3. Load Test Scenarios (`scripts/benchmarks/load-test-scenarios.js`)
+```bash
+k6 run scripts/benchmarks/load-test-scenarios.js
+```
+
+**Scenarios:**
+- **Critical Path**: Most important user journeys
+- **Stress Test**: High-intensity load simulation
+- **Endurance Test**: Extended duration testing
+- **Spike Test**: Sudden traffic burst simulation
+
+**Custom Metrics:**
+- Critical path latency tracking
+- AI processing time measurement
+- Cache hit rate monitoring
+- System throughput counters
+- Error budget tracking
+
+### 4. Performance Test Runner (`scripts/performance-test-runner.js`)
+```bash
+node scripts/performance-test-runner.js
+```
+
+**Orchestrates:**
+- All benchmark suites execution
+- Lighthouse performance audits
+- Result aggregation and analysis
+- HTML and JSON report generation
+- Bottleneck identification
+
+### 5. Performance Optimizer (`scripts/optimization/performance-optimizer.js`)
+```bash
+node scripts/optimization/performance-optimizer.js
+```
+
+**Provides:**
+- Comprehensive bottleneck analysis
+- Actionable optimization recommendations
+- Implementation timeline planning
+- Resource requirement estimation
+- Monitoring strategy development
+
+## Usage Instructions
+
+### Quick Start
+```bash
+# Run all performance tests
+npm run test:performance
+
+# Run specific test suites
+npm run test:database
+npm run test:redis
+npm run test:load
 npm run test:lighthouse
 
-# Continuous monitoring
-node scripts/lighthouse/lighthouse-runner.js monitor 60
+# Generate optimization report
+npm run analyze:performance
 ```
 
-**Metrics Tracked:**
-- Performance scores
-- First Contentful Paint (FCP)
-- Largest Contentful Paint (LCP)
-- Cumulative Layout Shift (CLS)
-- Time to Interactive (TTI)
-- Accessibility and SEO scores
-
-### JMeter Workflow Testing
-
-Complex end-to-end workflow testing:
-
+### Detailed Analysis
 ```bash
-# Run workflow tests
-npm run test:jmeter
+# 1. Run comprehensive performance testing
+node scripts/performance-test-runner.js
 
-# Custom configuration
-./scripts/jmeter/run-jmeter-test.sh -n 100 -d 900 -r 180
+# 2. Analyze results and get optimization plan
+node scripts/optimization/performance-optimizer.js ./reports
+
+# 3. Review generated reports in ./reports directory
 ```
 
-**Workflow Coverage:**
-- Complete fraud detection workflow
-- User authentication and session management
-- Case creation, analysis, and processing
-- Dashboard and analytics access
-- Multi-step business processes
+## Performance Thresholds
 
-## Performance Monitoring
+### Response Time SLAs
+- **P95 < 2000ms**: Critical user operations
+- **P99 < 5000ms**: All operations
+- **Average < 500ms**: Dashboard and common actions
 
-### Real-time Monitoring
+### Throughput Requirements
+- **Minimum 100 RPS**: Sustained load handling
+- **Maximum 1000 RPS**: Peak capacity
+- **AI Analysis**: 5-10 concurrent operations
 
-Continuous monitoring with alerting:
+### Reliability Targets
+- **Error Rate < 1%**: Maximum acceptable failure rate
+- **Availability > 99.9%**: System uptime requirement
+- **Cache Hit Rate > 80%**: Caching effectiveness
 
-```bash
-# Start monitoring
-node scripts/monitoring/performance-monitor.js start
+## Optimization Roadmap
 
-# Generate current report
-node scripts/monitoring/performance-monitor.js report
-```
+### Phase 1: Immediate (0-2 weeks)
+1. **Database Indexing**
+   - Add composite indexes on high-traffic tables
+   - Optimize existing query patterns
+   - Implementation effort: Low
 
-**Monitoring Capabilities:**
-- Service health checks
-- Response time tracking
-- Error rate monitoring
-- System resource usage
-- Database performance
-- AI service metrics
+2. **Basic Caching**
+   - Implement result caching for analytics queries
+   - Cache AI analysis results
+   - Implementation effort: Low
 
-### Grafana Dashboard
+3. **Performance Monitoring**
+   - Set up real-time performance dashboards
+   - Configure alerting thresholds
+   - Implementation effort: Low
 
-Import the provided Grafana dashboard:
+### Phase 2: Short-term (2-8 weeks)
+1. **Query Optimization**
+   - Restructure complex aggregation queries
+   - Implement pagination strategies
+   - Implementation effort: Medium
 
-```bash
-# Dashboard configuration
-scripts/monitoring/grafana-dashboard.json
-```
+2. **Redis Optimization**
+   - Optimize session data structures
+   - Implement pipeline operations
+   - Implementation effort: Medium
 
-**Dashboard Features:**
-- Service availability overview
-- Response time trends
-- System resource utilization
-- Performance SLA status
-- Real-time alerts
+3. **Application Hotspots**
+   - Optimize critical code paths
+   - Implement connection pooling
+   - Implementation effort: Medium
 
-## Performance Baselines & SLAs
+### Phase 3: Medium-term (2-6 months)
+1. **Infrastructure Scaling**
+   - Implement load balancing
+   - Database read replicas
+   - Implementation effort: High
 
-### SLA Requirements
+2. **AI Processing Optimization**
+   - Model caching and warming
+   - Parallel processing pipeline
+   - Implementation effort: High
 
-| Category | Response Time P95 | Response Time P99 | Error Rate | Availability |
-|----------|------------------|------------------|------------|-------------|
-| Authentication | 1000ms | 2000ms | 0.1% | 99.9% |
-| Core Functionality | 2000ms | 5000ms | 0.5% | 99.8% |
-| AI Services | 8000ms | 15000ms | 1.0% | 99.5% |
-| Analytics | 3000ms | 8000ms | 1.0% | 99.0% |
-| Search | 2000ms | 5000ms | 0.5% | 99.5% |
+3. **Advanced Caching**
+   - Distributed caching strategies
+   - Intelligent cache invalidation
+   - Implementation effort: Medium
 
-### Baseline Management
+### Phase 4: Long-term (6+ months)
+1. **Architecture Optimization**
+   - Microservices decomposition
+   - Event-driven architecture
+   - Implementation effort: High
 
-```bash
-# Create new baseline
-node scripts/baseline/create-baseline.js create
+2. **Advanced Features**
+   - Auto-scaling capabilities
+   - Predictive caching
+   - Implementation effort: High
 
-# Compare with existing baseline  
-node scripts/baseline/create-baseline.js compare
-```
+## Monitoring & Alerting
 
-## Regression Testing
+### Key Performance Indicators
+- Response time percentiles (P50, P95, P99)
+- Request throughput (RPS)
+- Error rates and status codes
+- Database query performance
+- Cache hit/miss ratios
+- Resource utilization (CPU, Memory, I/O)
 
-### Automated Pipeline
+### Alert Thresholds
+- P95 response time > 2000ms
+- Error rate > 1%
+- Cache hit rate < 70%
+- Database connection pool > 80% utilization
+- Memory usage > 85%
+- CPU usage > 80% for 5+ minutes
 
-```bash
-# Run regression test
-npm run test:regression
+## Report Locations
 
-# CI/CD integration
-node scripts/regression/performance-regression.js
-```
+### Generated Reports
+- **JSON Reports**: `./reports/performance-report-{timestamp}.json`
+- **HTML Reports**: `./reports/performance-report-{timestamp}.html`
+- **Optimization Plans**: `./reports/optimization-plan-{timestamp}.md`
+- **K6 Results**: `./reports/{test-name}-results.json`
 
-**Regression Detection:**
-- 20% response time degradation threshold
-- 5% error rate increase threshold
-- Baseline comparison analysis
-- Automated alerts for regressions
-- CI/CD integration with fail conditions
-
-### CI/CD Integration
-
-Example GitHub Actions workflow:
-
-```yaml
-name: Performance Regression Test
-on: [push, pull_request]
-
-jobs:
-  performance:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18'
-      - name: Install dependencies
-        run: |
-          cd performance-tests
-          npm install
-      - name: Run regression tests
-        run: |
-          cd performance-tests
-          npm run test:regression
-```
-
-## Configuration
-
-### Environment Variables
-
-Key configuration options in `.env`:
-
-```env
-# Service URLs
-BASE_URL=http://localhost:3000
-API_URL=http://localhost:8000
-AI_SERVICE_URL=http://localhost:8001
-
-# Test Configuration
-MAX_VUS=500
-TEST_DURATION=10m
-RAMP_UP_DURATION=2m
-
-# Performance Thresholds
-RESPONSE_TIME_P95=1000
-RESPONSE_TIME_P99=2000
-ERROR_RATE_MAX=0.01
-
-# Monitoring
-INFLUXDB_HOST=localhost
-GRAFANA_URL=http://localhost:3001
-SLACK_WEBHOOK_URL=https://hooks.slack.com/...
-```
-
-### Test Customization
-
-Modify test parameters in `config/performance.config.js`:
-
-```javascript
-module.exports = {
-  sla: {
-    responseTime: {
-      p95: 1000,
-      p99: 2000,
-      avg: 500
-    },
-    errorRate: {
-      max: 0.01
-    }
-  },
-  // ... additional configuration
-};
-```
-
-## Results and Reporting
-
-### Test Results
-
-Results are saved in `results/` directory:
-
-```
-results/
-├── k6/                    # k6 test results
-├── artillery/             # Artillery results  
-├── lighthouse/            # Lighthouse reports
-├── jmeter/               # JMeter test results
-└── regression/           # Regression test reports
-```
-
-### Report Formats
-
-- **JSON**: Detailed metrics and raw data
-- **HTML**: Interactive reports (JMeter, Lighthouse)
-- **Markdown**: Summary reports for documentation
-- **CSV**: Data export for analysis
-
-### Automated Notifications
-
-Configure notifications for performance issues:
-
-- **Slack**: Webhook integration for alerts
-- **Email**: SMTP notifications
-- **Dashboard**: Real-time Grafana alerts
+### Report Contents
+- Performance test results and metrics
+- Bottleneck analysis and recommendations
+- Implementation timeline and effort estimates
+- Resource requirement planning
+- Monitoring and alerting strategies
 
 ## Best Practices
 
-### Test Design
-
-1. **Realistic Load Patterns**: Base tests on actual user behavior
-2. **Gradual Load Increase**: Use ramp-up periods to avoid false failures
-3. **Think Time**: Include realistic delays between requests
-4. **Data Variety**: Use diverse test data sets
-5. **Error Handling**: Test both success and failure scenarios
+### Running Tests
+1. Run tests in isolation to avoid interference
+2. Use consistent load patterns for baseline comparison
+3. Monitor system resources during testing
+4. Document environment configuration
+5. Run tests multiple times for statistical confidence
 
 ### Performance Optimization
+1. Focus on high-impact, low-effort optimizations first
+2. Implement monitoring before making changes
+3. Test optimizations in staging environment
+4. Measure performance impact of each change
+5. Document optimization results and learnings
 
-1. **Database Queries**: Monitor and optimize slow queries
-2. **Caching**: Implement appropriate caching strategies
-3. **Connection Pooling**: Optimize database connections
-4. **Resource Management**: Monitor CPU, memory, and I/O usage
-5. **Content Delivery**: Optimize asset delivery and compression
-
-### Monitoring Strategy
-
-1. **Continuous Monitoring**: Run 24/7 health checks
-2. **Threshold Alerts**: Set appropriate alert thresholds
-3. **Trend Analysis**: Monitor performance trends over time
-4. **Capacity Planning**: Use data for infrastructure planning
-5. **Root Cause Analysis**: Correlate metrics with application changes
+### Continuous Improvement
+1. Schedule regular performance testing
+2. Set up automated performance regression detection
+3. Review and update performance thresholds quarterly
+4. Conduct performance reviews for new features
+5. Maintain performance optimization backlog
 
 ## Troubleshooting
 
 ### Common Issues
+- **Database timeouts**: Check connection pool configuration
+- **Redis connection errors**: Verify Redis server status and configuration
+- **K6 test failures**: Ensure API endpoints are accessible
+- **Memory issues**: Monitor Node.js heap usage during tests
 
-1. **Connection Timeouts**: Check network connectivity and service health
-2. **High Error Rates**: Validate test data and service configuration
-3. **Resource Exhaustion**: Monitor system resources during tests
-4. **Authentication Failures**: Verify test credentials and token management
-5. **Data Consistency**: Ensure test data cleanup between runs
-
-### Debug Mode
-
-Enable verbose logging:
-
-```bash
-DEBUG=performance-tests:* npm run test:load
-```
-
-### Performance Analysis
-
-1. **Response Time Spikes**: Check for garbage collection or database locks
-2. **Memory Leaks**: Monitor memory usage patterns
-3. **CPU Bottlenecks**: Profile application code
-4. **Network Issues**: Analyze network latency and bandwidth
-5. **Database Performance**: Review query execution plans
-
-## Support
-
-For issues and questions:
-
-1. Check the troubleshooting section above
-2. Review test logs in `results/` directory
-3. Monitor system metrics during test execution
-4. Validate environment configuration
-5. Consult performance testing best practices
-
-## Contributing
-
-1. Follow existing code patterns and conventions
-2. Add tests for new performance scenarios
-3. Update documentation for configuration changes
-4. Validate changes against baseline performance
-5. Include performance impact analysis in PRs
+### Support Resources
+- Performance testing documentation
+- Monitoring dashboard links
+- Team contacts for performance issues
+- Escalation procedures for critical performance problems

@@ -1,5 +1,5 @@
 import React from 'react';
-import { SearchIcon, FilterIcon } from '../common/Icons';
+import { SearchIcon, FilterIcon } from '@/components/common/Icons';
 
 interface CaseFiltersProps {
   onSearch: (query: string) => void;

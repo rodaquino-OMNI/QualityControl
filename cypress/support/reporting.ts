@@ -291,7 +291,7 @@ class TestReporter {
 const testReporter = new TestReporter();
 
 // Cypress hooks for automatic reporting
-Cypress.on('test:before:run', (test, runnable) => {
+Cypress.on('test:before:run', (_test, runnable) => {
   if (runnable.parent?.title && runnable.parent.title !== testReporter['currentSuite']?.suiteName) {
     if (testReporter['currentSuite']) {
       testReporter.endSuite();
@@ -337,7 +337,7 @@ export const takeEnhancedScreenshot = (name: string, options?: {
   cy.screenshot(name, {
     capture: options?.fullPage ? 'fullPage' : 'viewport',
     overwrite: true,
-    onAfterScreenshot: (el, props) => {
+    onAfterScreenshot: (_el, props) => {
       // Add annotations if specified
       if (options?.annotations) {
         // This would require additional image processing

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { UserController } from '../controllers/user.controller';
 import { AuthMiddleware } from '../middleware/auth.middleware';
 import { RBACService } from '../services/rbac.service';
-import { RedisService } from '../services/redis.service';
+import { RedisService } from '../services/redisService';
 import { PrismaClient } from '@prisma/client';
 
 export function createUserRoutes(

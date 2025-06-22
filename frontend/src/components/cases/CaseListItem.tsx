@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRightIcon, ClockIcon, UserIcon } from '../common/Icons';
+import { ChevronRightIcon, ClockIcon, UserIcon } from '@/components/common/Icons';
 
 interface Case {
   id: string;

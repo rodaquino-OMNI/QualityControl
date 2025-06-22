@@ -31,9 +31,9 @@ export class JWTService {
       expiresIn: authConfig.jwt.accessTokenExpiry,
       issuer: authConfig.jwt.issuer,
       audience: authConfig.jwt.audience,
-    };
+    } as SignOptions;
     
-    return sign(payload, authConfig.jwt.accessTokenSecret as string, options as any);
+    return sign(payload, authConfig.jwt.accessTokenSecret as string, options);
   }
 
   /**
@@ -52,9 +52,9 @@ export class JWTService {
       expiresIn: authConfig.jwt.refreshTokenExpiry,
       issuer: authConfig.jwt.issuer,
       audience: authConfig.jwt.audience,
-    };
+    } as SignOptions;
     
-    return sign(payload, authConfig.jwt.refreshTokenSecret as string, options as any);
+    return sign(payload, authConfig.jwt.refreshTokenSecret as string, options);
   }
 
   /**

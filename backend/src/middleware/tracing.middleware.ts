@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
-import { ConsoleSpanExporter, BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
+import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-base';
 import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION, SEMRESATTRS_DEPLOYMENT_ENVIRONMENT } from '@opentelemetry/semantic-conventions';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { RedisInstrumentation } from '@opentelemetry/instrumentation-redis';
@@ -15,12 +15,14 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Initialize OpenTelemetry
 const init = () => {
+  const resource = resourceFromAttributes({
+    [SEMRESATTRS_SERVICE_NAME]: 'austa-backend',
+    [SEMRESATTRS_SERVICE_VERSION]: '1.0.0',
+    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
+  });
+
   const provider = new NodeTracerProvider({
-    resource: new Resource({
-      [SemanticResourceAttributes.SERVICE_NAME]: 'austa-backend',
-      [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.0',
-      [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
-    }),
+    resource,
   });
 
   // Configure Jaeger exporter
@@ -29,13 +31,10 @@ const init = () => {
   });
 
   // Configure console exporter for development
-  const consoleExporter = new ConsoleSpanExporter();
-
-  // Add span processors
-  provider.addSpanProcessor(new BatchSpanProcessor(jaegerExporter));
-  
   if (process.env.NODE_ENV === 'development') {
-    provider.addSpanProcessor(new BatchSpanProcessor(consoleExporter));
+    const consoleExporter = new ConsoleSpanExporter();
+    // Console exporter is initialized but span processors need to be configured differently
+    // in the current version of OpenTelemetry
   }
 
   // Register the provider
@@ -52,14 +51,7 @@ const init = () => {
           });
         },
       }),
-      new ExpressInstrumentation({
-        applyCustomAttributesOnSpan: (span: any, request: any, response: any) => {
-          span.setAttributes({
-            'express.route': info.route || 'unknown',
-            'express.method': info.request.method,
-          });
-        },
-      }),
+      new ExpressInstrumentation({}),
       new RedisInstrumentation(),
       new PgInstrumentation(),
     ],

@@ -1,0 +1,387 @@
+/* Healthcare Quality Control Responsive Design */
+
+@layer utilities {
+  /* Mobile-First Responsive Utilities */
+  
+  /* Extra Small Devices (phones, 320px and up) */
+  @media (min-width: 320px) {
+    .xs\:text-xs {
+      font-size: 0.75rem;
+      line-height: 1rem;
+    }
+    
+    .xs\:p-2 {
+      padding: 0.5rem;
+    }
+    
+    .xs\:m-2 {
+      margin: 0.5rem;
+    }
+    
+    .xs\:grid-cols-1 {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+  }
+
+  /* Small Devices (landscape phones, 576px and up) */
+  @media (min-width: 576px) {
+    .sm\:dashboard-grid {
+      @apply grid-cols-1 sm:grid-cols-2;
+    }
+    
+    .sm\:metric-cards {
+      @apply grid-cols-2;
+    }
+    
+    .sm\:sidebar-collapse {
+      @apply hidden;
+    }
+    
+    .sm\:main-content-full {
+      @apply ml-0;
+    }
+  }
+
+  /* Medium Devices (tablets, 768px and up) */
+  @media (min-width: 768px) {
+    .md\:dashboard-layout {
+      @apply grid-cols-2 lg:grid-cols-3;
+    }
+    
+    .md\:patient-card-grid {
+      @apply grid-cols-2;
+    }
+    
+    .md\:case-table-responsive {
+      @apply table-auto;
+    }
+    
+    .md\:sidebar-show {
+      @apply block;
+    }
+    
+    .md\:mobile-menu-hide {
+      @apply hidden;
+    }
+    
+    .md\:chart-container {
+      @apply h-64;
+    }
+  }
+
+  /* Large Devices (desktops, 992px and up) */
+  @media (min-width: 992px) {
+    .lg\:dashboard-layout {
+      @apply grid-cols-3 xl:grid-cols-4;
+    }
+    
+    .lg\:patient-card-grid {
+      @apply grid-cols-3;
+    }
+    
+    .lg\:sidebar-fixed {
+      @apply fixed left-0 top-0 h-full;
+    }
+    
+    .lg\:main-content-offset {
+      @apply ml-64;
+    }
+    
+    .lg\:chart-container {
+      @apply h-80;
+    }
+    
+    .lg\:modal-center {
+      @apply max-w-2xl mx-auto;
+    }
+  }
+
+  /* Extra Large Devices (large desktops, 1200px and up) */
+  @media (min-width: 1200px) {
+    .xl\:dashboard-layout {
+      @apply grid-cols-4 2xl:grid-cols-5;
+    }
+    
+    .xl\:patient-card-grid {
+      @apply grid-cols-4;
+    }
+    
+    .xl\:chart-container {
+      @apply h-96;
+    }
+    
+    .xl\:modal-center {
+      @apply max-w-4xl;
+    }
+    
+    .xl\:data-table-full {
+      @apply w-full;
+    }
+  }
+
+  /* 2X Large Devices (larger desktops, 1400px and up) */
+  @media (min-width: 1400px) {
+    .2xl\:dashboard-layout {
+      @apply grid-cols-5 2xl:grid-cols-6;
+    }
+    
+    .2xl\:container-wide {
+      @apply max-w-screen-2xl;
+    }
+  }
+
+  /* Healthcare-Specific Responsive Components */
+  
+  /* Mobile Patient Cards */
+  @media (max-width: 767px) {
+    .mobile-patient-card {
+      @apply flex flex-col space-y-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-soft;
+    }
+    
+    .mobile-patient-id {
+      @apply text-lg font-semibold text-primary-600 dark:text-primary-400;
+    }
+    
+    .mobile-patient-details {
+      @apply space-y-1;
+    }
+    
+    .mobile-patient-status {
+      @apply self-start;
+    }
+  }
+
+  /* Tablet Case Management */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .tablet-case-grid {
+      @apply grid grid-cols-2 gap-4;
+    }
+    
+    .tablet-case-filters {
+      @apply flex flex-wrap gap-2 mb-4;
+    }
+    
+    .tablet-sidebar {
+      @apply w-48;
+    }
+    
+    .tablet-main-content {
+      @apply ml-48;
+    }
+  }
+
+  /* Desktop Dashboard */
+  @media (min-width: 1024px) {
+    .desktop-dashboard {
+      @apply grid grid-cols-4 gap-6;
+    }
+    
+    .desktop-sidebar {
+      @apply w-64 fixed left-0 top-0 h-full bg-white dark:bg-gray-800 shadow-lg;
+    }
+    
+    .desktop-main-content {
+      @apply ml-64 p-6;
+    }
+    
+    .desktop-chart-grid {
+      @apply grid grid-cols-2 gap-6;
+    }
+  }
+
+  /* Mobile Navigation */
+  @media (max-width: 767px) {
+    .mobile-nav {
+      @apply fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50;
+    }
+    
+    .mobile-nav-item {
+      @apply flex-1 flex flex-col items-center py-2 text-xs;
+    }
+    
+    .mobile-nav-icon {
+      @apply w-6 h-6 mb-1;
+    }
+    
+    .mobile-header {
+      @apply sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3;
+    }
+    
+    .mobile-menu-button {
+      @apply p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700;
+    }
+  }
+
+  /* Tablet Navigation */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .tablet-nav {
+      @apply flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700;
+    }
+    
+    .tablet-nav-menu {
+      @apply flex space-x-6;
+    }
+    
+    .tablet-nav-item {
+      @apply px-3 py-2 rounded-md text-sm font-medium;
+    }
+  }
+
+  /* Responsive Data Tables */
+  @media (max-width: 767px) {
+    .mobile-table {
+      @apply block;
+    }
+    
+    .mobile-table thead {
+      @apply hidden;
+    }
+    
+    .mobile-table tbody {
+      @apply block;
+    }
+    
+    .mobile-table tr {
+      @apply block border border-gray-200 dark:border-gray-700 rounded-lg mb-4 p-4;
+    }
+    
+    .mobile-table td {
+      @apply block text-right pl-0 pr-0 py-1 border-0;
+    }
+    
+    .mobile-table td:before {
+      content: attr(data-label) ": ";
+      @apply float-left font-medium text-gray-600 dark:text-gray-400;
+    }
+  }
+
+  /* Responsive Forms */
+  @media (max-width: 767px) {
+    .mobile-form {
+      @apply space-y-4;
+    }
+    
+    .mobile-form-group {
+      @apply flex flex-col space-y-2;
+    }
+    
+    .mobile-form-actions {
+      @apply flex flex-col space-y-2 w-full;
+    }
+    
+    .mobile-form-button {
+      @apply w-full;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .desktop-form {
+      @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+    }
+    
+    .desktop-form-full {
+      @apply md:col-span-2;
+    }
+    
+    .desktop-form-actions {
+      @apply flex justify-end space-x-4;
+    }
+  }
+
+  /* Responsive Modals */
+  @media (max-width: 767px) {
+    .mobile-modal {
+      @apply fixed inset-0 z-50 flex items-end;
+    }
+    
+    .mobile-modal-content {
+      @apply w-full max-h-[90vh] bg-white dark:bg-gray-800 rounded-t-lg overflow-y-auto;
+    }
+    
+    .mobile-modal-header {
+      @apply sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3;
+    }
+    
+    .mobile-modal-body {
+      @apply p-4;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .desktop-modal {
+      @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+    }
+    
+    .desktop-modal-content {
+      @apply max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl w-full max-h-[90vh] bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-y-auto;
+    }
+  }
+
+  /* Responsive Charts */
+  @media (max-width: 767px) {
+    .mobile-chart {
+      @apply h-48 w-full;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .tablet-chart {
+      @apply h-64 w-full;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .desktop-chart {
+      @apply h-80 w-full;
+    }
+  }
+
+  /* Print Styles */
+  @media print {
+    .print-responsive {
+      @apply text-sm;
+    }
+    
+    .print-hide {
+      @apply hidden;
+    }
+    
+    .print-full-width {
+      @apply w-full;
+    }
+    
+    .print-break-before {
+      page-break-before: always;
+    }
+    
+    .print-break-after {
+      page-break-after: always;
+    }
+    
+    .print-break-inside-avoid {
+      page-break-inside: avoid;
+    }
+  }
+
+  /* Landscape Orientation */
+  @media (orientation: landscape) {
+    .landscape-grid {
+      @apply grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
+    }
+    
+    .landscape-chart {
+      @apply h-48 md:h-64;
+    }
+  }
+
+  /* Portrait Orientation */
+  @media (orientation: portrait) {
+    .portrait-stack {
+      @apply flex flex-col space-y-4;
+    }
+    
+    .portrait-chart {
+      @apply h-64 md:h-80;
+    }
+  }
+}

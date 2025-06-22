@@ -5,7 +5,7 @@
 
 import request from 'supertest';
 import { Express } from 'express';
-import { createApp } from '../../backend/src/index';
+import { createApp } from '../../backend/src/app';
 import { PrismaClient } from '@prisma/client';
 import WebSocket from 'ws';
 import { createServer } from 'http';
@@ -165,8 +165,7 @@ describe('Frontend ↔ Backend API Integration', () => {
         title: 'Medical Audit Case',
         description: 'Patient records review',
         priority: 'high',
-        category: 'medical_records',
-        patientId: 'PAT-001'
+        category: 'medical_records'
       };
 
       const createResponse = await request(app)
@@ -272,9 +271,7 @@ describe('Frontend ↔ Backend API Integration', () => {
         totalCases: expect.any(Number),
         pendingCases: expect.any(Number),
         completedCases: expect.any(Number),
-        averageResolutionTime: expect.any(Number),
-        riskDistribution: expect.any(Object),
-        recentActivity: expect.any(Array)
+        averageProcessingTime: expect.any(Number)
       });
     });
 

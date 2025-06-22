@@ -1,6 +1,30 @@
 // Express type augmentations
 
 import { User } from './index';
+import session from 'express-session';
+
+// Extend Express Session data interface
+declare module 'express-session' {
+  interface SessionData {
+    // CSRF protection properties
+    csrfSecret?: string;
+    csrfToken?: string;
+    
+    // User session data
+    userId?: string;
+    deviceId?: string;
+    
+    // Session metadata
+    id?: string;
+    data?: Record<string, unknown>;
+  }
+}
+
+// Custom session interface with CSRF properties
+export interface CSRFSession extends session.Session, Partial<session.SessionData> {
+  csrfSecret?: string;
+  csrfToken?: string;
+}
 
 declare global {
   namespace Express {
@@ -14,12 +38,6 @@ declare global {
       
       // Session information
       sessionId?: string;
-      session?: {
-        id: string;
-        userId?: string;
-        deviceId?: string;
-        data?: Record<string, any>;
-      };
       
       // Request metadata
       requestId?: string;
@@ -68,6 +86,10 @@ declare global {
         locale?: string;
         timezone?: string;
       };
+      
+      // Tracing
+      traceId?: string;
+      span?: import('@opentelemetry/api').Span;
     }
     
     interface Response {

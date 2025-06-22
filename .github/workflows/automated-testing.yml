@@ -1,0 +1,732 @@
+name: Automated Testing & Quality Assurance
+
+on:
+  push:
+    branches: [ main, develop, feature/*, bugfix/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run automated tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - unit
+        - integration
+        - e2e
+        - performance
+        - security
+        - accessibility
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+        - test
+        - staging
+        - production
+      parallel_execution:
+        description: 'Enable parallel test execution'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  NODE_VERSION: '20.x'
+  PYTHON_VERSION: '3.11'
+  CACHE_VERSION: v1
+  FORCE_COLOR: 3
+  CI: true
+
+jobs:
+  # Pre-flight checks
+  preflight:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    outputs:
+      frontend-changed: ${{ steps.changes.outputs.frontend }}
+      backend-changed: ${{ steps.changes.outputs.backend }}
+      ai-service-changed: ${{ steps.changes.outputs.ai-service }}
+      docs-changed: ${{ steps.changes.outputs.docs }}
+      config-changed: ${{ steps.changes.outputs.config }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect changes
+      uses: dorny/paths-filter@v3
+      id: changes
+      with:
+        filters: |
+          frontend:
+            - 'frontend/**'
+            - 'package.json'
+            - 'package-lock.json'
+          backend:
+            - 'backend/**'
+            - 'package.json'
+            - 'package-lock.json'
+          ai-service:
+            - 'ai-service/**'
+            - 'requirements*.txt'
+          docs:
+            - 'docs/**'
+            - '*.md'
+          config:
+            - '.github/**'
+            - 'docker-compose*.yml'
+            - 'Dockerfile*'
+            - 'scripts/**'
+
+    - name: Validate workflow files
+      run: |
+        echo "Validating GitHub Actions workflow files..."
+        for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+          if [ -f "$file" ]; then
+            echo "Validating $file"
+            # Basic YAML syntax check
+            python -c "import yaml; yaml.safe_load(open('$file'))"
+          fi
+        done
+
+  # Code quality checks
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: preflight
+    strategy:
+      matrix:
+        service: [frontend, backend, ai-service]
+        include:
+          - service: frontend
+            path: ./frontend
+            setup: node
+          - service: backend
+            path: ./backend
+            setup: node
+          - service: ai-service
+            path: ./ai-service
+            setup: python
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      if: matrix.setup == 'node'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+    - name: Setup Python
+      if: matrix.setup == 'python'
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        cache-dependency-path: ${{ matrix.path }}/requirements*.txt
+
+    - name: Install dependencies (Node.js)
+      if: matrix.setup == 'node'
+      working-directory: ${{ matrix.path }}
+      run: npm ci
+
+    - name: Install dependencies (Python)
+      if: matrix.setup == 'python'
+      working-directory: ${{ matrix.path }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run linting (Node.js)
+      if: matrix.setup == 'node'
+      working-directory: ${{ matrix.path }}
+      run: |
+        npm run lint
+        npm run format:check
+
+    - name: Run linting (Python)
+      if: matrix.setup == 'python'
+      working-directory: ${{ matrix.path }}
+      run: |
+        flake8 app tests --max-line-length=88 --extend-ignore=E203,W503
+        black --check app tests
+        isort --check-only app tests
+
+    - name: Run type checking (Node.js)
+      if: matrix.setup == 'node'
+      working-directory: ${{ matrix.path }}
+      run: npm run typecheck
+
+    - name: Run type checking (Python)
+      if: matrix.setup == 'python'
+      working-directory: ${{ matrix.path }}
+      run: mypy app --strict
+
+    - name: Upload code quality reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: code-quality-${{ matrix.service }}
+        path: |
+          ${{ matrix.path }}/lint-results.json
+          ${{ matrix.path }}/type-check-results.json
+
+  # Unit tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [preflight, code-quality]
+    if: ${{ !failure() && (inputs.test_suite == 'all' || inputs.test_suite == 'unit') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [frontend, backend, ai-service]
+        include:
+          - service: frontend
+            path: ./frontend
+            setup: node
+            test_command: npm run test:coverage
+          - service: backend
+            path: ./backend
+            setup: node
+            test_command: npm run test:unit
+          - service: ai-service
+            path: ./ai-service
+            setup: python
+            test_command: pytest -v -m unit --cov=app --cov-report=xml --cov-report=html
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      if: matrix.setup == 'node'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+    - name: Setup Python
+      if: matrix.setup == 'python'
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        cache-dependency-path: ${{ matrix.path }}/requirements*.txt
+
+    - name: Install dependencies (Node.js)
+      if: matrix.setup == 'node'
+      working-directory: ${{ matrix.path }}
+      run: npm ci
+
+    - name: Install dependencies (Python)
+      if: matrix.setup == 'python'
+      working-directory: ${{ matrix.path }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Setup test database
+      if: matrix.service == 'backend'
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      run: npx prisma migrate deploy
+
+    - name: Run unit tests
+      working-directory: ${{ matrix.path }}
+      env:
+        NODE_ENV: test
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET: test-secret
+        OPENAI_API_KEY: test-key
+      run: ${{ matrix.test_command }}
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: unit-test-results-${{ matrix.service }}
+        path: |
+          ${{ matrix.path }}/coverage/
+          ${{ matrix.path }}/test-results.xml
+          ${{ matrix.path }}/htmlcov/
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: ${{ matrix.path }}/coverage
+        flags: ${{ matrix.service }}-unit
+        name: ${{ matrix.service }}-unit-coverage
+
+  # Integration tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    if: ${{ !failure() && (inputs.test_suite == 'all' || inputs.test_suite == 'integration') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, ai-service]
+        include:
+          - service: backend
+            path: ./backend
+            test_command: npm run test:integration
+          - service: ai-service
+            path: ./ai-service
+            test_command: pytest -v -m integration --cov=app --cov-report=xml
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: integration
+          POSTGRES_PASSWORD: integration
+          POSTGRES_DB: integration_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      if: matrix.service == 'backend'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+    - name: Setup Python
+      if: matrix.service == 'ai-service'
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        cache-dependency-path: ${{ matrix.path }}/requirements*.txt
+
+    - name: Install dependencies
+      working-directory: ${{ matrix.path }}
+      run: |
+        if [ "${{ matrix.service }}" = "backend" ]; then
+          npm ci
+        else
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+        fi
+
+    - name: Setup integration database
+      if: matrix.service == 'backend'
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://integration:integration@localhost:5432/integration_db
+      run: |
+        npx prisma migrate deploy
+        npx prisma generate
+
+    - name: Run integration tests
+      working-directory: ${{ matrix.path }}
+      env:
+        NODE_ENV: test
+        DATABASE_URL: postgresql://integration:integration@localhost:5432/integration_db
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET: integration-secret
+        OPENAI_API_KEY: test-key
+      run: ${{ matrix.test_command }}
+
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results-${{ matrix.service }}
+        path: |
+          ${{ matrix.path }}/coverage/
+          ${{ matrix.path }}/test-results.xml
+
+  # End-to-End tests
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: ${{ !failure() && (inputs.test_suite == 'all' || inputs.test_suite == 'e2e') }}
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: e2e
+          POSTGRES_PASSWORD: e2e
+          POSTGRES_DB: e2e_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+        cd ../backend && npm ci
+        cd ../ai-service && python -m pip install --upgrade pip && pip install -r requirements.txt
+
+    - name: Setup E2E database
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://e2e:e2e@localhost:5432/e2e_db
+      run: |
+        npx prisma migrate deploy
+        npx prisma db seed
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Start services
+      run: |
+        # Start backend
+        cd backend && npm run start &
+        BACKEND_PID=$!
+        
+        # Start AI service
+        cd ai-service && uvicorn app.main:app --host 0.0.0.0 --port 8001 &
+        AI_PID=$!
+        
+        # Start frontend
+        cd frontend && npm run preview -- --port 3000 &
+        FRONTEND_PID=$!
+        
+        # Store PIDs for cleanup
+        echo $BACKEND_PID > backend.pid
+        echo $AI_PID > ai.pid
+        echo $FRONTEND_PID > frontend.pid
+        
+        # Wait for services to be ready
+        npx wait-on http://localhost:8000/api/health http://localhost:8001/api/v1/health http://localhost:3000 --timeout 120000
+      env:
+        NODE_ENV: test
+        DATABASE_URL: postgresql://e2e:e2e@localhost:5432/e2e_db
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET: e2e-secret
+        OPENAI_API_KEY: test-key
+
+    - name: Run Cypress E2E tests
+      uses: cypress-io/github-action@v6
+      with:
+        working-directory: ./
+        wait-on: 'http://localhost:3000'
+        wait-on-timeout: 120
+        browser: chrome
+        record: true
+        parallel: ${{ inputs.parallel_execution }}
+        spec: |
+          cypress/e2e/auth.cy.ts
+          cypress/e2e/cases.cy.ts
+          cypress/e2e/medical-case-workflow.cy.ts
+          cypress/e2e/ai-decision-workflow.cy.ts
+      env:
+        CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Run accessibility tests
+      if: ${{ inputs.test_suite == 'all' || inputs.test_suite == 'accessibility' }}
+      uses: cypress-io/github-action@v6
+      with:
+        working-directory: ./
+        wait-on: 'http://localhost:3000'
+        spec: cypress/e2e/accessibility.cy.ts
+        browser: chrome
+
+    - name: Cleanup services
+      if: always()
+      run: |
+        if [ -f backend.pid ]; then kill $(cat backend.pid) || true; fi
+        if [ -f ai.pid ]; then kill $(cat ai.pid) || true; fi
+        if [ -f frontend.pid ]; then kill $(cat frontend.pid) || true; fi
+
+    - name: Upload E2E test artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: |
+          cypress/screenshots/
+          cypress/videos/
+          cypress/results/
+
+  # Performance tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [e2e-tests]
+    if: ${{ !failure() && (inputs.test_suite == 'all' || inputs.test_suite == 'performance') }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install Artillery
+      run: npm install -g artillery@latest
+
+    - name: Run performance tests
+      working-directory: ./performance-tests
+      run: |
+        # API Load Testing
+        artillery run scripts/artillery/api-stress.yml --output api-performance.json
+        
+        # Authentication Load Testing
+        artillery run scripts/artillery/auth-stress.yml --output auth-performance.json
+        
+        # General Stress Testing
+        artillery run scripts/artillery/stress-test.yml --output stress-performance.json
+
+    - name: Generate performance reports
+      run: |
+        artillery report performance-tests/api-performance.json --output performance-tests/reports/api-report.html
+        artillery report performance-tests/auth-performance.json --output performance-tests/reports/auth-report.html
+        artillery report performance-tests/stress-performance.json --output performance-tests/reports/stress-report.html
+
+    - name: Upload performance test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-test-results
+        path: |
+          performance-tests/reports/
+          performance-tests/*.json
+
+  # Security tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    needs: [code-quality]
+    if: ${{ !failure() && (inputs.test_suite == 'all' || inputs.test_suite == 'security') }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Setup Node.js for security audit
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Run npm security audit
+      run: |
+        echo "Running npm audit for frontend..."
+        cd frontend && npm audit --audit-level=moderate --production || true
+        cd ../backend && npm audit --audit-level=moderate --production || true
+
+    - name: Setup Python for security scan
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Run Python security scan
+      working-directory: ./ai-service
+      run: |
+        pip install bandit safety semgrep
+        bandit -r app -f json -o ../bandit-report.json || true
+        safety check --json --output ../safety-report.json || true
+        semgrep --config=auto app --json --output=../semgrep-report.json || true
+
+    - name: Run OWASP ZAP security scan
+      uses: zaproxy/action-baseline@v0.12.0
+      with:
+        target: 'http://localhost:3000'
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a'
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          trivy-results.sarif
+          bandit-report.json
+          safety-report.json
+          semgrep-report.json
+          report_html.html
+          report_md.md
+          report_json.json
+
+  # Test results aggregation
+  test-results:
+    name: Aggregate Test Results
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests, performance-tests, security-tests]
+    if: always()
+    steps:
+    - name: Download all test artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Generate comprehensive test report
+      run: |
+        mkdir -p test-reports
+        
+        echo "# Test Results Summary" > test-reports/summary.md
+        echo "Generated: $(date)" >> test-reports/summary.md
+        echo "" >> test-reports/summary.md
+        
+        echo "## Test Execution Status" >> test-reports/summary.md
+        echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> test-reports/summary.md
+        echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> test-reports/summary.md
+        echo "- E2E Tests: ${{ needs.e2e-tests.result }}" >> test-reports/summary.md
+        echo "- Performance Tests: ${{ needs.performance-tests.result }}" >> test-reports/summary.md
+        echo "- Security Tests: ${{ needs.security-tests.result }}" >> test-reports/summary.md
+        
+        echo "" >> test-reports/summary.md
+        echo "## Coverage Reports" >> test-reports/summary.md
+        
+        # Find and process coverage files
+        find . -name "coverage" -type d | while read dir; do
+          if [ -f "$dir/coverage-summary.json" ]; then
+            service=$(echo $dir | cut -d'/' -f2 | cut -d'-' -f4)
+            echo "- $service coverage available" >> test-reports/summary.md
+          fi
+        done
+
+    - name: Upload comprehensive test report
+      uses: actions/upload-artifact@v3
+      with:
+        name: comprehensive-test-report
+        path: test-reports/
+
+    - name: Comment test results on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          if (fs.existsSync('test-reports/summary.md')) {
+            const summary = fs.readFileSync('test-reports/summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🧪 Automated Test Results\n\n${summary}`
+            });
+          }
+
+  # Notification
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [test-results]
+    if: always()
+    steps:
+    - name: Send Slack notification
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#ci-cd'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+        text: |
+          Automated Test Suite Completed
+          Status: ${{ job.status }}
+          Branch: ${{ github.ref }}
+          Commit: ${{ github.sha }}

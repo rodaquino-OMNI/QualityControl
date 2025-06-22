@@ -167,7 +167,7 @@ export const checkCrossBrowserCompatibility = () => {
       // Take browser-specific screenshot for font comparison
       const browserName = Cypress.browser.name;
       cy.compareSnapshot(`font-rendering-${browserName}`, {
-        threshold: browser.name === 'firefox' ? 0.3 : 0.1,
+        threshold: browserName === 'firefox' ? 0.3 : 0.1,
         thresholdType: 'percent'
       });
     });

@@ -2,7 +2,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  roots: ['<rootDir>/src', '<rootDir>/tests', '<rootDir>/frontend/src'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -14,21 +14,37 @@ module.exports = {
     '^@store/(.*)$': '<rootDir>/src/store/$1',
     '^@assets/(.*)$': '<rootDir>/src/assets/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(svg|png|jpg|jpeg|gif)$': '<rootDir>/tests/mocks/fileMock.js',
   },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
         jsx: 'react-jsx',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+        moduleResolution: 'node',
+        strict: false,
+        skipLibCheck: true,
       },
+    }],
+    '^.+\\.(js|jsx)$': ['babel-jest', {
+      presets: [
+        ['@babel/preset-env', { targets: { node: 'current' } }],
+        ['@babel/preset-react', { runtime: 'automatic' }],
+      ],
     }],
   },
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
+    'frontend/src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/main.tsx',
     '!src/vite-env.d.ts',
+    '!**/node_modules/**',
+    '!**/dist/**',
+    '!**/coverage/**',
   ],
   coverageThreshold: {
     global: {
@@ -38,4 +54,51 @@ module.exports = {
       statements: 70,
     },
   },
+  
+  // Use centralized test timeout configuration
+  testTimeout: 10000,
+  
+  // Enhanced reporting for production readiness
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: 'test-results',
+      outputName: 'frontend-junit.xml',
+    }],
+  ],
+  
+  // Coverage reporting
+  coverageReporters: ['text', 'lcov', 'html', 'json'],
+  coverageDirectory: '<rootDir>/coverage',
+  
+  // Test execution optimization
+  maxWorkers: '50%',
+  
+  // Clear mocks between tests for isolation
+  clearMocks: true,
+  restoreMocks: true,
+  resetMocks: true,
+  
+  // Global test environment setup
+  testEnvironmentOptions: {
+    url: 'http://localhost:3000',
+  },
+  
+  // Error handling
+  bail: false,
+  verbose: true,
+  
+  // Ignore patterns
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/',
+    '/coverage/',
+    '\\.snap$',
+  ],
+  
+  // Watch plugins
+  watchPlugins: [
+    'jest-watch-typeahead/filename',
+    'jest-watch-typeahead/testname',
+  ],
 };

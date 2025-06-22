@@ -20,7 +20,7 @@ jest.mock('../src/utils/logger', () => ({
 }));
 
 // Global test utilities
-global.testUtils = {
+(global as any).testUtils = {
   generateToken: (payload: any) => {
     const jwt = require('jsonwebtoken');
     return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -32,6 +32,8 @@ global.testUtils = {
     params: {},
     headers: {},
     user: null,
+    ip: '127.0.0.1',
+    get: jest.fn(),
     ...options,
   }),
   
@@ -41,6 +43,8 @@ global.testUtils = {
     res.json = jest.fn().mockReturnValue(res);
     res.send = jest.fn().mockReturnValue(res);
     res.set = jest.fn().mockReturnValue(res);
+    res.setHeader = jest.fn().mockReturnValue(res);
+    res.statusCode = 200;
     return res;
   },
   

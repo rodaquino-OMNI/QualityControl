@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "types": ["cypress", "node", "cypress-file-upload", "cypress-axe"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowJs": true
+  },
+  "include": [
+    "**/*.ts",
+    "../cypress.config.ts",
+    "support/index.d.ts"
+  ],
+  "exclude": []
+}

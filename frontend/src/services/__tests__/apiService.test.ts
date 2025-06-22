@@ -11,6 +11,9 @@ describe('apiService', () => {
     // Clear all mocks before each test
     vi.clearAllMocks();
     
+    // Reset modules to ensure fresh imports
+    vi.resetModules();
+    
     // Set up default axios instance mock
     mockedAxios.create = vi.fn(() => ({
       interceptors: {
@@ -45,6 +48,10 @@ describe('apiService', () => {
     const mockData = { id: 1, name: 'Test' };
     const axiosInstance = {
       get: vi.fn().mockResolvedValue({ data: mockData }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+      patch: vi.fn(),
       interceptors: {
         request: { use: vi.fn() },
         response: { use: vi.fn() },
@@ -64,7 +71,11 @@ describe('apiService', () => {
     const postData = { name: 'New Item' };
     const responseData = { id: 1, ...postData };
     const axiosInstance = {
+      get: vi.fn(),
       post: vi.fn().mockResolvedValue({ data: responseData }),
+      put: vi.fn(),
+      delete: vi.fn(),
+      patch: vi.fn(),
       interceptors: {
         request: { use: vi.fn() },
         response: { use: vi.fn() },
@@ -84,9 +95,13 @@ describe('apiService', () => {
     const errorMessage = 'Network Error';
     const axiosInstance = {
       get: vi.fn().mockRejectedValue(new Error(errorMessage)),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+      patch: vi.fn(),
       interceptors: {
         request: { use: vi.fn() },
-        response: { use: vi.fn((success, error) => error) },
+        response: { use: vi.fn((_, error) => Promise.reject(error)) },
       },
     };
     
@@ -99,11 +114,25 @@ describe('apiService', () => {
 
   it('should add auth token to requests', async () => {
     const token = 'test-token';
-    localStorage.setItem('authToken', token);
+    
+    // Mock localStorage
+    const localStorageMock = {
+      getItem: vi.fn((key: string) => key === 'accessToken' ? token : null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+    });
     
     let requestInterceptor: any;
     const axiosInstance = {
       get: vi.fn().mockResolvedValue({ data: {} }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+      patch: vi.fn(),
       interceptors: {
         request: {
           use: vi.fn((interceptor) => {
@@ -126,13 +155,29 @@ describe('apiService', () => {
   });
 
   it('should handle token refresh on 401 errors', async () => {
-    let responseInterceptor: any;
+    // Mock localStorage
+    const localStorageMock = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+    });
+    
+    let errorInterceptor: any;
     const axiosInstance = {
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+      patch: vi.fn(),
       interceptors: {
         request: { use: vi.fn() },
         response: {
           use: vi.fn((_, error) => {
-            responseInterceptor = { error };
+            errorInterceptor = error;
           }),
         },
       },
@@ -148,6 +193,9 @@ describe('apiService', () => {
       config: {},
     };
     
-    await expect(responseInterceptor.error(error)).rejects.toMatchObject(error);
+    await expect(errorInterceptor(error)).rejects.toMatchObject(error);
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith('authToken');
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith('accessToken');
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith('refreshToken');
   });
 });

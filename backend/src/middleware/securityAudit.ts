@@ -74,7 +74,7 @@ export const securityAuditMiddleware = (req: Request, res: Response, next: NextF
   const clientIP = getClientIP(req);
   const userAgent = req.get('user-agent') || 'unknown';
   const userId = req.user?.id;
-  const sessionId = req.sessionID;
+  const sessionId = (req as any).sessionID || (req as any).sessionId;
 
   // Track IP activity
   trackIPActivity(clientIP);
@@ -103,11 +103,15 @@ export const securityAuditMiddleware = (req: Request, res: Response, next: NextF
 
   // Check for blocked IPs
   if (isIPBlocked(clientIP)) {
-    logSecurityEvent(SecurityEventType.UNAUTHORIZED_ACCESS, {
-      ...securityContext,
-      reason: 'blocked_ip',
-      severity: SecurityRiskLevel.HIGH,
-    });
+    logSecurityEvent(
+      SecurityEventType.UNAUTHORIZED_ACCESS,
+      SecurityRiskLevel.HIGH,
+      'Access denied due to blocked IP',
+      {
+        ...securityContext,
+        reason: 'blocked_ip'
+      }
+    );
 
     res.status(403).json({ 
       error: 'Access denied',
@@ -141,23 +145,35 @@ export const securityAuditMiddleware = (req: Request, res: Response, next: NextF
 
     // Log security events based on response
     if (res.statusCode === 401) {
-      logSecurityEvent(SecurityEventType.UNAUTHORIZED_ACCESS, {
-        ...securityContext,
-        reason: 'authentication_required',
-        severity: SecurityRiskLevel.MEDIUM,
-      });
+      logSecurityEvent(
+        SecurityEventType.UNAUTHORIZED_ACCESS,
+        SecurityRiskLevel.MEDIUM,
+        'Authentication required',
+        {
+          ...securityContext,
+          reason: 'authentication_required'
+        }
+      );
     } else if (res.statusCode === 403) {
-      logSecurityEvent(SecurityEventType.PERMISSION_DENIED, {
-        ...securityContext,
-        reason: 'insufficient_permissions',
-        severity: SecurityRiskLevel.HIGH,
-      });
+      logSecurityEvent(
+        SecurityEventType.PERMISSION_DENIED,
+        SecurityRiskLevel.HIGH,
+        'Insufficient permissions',
+        {
+          ...securityContext,
+          reason: 'insufficient_permissions'
+        }
+      );
     } else if (res.statusCode >= 500) {
-      logSecurityEvent(SecurityEventType.SUSPICIOUS_ACTIVITY, {
-        ...securityContext,
-        reason: 'server_error',
-        severity: SecurityRiskLevel.MEDIUM,
-      });
+      logSecurityEvent(
+        SecurityEventType.SUSPICIOUS_ACTIVITY,
+        SecurityRiskLevel.MEDIUM,
+        'Server error occurred',
+        {
+          ...securityContext,
+          reason: 'server_error'
+        }
+      );
     }
 
     return originalSend.call(this, data);
@@ -227,17 +243,21 @@ export const logAuthenticationEvent = (
   const clientIP = getClientIP(req);
   const userAgent = req.get('user-agent') || 'unknown';
 
-  logSecurityEvent(eventType, {
-    userId,
-    clientIP,
-    userAgent,
-    success,
-    requestId: req.id,
-    traceId: req.traceId,
-    timestamp: new Date().toISOString(),
-    severity: success ? SecurityRiskLevel.LOW : SecurityRiskLevel.HIGH,
-    ...details,
-  });
+  logSecurityEvent(
+    eventType,
+    success ? SecurityRiskLevel.LOW : SecurityRiskLevel.HIGH,
+    success ? 'Authentication successful' : 'Authentication failed',
+    {
+      userId,
+      clientIP,
+      userAgent,
+      success,
+      requestId: req.id,
+      traceId: req.traceId,
+      timestamp: new Date().toISOString(),
+      ...details,
+    }
+  );
 
   // Track failed login attempts
   if (!success && eventType === SecurityEventType.LOGIN_FAILURE) {
@@ -278,17 +298,21 @@ export const logDataAccess = (
 
   // Log security event for sensitive data access
   if (sensitive || personalData) {
-    logSecurityEvent(SecurityEventType.DATA_ACCESS, {
-      userId,
-      dataType,
-      dataId,
-      sensitive,
-      personalData,
-      clientIP,
-      severity: personalData ? SecurityRiskLevel.HIGH : SecurityRiskLevel.MEDIUM,
-      requestId: req.id,
-      traceId: req.traceId,
-    });
+    logSecurityEvent(
+      SecurityEventType.DATA_ACCESS,
+      personalData ? SecurityRiskLevel.HIGH : SecurityRiskLevel.MEDIUM,
+      'Sensitive data accessed',
+      {
+        userId,
+        dataType,
+        dataId,
+        sensitive,
+        personalData,
+        clientIP,
+        requestId: req.id,
+        traceId: req.traceId,
+      }
+    );
   }
 };
 
@@ -321,17 +345,21 @@ export const logDataModification = (
 
   // Log security event for sensitive data modification
   if (sensitive) {
-    logSecurityEvent(SecurityEventType.DATA_MODIFICATION, {
-      userId,
-      action,
-      dataType,
-      dataId,
-      changeCount: Object.keys(changes).length,
-      clientIP,
-      severity: SecurityRiskLevel.HIGH,
-      requestId: req.id,
-      traceId: req.traceId,
-    });
+    logSecurityEvent(
+      SecurityEventType.DATA_MODIFICATION,
+      SecurityRiskLevel.HIGH,
+      'Sensitive data modified',
+      {
+        userId,
+        action,
+        dataType,
+        dataId,
+        changeCount: Object.keys(changes).length,
+        clientIP,
+        requestId: req.id,
+        traceId: req.traceId,
+      }
+    );
   }
 };
 
@@ -376,13 +404,17 @@ function trackFailedLogin(ip: string, userId?: string): void {
       activity.blocked = true;
       suspiciousIPs.add(ip);
       
-      logSecurityEvent(SecurityEventType.BRUTE_FORCE_ATTEMPT, {
-        ip,
-        userId,
-        attempts: activity.count,
-        severity: SecurityRiskLevel.CRITICAL,
-        autoBlocked: true,
-      });
+      logSecurityEvent(
+        SecurityEventType.BRUTE_FORCE_ATTEMPT,
+        SecurityRiskLevel.CRITICAL,
+        'Brute force attempt detected',
+        {
+          ip,
+          userId,
+          attempts: activity.count,
+          autoBlocked: true,
+        }
+      );
     }
   }
 }

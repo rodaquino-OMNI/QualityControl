@@ -1,10 +1,15 @@
 import { createApi, fetchBaseQuery, BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '../index';
 import { setCredentials, logout } from '../slices/authSlice';
-import type { AuthTokens } from '../../../../shared/types';
+// Define AuthTokens locally until shared types are fixed
+interface AuthTokens {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api',
+  baseUrl: (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api',
   credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.accessToken;
@@ -46,7 +51,7 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
           setCredentials({
             user: user!,
             accessToken,
-            refreshToken: newRefreshToken,
+            refreshToken: newRefreshToken || '',
           })
         );
 

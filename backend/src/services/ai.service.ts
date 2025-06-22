@@ -11,9 +11,9 @@ interface CaseData {
     id: string;
     age?: number;
     gender?: string;
-    medicalHistory?: any;
+    medicalHistory?: Record<string, unknown>;
   };
-  documents?: any[];
+  documents?: Array<{ id: string; type: string; url?: string; content?: string }>;
 }
 
 interface AIAnalysisResult {
@@ -118,8 +118,8 @@ class AIService {
 
   async chat(params: {
     message: string;
-    caseContext: any;
-    conversationHistory: any[];
+    caseContext: CaseData;
+    conversationHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   }): Promise<ChatResponse> {
     try {
       // Prepare context

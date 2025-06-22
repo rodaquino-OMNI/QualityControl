@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { BrowserRouter } from 'react-router-dom';
@@ -12,45 +12,25 @@ import { api } from '@/store/api/apiSlice';
 vi.mock('@/store/api/apiSlice', () => {
   const mockApi = {
     reducerPath: 'api',
-    reducer: () => ({}),
-    middleware: () => (next: any) => (action: any) => next(action),
+    reducer: (state = {}) => state,
+    middleware: vi.fn(() => (next: any) => (action: any) => next(action)),
     endpoints: {},
   };
   
   return {
     api: mockApi,
-    apiSlice: {
-      injectEndpoints: () => ({
-        endpoints: {
-          login: { 
-            initiate: vi.fn(),
-            matchFulfilled: { match: () => false },
-            matchRejected: { match: () => false }
-          },
-          logout: { 
-            initiate: vi.fn(),
-            matchFulfilled: { match: () => false }
-          },
-          getCurrentUser: {
-            initiate: vi.fn(),
-            matchFulfilled: { match: () => false },
-            matchRejected: { match: () => false }
-          },
-          verifyMFA: {
-            matchFulfilled: { match: () => false },
-            matchRejected: { match: () => false }
-          }
-        },
-        useLoginMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-        useLogoutMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-        useGetCurrentUserQuery: () => ({ data: null, isLoading: false, refetch: vi.fn() }),
-        useVerifyMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-        useEnableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-        useDisableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-      })
-    }
   };
 });
+
+// Mock the auth service
+vi.mock('@/services/authService', () => ({
+  useLoginMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+  useLogoutMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+  useGetCurrentUserQuery: () => ({ data: null, isLoading: false, refetch: vi.fn() }),
+  useVerifyMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+  useEnableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+  useDisableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+}));
 
 describe('useAuth', () => {
   let store: any;
@@ -59,6 +39,17 @@ describe('useAuth', () => {
     // Reset mocks
     vi.clearAllMocks();
     
+    // Mock localStorage
+    const localStorageMock = {
+      getItem: vi.fn().mockReturnValue(null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+    });
+    
     // Create a fresh store for each test
     store = configureStore({
       reducer: {
@@ -66,6 +57,8 @@ describe('useAuth', () => {
         ui: uiReducer,
         api: api.reducer,
       },
+      middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware().concat(api.middleware),
     });
   });
 
@@ -78,20 +71,6 @@ describe('useAuth', () => {
   );
 
   it('should handle successful login', async () => {
-    // Mock successful login response
-    const mockUser = {
-      id: '1',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
-      username: 'testuser',
-      isActive: true,
-      isEmailVerified: true,
-      mfaEnabled: false,
-      createdAt: new Date().toISOString(),
-      roles: [{ name: 'auditor', displayName: 'Auditor' }],
-    };
-
     // Import the hook dynamically to ensure mocks are in place
     const { useAuth } = await import('@/hooks/useAuth');
     

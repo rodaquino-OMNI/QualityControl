@@ -83,3 +83,35 @@ build
 .yarn/unplugged
 .yarn/build-state.yml
 .yarn/install-state.gz
+
+# Memory and swarm data
+memory/backups/
+memory/data/*.backup*
+memory/data/*-recovery-*.json
+memory/data/swarm-*/
+memory/data/swarm-*.json
+backend/memory/
+
+# Reports
+reports/
+*-validation-*.json
+validation-*.json
+
+# Test results
+test-results/
+performance-tests/reports/
+
+# Generated files
+backend/tests/**/*.js
+backend/tests/**/*.js.map
+backend/tests/**/*.d.ts.map
+
+# Backup files
+*.backup
+*.backup[0-9]
+*.pre-*-backup
+
+# Temporary files
+test.html
+*.tmp
+temp-*

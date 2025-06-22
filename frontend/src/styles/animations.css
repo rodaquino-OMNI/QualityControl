@@ -1,0 +1,490 @@
+/* Healthcare Quality Control Animations */
+
+@layer utilities {
+  /* Page Transition Animations */
+  @keyframes pageSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes pageSlideOut {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+  }
+
+  @keyframes pageFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Dashboard Animations */
+  @keyframes dashboardCardEntry {
+    from {
+      opacity: 0;
+      transform: translateY(40px) scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes metricCountUp {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Healthcare Status Animations */
+  @keyframes criticalPulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes urgentBlink {
+    0%, 50%, 100% {
+      opacity: 1;
+    }
+    25%, 75% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes statusChange {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* Data Loading Animations */
+  @keyframes skeletonPulse {
+    0% {
+      background-position: -200px 0;
+    }
+    100% {
+      background-position: calc(200px + 100%) 0;
+    }
+  }
+
+  @keyframes dataRefresh {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes progressBar {
+    from {
+      width: 0;
+    }
+    to {
+      width: var(--progress-width, 100%);
+    }
+  }
+
+  /* Chart and Graph Animations */
+  @keyframes chartBarGrow {
+    from {
+      transform: scaleY(0);
+      transform-origin: bottom;
+    }
+    to {
+      transform: scaleY(1);
+      transform-origin: bottom;
+    }
+  }
+
+  @keyframes chartLineTrace {
+    from {
+      stroke-dashoffset: 1000;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes pieSliceReveal {
+    from {
+      transform: rotate(-90deg) scale(0);
+    }
+    to {
+      transform: rotate(-90deg) scale(1);
+    }
+  }
+
+  /* Form and Input Animations */
+  @keyframes inputFocus {
+    from {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+    to {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+    }
+  }
+
+  @keyframes formSuccess {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes formError {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(-5px);
+    }
+    75% {
+      transform: translateX(5px);
+    }
+  }
+
+  /* Modal and Dialog Animations */
+  @keyframes modalSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes modalSlideDown {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+  }
+
+  @keyframes backdropFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 0.5;
+    }
+  }
+
+  /* Notification Animations */
+  @keyframes notificationSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes notificationSlideOut {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes notificationBounce {
+    0%, 20%, 60%, 100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-10px);
+    }
+    80% {
+      transform: translateY(-5px);
+    }
+  }
+
+  /* Healthcare-Specific Animations */
+  @keyframes heartbeat {
+    0%, 40%, 80%, 100% {
+      transform: scale(1);
+    }
+    20%, 60% {
+      transform: scale(1.1);
+    }
+  }
+
+  @keyframes auditTrail {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes complianceCheck {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes patientDataUpdate {
+    0% {
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+    50% {
+      background-color: rgba(59, 130, 246, 0.3);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  /* Utility Animation Classes */
+  .animate-page-slide-in {
+    animation: pageSlideIn 0.3s ease-out;
+  }
+
+  .animate-page-slide-out {
+    animation: pageSlideOut 0.3s ease-out;
+  }
+
+  .animate-page-fade-in {
+    animation: pageFadeIn 0.4s ease-out;
+  }
+
+  .animate-dashboard-card-entry {
+    animation: dashboardCardEntry 0.5s ease-out;
+  }
+
+  .animate-metric-count-up {
+    animation: metricCountUp 0.6s ease-out;
+  }
+
+  .animate-critical-pulse {
+    animation: criticalPulse 2s infinite;
+  }
+
+  .animate-urgent-blink {
+    animation: urgentBlink 1s infinite;
+  }
+
+  .animate-status-change {
+    animation: statusChange 0.3s ease-out;
+  }
+
+  .animate-skeleton-pulse {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.5s infinite;
+  }
+
+  .dark .animate-skeleton-pulse {
+    background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+    background-size: 200% 100%;
+  }
+
+  .animate-data-refresh {
+    animation: dataRefresh 1s linear infinite;
+  }
+
+  .animate-progress-bar {
+    animation: progressBar 1s ease-out forwards;
+  }
+
+  .animate-chart-bar-grow {
+    animation: chartBarGrow 0.8s ease-out;
+  }
+
+  .animate-chart-line-trace {
+    stroke-dasharray: 1000;
+    animation: chartLineTrace 2s ease-out forwards;
+  }
+
+  .animate-pie-slice-reveal {
+    animation: pieSliceReveal 0.6s ease-out;
+  }
+
+  .animate-input-focus {
+    animation: inputFocus 0.2s ease-out;
+  }
+
+  .animate-form-success {
+    animation: formSuccess 0.4s ease-out;
+  }
+
+  .animate-form-error {
+    animation: formError 0.4s ease-out;
+  }
+
+  .animate-modal-slide-up {
+    animation: modalSlideUp 0.3s ease-out;
+  }
+
+  .animate-modal-slide-down {
+    animation: modalSlideDown 0.3s ease-out;
+  }
+
+  .animate-backdrop-fade-in {
+    animation: backdropFadeIn 0.3s ease-out;
+  }
+
+  .animate-notification-slide-in {
+    animation: notificationSlideIn 0.3s ease-out;
+  }
+
+  .animate-notification-slide-out {
+    animation: notificationSlideOut 0.3s ease-out;
+  }
+
+  .animate-notification-bounce {
+    animation: notificationBounce 0.6s ease-out;
+  }
+
+  .animate-heartbeat {
+    animation: heartbeat 1.5s ease-in-out infinite;
+  }
+
+  .animate-audit-trail {
+    animation: auditTrail 0.4s ease-out;
+  }
+
+  .animate-compliance-check {
+    animation: complianceCheck 0.5s ease-out;
+  }
+
+  .animate-patient-data-update {
+    animation: patientDataUpdate 2s ease-out;
+  }
+
+  /* Staggered Animation Delays */
+  .animate-delay-75 {
+    animation-delay: 75ms;
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-150 {
+    animation-delay: 150ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .animate-delay-700 {
+    animation-delay: 700ms;
+  }
+
+  .animate-delay-1000 {
+    animation-delay: 1000ms;
+  }
+
+  /* Reduced Motion Support */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-page-slide-in,
+    .animate-page-slide-out,
+    .animate-page-fade-in,
+    .animate-dashboard-card-entry,
+    .animate-metric-count-up,
+    .animate-status-change,
+    .animate-chart-bar-grow,
+    .animate-chart-line-trace,
+    .animate-pie-slice-reveal,
+    .animate-input-focus,
+    .animate-form-success,
+    .animate-form-error,
+    .animate-modal-slide-up,
+    .animate-modal-slide-down,
+    .animate-backdrop-fade-in,
+    .animate-notification-slide-in,
+    .animate-notification-slide-out,
+    .animate-notification-bounce,
+    .animate-audit-trail,
+    .animate-compliance-check,
+    .animate-patient-data-update {
+      animation: none;
+    }
+
+    .animate-critical-pulse,
+    .animate-urgent-blink,
+    .animate-data-refresh,
+    .animate-heartbeat {
+      animation: none;
+    }
+
+    .animate-skeleton-pulse {
+      animation: none;
+      background: #f0f0f0;
+    }
+
+    .dark .animate-skeleton-pulse {
+      background: #374151;
+    }
+  }
+}

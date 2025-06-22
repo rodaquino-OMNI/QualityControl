@@ -1,4 +1,6 @@
-import { waitForPageLoad, selectFromDropdown, checkNotification } from '../support/commands';
+/// <reference path="../support/index.d.ts" />
+
+import { waitForPageLoad } from '../support/commands';
 
 describe('Accessibility Testing with axe-core', () => {
   beforeEach(() => {
@@ -17,7 +19,7 @@ describe('Accessibility Testing with axe-core', () => {
       cy.visit('/login');
       waitForPageLoad();
 
-      cy.checkA11y(null, {
+      cy.checkA11y(undefined, {
         runOnly: {
           type: 'tag',
           values: ['wcag2a', 'wcag2aa', 'wcag21aa']
@@ -93,7 +95,7 @@ describe('Accessibility Testing with axe-core', () => {
 
       // Check main navigation
       cy.get('[data-testid="main-navigation"]').within(() => {
-        cy.checkA11y(null, {
+        cy.checkA11y(undefined, {
           runOnly: {
             type: 'tag',
             values: ['wcag2a', 'wcag2aa']
@@ -113,7 +115,7 @@ describe('Accessibility Testing with axe-core', () => {
 
       cy.get('[data-testid="create-case-modal"]').within(() => {
         // Check form accessibility
-        cy.checkA11y(null, {
+        cy.checkA11y(undefined, {
           rules: {
             'label': { enabled: true },
             'label-title-only': { enabled: true },
@@ -136,7 +138,7 @@ describe('Accessibility Testing with axe-core', () => {
       waitForPageLoad();
 
       cy.get('[data-testid="cases-table"]').within(() => {
-        cy.checkA11y(null, {
+        cy.checkA11y(undefined, {
           rules: {
             'table-fake-caption': { enabled: true },
             'td-headers-attr': { enabled: true },
@@ -160,7 +162,7 @@ describe('Accessibility Testing with axe-core', () => {
       cy.get('[data-testid="delete-case-button"]').click();
 
       cy.get('[data-testid="delete-confirmation-modal"]').within(() => {
-        cy.checkA11y(null, {
+        cy.checkA11y(undefined, {
           rules: {
             'aria-dialog-name': { enabled: true },
             'focus-order-semantics': { enabled: true }
@@ -169,7 +171,7 @@ describe('Accessibility Testing with axe-core', () => {
 
         // Verify modal traps focus
         cy.get('[data-testid="confirm-delete"]').focus();
-        cy.focused().tab({ shift: true });
+        cy.tab({ shift: true });
         cy.get('[data-testid="cancel-delete"]').should('be.focused');
       });
 
@@ -183,7 +185,7 @@ describe('Accessibility Testing with axe-core', () => {
       waitForPageLoad();
 
       cy.get('[data-testid="case-volume-chart"]').within(() => {
-        cy.checkA11y(null, {
+        cy.checkA11y(undefined, {
           rules: {
             'aria-valid-attr-value': { enabled: true },
             'aria-required-attr': { enabled: true }
@@ -205,15 +207,15 @@ describe('Accessibility Testing with axe-core', () => {
       waitForPageLoad();
 
       // Start navigation from skip link
-      cy.get('body').tab();
+      cy.tab();
       cy.focused().should('contain.text', 'Skip to main content');
 
       // Navigate through main sections
-      cy.focused().tab();
+      cy.tab();
       cy.focused().should('have.attr', 'data-testid', 'main-navigation');
 
       // Continue through interactive elements
-      cy.focused().tab();
+      cy.tab();
       cy.focused().should('be.visible');
     });
 
@@ -241,10 +243,10 @@ describe('Accessibility Testing with axe-core', () => {
       cy.get('[data-testid="create-case-modal"]').within(() => {
         // Tab through form fields
         cy.get('[data-testid="title-input"]').focus();
-        cy.focused().tab();
+        cy.tab();
         cy.get('[data-testid="description-input"]').should('be.focused');
 
-        cy.focused().tab();
+        cy.tab();
         cy.get('[data-testid="priority-select"]').should('be.focused');
 
         // Test select dropdown keyboard navigation
@@ -325,7 +327,7 @@ describe('Accessibility Testing with axe-core', () => {
       waitForPageLoad();
 
       // Run color contrast checks
-      cy.checkA11y(null, {
+      cy.checkA11y(undefined, {
         rules: {
           'color-contrast': { enabled: true },
           'color-contrast-enhanced': { enabled: true }
@@ -383,7 +385,7 @@ describe('Accessibility Testing with axe-core', () => {
       cy.visit('/dashboard');
       waitForPageLoad();
 
-      cy.checkA11y(null, {
+      cy.checkA11y(undefined, {
         runOnly: {
           type: 'tag',
           values: ['wcag2a', 'wcag2aa']
@@ -425,9 +427,9 @@ describe('Accessibility Testing with axe-core', () => {
       });
 
       // Navigate and interact using only keyboard
-      cy.get('body').tab();
-      cy.focused().tab(); // Skip to main navigation
-      cy.focused().tab(); // Move to cases section
+      cy.tab();
+      cy.tab(); // Skip to main navigation
+      cy.tab(); // Move to cases section
       
       // Should be able to reach and activate all interactive elements
       cy.get('[data-testid="create-case-button"]').focus().type('{enter}');

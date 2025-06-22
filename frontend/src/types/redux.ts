@@ -1,11 +1,55 @@
 // Redux state type definitions
 
-import { 
-  User, 
-  Case, 
-  Notification,
-  DashboardStats
-} from '../../../shared/types';
+// Define types locally until shared types are fixed
+interface Role {
+  name: string;
+  displayName?: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  username?: string;
+  avatar?: string;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
+  mfaEnabled?: boolean;
+  roles: Role[];
+  roleNames?: string[];
+  permissions?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface Case {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  type: string;
+  assignedTo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+}
+
+interface DashboardStats {
+  totalCases: number;
+  activeCases: number;
+  completedCases: number;
+  averageResolutionTime?: number;
+}
 
 // Auth state
 export interface AuthState {

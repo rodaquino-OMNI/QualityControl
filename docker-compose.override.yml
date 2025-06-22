@@ -1,8 +1,6 @@
 # Docker Compose Override for Development
 # This file is automatically loaded by docker-compose in development
 
-version: '3.8'
-
 services:
   frontend:
     build:
@@ -39,7 +37,7 @@ services:
       context: .
       dockerfile: Dockerfile.ai-service
       target: builder  # Use builder stage for development
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
     volumes:
       - ./ai-service:/app:delegated
       - ai-venv:/opt/venv

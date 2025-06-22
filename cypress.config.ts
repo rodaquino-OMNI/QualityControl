@@ -26,7 +26,7 @@ export default defineConfig({
           // Seed database with test data
           const { exec } = require('child_process');
           return new Promise((resolve, reject) => {
-            exec('npm run seed:test', (error, stdout, stderr) => {
+            exec('npm run seed:test', (error: any, stdout: string, _stderr: string) => {
               if (error) {
                 console.error('Database seeding failed:', error);
                 reject(error);
@@ -41,7 +41,7 @@ export default defineConfig({
           // Clean up test data
           const { exec } = require('child_process');
           return new Promise((resolve, reject) => {
-            exec('npm run db:clean', (error, stdout, stderr) => {
+            exec('npm run db:clean', (error: any, stdout: string, _stderr: string) => {
               if (error) {
                 console.error('Database cleanup failed:', error);
                 reject(error);
@@ -52,7 +52,7 @@ export default defineConfig({
             });
           });
         },
-        queryDatabase(query) {
+        queryDatabase(query: { sql: string; params: any[] }) {
           // Direct database queries for testing
           const { Pool } = require('pg');
           const pool = new Pool({
@@ -63,12 +63,12 @@ export default defineConfig({
             password: 'postgres',
           });
           
-          return pool.query(query.sql, query.params).then(result => {
+          return pool.query(query.sql, query.params).then((result: any) => {
             pool.end();
             return result.rows;
           });
         },
-        generateTestReport(data) {
+        generateTestReport(data: any) {
           // Generate test report
           const fs = require('fs');
           const path = require('path');
@@ -140,30 +140,7 @@ export default defineConfig({
     specPattern: 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
     supportFile: 'cypress/support/e2e.ts',
     experimentalWebKitSupport: true,
-    // Cross-browser testing
-    browsers: [
-      {
-        name: 'chrome',
-        family: 'chromium',
-        channel: 'stable',
-        displayName: 'Chrome',
-        version: '91.0.4472.124',
-      },
-      {
-        name: 'firefox',
-        family: 'firefox',
-        channel: 'stable',
-        displayName: 'Firefox',
-        version: '89.0.2',
-      },
-      {
-        name: 'edge',
-        family: 'chromium',
-        channel: 'stable',
-        displayName: 'Edge',
-        version: '91.0.864.59',
-      },
-    ],
+    // Cross-browser testing is handled automatically by Cypress
   },
   component: {
     devServer: {

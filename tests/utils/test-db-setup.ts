@@ -81,58 +81,68 @@ export class DatabaseTestSetup {
 
   private static async seedBasicData(): Promise<void> {
     try {
-      // Create default permissions
-      await this.prisma.permission.createMany({
-        data: [
-          { name: 'read_cases', description: 'Read cases' },
-          { name: 'write_cases', description: 'Write cases' },
-          { name: 'delete_cases', description: 'Delete cases' },
-          { name: 'admin_access', description: 'Admin access' }
-        ],
-        skipDuplicates: true
-      });
+      // Create default permissions - using any to handle dynamic Prisma types
+      const prismaModels = this.prisma as any;
+      
+      if (prismaModels.permission) {
+        await prismaModels.permission.createMany({
+          data: [
+            { name: 'read_cases', description: 'Read cases' },
+            { name: 'write_cases', description: 'Write cases' },
+            { name: 'delete_cases', description: 'Delete cases' },
+            { name: 'admin_access', description: 'Admin access' }
+          ],
+          skipDuplicates: true
+        });
+      }
 
       // Create default roles
-      const adminRole = await this.prisma.role.upsert({
-        where: { name: 'admin' },
-        update: {},
-        create: {
-          name: 'admin',
-          description: 'Administrator role'
-        }
-      });
+      let adminRole, auditorRole;
+      
+      if (prismaModels.role) {
+        adminRole = await prismaModels.role.upsert({
+          where: { name: 'admin' },
+          update: {},
+          create: {
+            name: 'admin',
+            description: 'Administrator role'
+          }
+        });
 
-      const auditorRole = await this.prisma.role.upsert({
-        where: { name: 'auditor' },
-        update: {},
-        create: {
-          name: 'auditor',
-          description: 'Auditor role'
-        }
-      });
+        auditorRole = await prismaModels.role.upsert({
+          where: { name: 'auditor' },
+          update: {},
+          create: {
+            name: 'auditor',
+            description: 'Auditor role'
+          }
+        });
+      }
 
       // Assign permissions to roles
-      const permissions = await this.prisma.permission.findMany();
-      
-      await this.prisma.rolePermission.createMany({
-        data: permissions.map(permission => ({
-          roleId: adminRole.id,
-          permissionId: permission.id
-        })),
-        skipDuplicates: true
-      });
+      if (prismaModels.permission && prismaModels.rolePermission && adminRole && auditorRole) {
+        const permissions = await prismaModels.permission.findMany();
+        
+        await prismaModels.rolePermission.createMany({
+          data: permissions.map((permission: any) => ({
+            roleId: adminRole.id,
+            permissionId: permission.id
+          })),
+          skipDuplicates: true
+        });
 
-      const auditorPermissions = permissions.filter(p => 
-        ['read_cases', 'write_cases'].includes(p.name)
-      );
-      
-      await this.prisma.rolePermission.createMany({
-        data: auditorPermissions.map(permission => ({
-          roleId: auditorRole.id,
-          permissionId: permission.id
-        })),
-        skipDuplicates: true
-      });
+        const auditorPermissions = permissions.filter((p: any) => 
+          ['read_cases', 'write_cases'].includes(p.name)
+        );
+        
+        await prismaModels.rolePermission.createMany({
+          data: auditorPermissions.map((permission: any) => ({
+            roleId: auditorRole.id,
+            permissionId: permission.id
+          })),
+          skipDuplicates: true
+        });
+      }
 
       console.log('✅ Basic test data seeded');
     } catch (error) {
@@ -190,14 +200,23 @@ export class DatabaseTestSetup {
   static async cleanupTestDatabase(prisma: PrismaClient): Promise<void> {
     try {
       // Clean up in correct order due to foreign key constraints
-      await prisma.caseNote.deleteMany();
-      await prisma.caseAttachment.deleteMany();
-      await prisma.caseAudit.deleteMany();
-      await prisma.case.deleteMany();
-      await prisma.userRole.deleteMany();
-      await prisma.rolePermission.deleteMany();
-      await prisma.user.deleteMany();
-      await prisma.department.deleteMany();
+      // Using any to handle dynamic Prisma model types
+      const models = [
+        'caseNote',
+        'caseAttachment', 
+        'caseAudit',
+        'case',
+        'userRole',
+        'rolePermission',
+        'user',
+        'department'
+      ];
+      
+      for (const model of models) {
+        if ((prisma as any)[model]) {
+          await (prisma as any)[model].deleteMany();
+        }
+      }
       
       await prisma.$disconnect();
       console.log('✅ Test database cleaned up');
@@ -211,7 +230,12 @@ export class DatabaseTestSetup {
     if (this.mongoClient) {
       const db = this.mongoClient.db('austa_test_logs');
       
-      const collections = await db.listCollections().toArray();
+      interface CollectionInfo {
+        name: string;
+        type?: string;
+      }
+      
+      const collections = await db.listCollections().toArray() as CollectionInfo[];
       for (const collection of collections) {
         await db.collection(collection.name).deleteMany({});
       }

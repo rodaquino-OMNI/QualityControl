@@ -1,0 +1,11 @@
+{
+  "accessToken": "mock-refresh-token",
+  "refreshToken": "mock-new-refresh-token",
+  "user": {
+    "id": "user-123",
+    "email": "test@example.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "role": "auditor"
+  }
+}

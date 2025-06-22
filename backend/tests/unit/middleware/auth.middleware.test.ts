@@ -1,70 +1,112 @@
+/// <reference path="../../globals.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { authMiddleware, requireRole } from '@/middleware/auth.middleware';
-import { UserService } from '@/services/user.service';
+import { AuthMiddleware } from '../../../src/middleware/auth.middleware';
 import { jest } from '@jest/globals';
 
-jest.mock('@/services/user.service');
+// Mock dependencies
+jest.mock('../../../src/services/jwt.service');
+jest.mock('../../../src/services/rbac.service');
+jest.mock('../../../src/services/redisService');
+jest.mock('@prisma/client');
 jest.mock('jsonwebtoken');
 
 describe('Auth Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let mockNext: NextFunction;
-  let mockUserService: jest.Mocked<UserService>;
+  let authMiddleware: AuthMiddleware;
+  let mockPrisma: any;
+  let mockRbacService: any;
+  let mockRedisService: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRequest = global.testUtils.createMockRequest();
-    mockResponse = global.testUtils.createMockResponse();
-    mockNext = global.testUtils.createMockNext();
-    mockUserService = new UserService() as jest.Mocked<UserService>;
+    mockRequest = (global as any).testUtils.createMockRequest();
+    mockResponse = (global as any).testUtils.createMockResponse();
+    mockNext = (global as any).testUtils.createMockNext();
+    
+    // Create mock services
+    mockPrisma = {
+      user: {
+        findUnique: jest.fn(),
+      },
+    };
+    mockRbacService = {
+      hasPermission: jest.fn(),
+      hasRole: jest.fn(),
+    };
+    mockRedisService = {
+      checkRateLimit: jest.fn(),
+    };
+    
+    authMiddleware = new AuthMiddleware(mockPrisma, mockRbacService, mockRedisService);
   });
 
-  describe('authMiddleware', () => {
+  describe('authenticate middleware', () => {
     it('should authenticate valid token', async () => {
       // Arrange
       const token = 'valid-token';
       const decodedToken = {
-        id: '1',
+        sub: '1',
         email: 'test@example.com',
-        role: 'auditor',
-        iat: Date.now() / 1000,
-        exp: Date.now() / 1000 + 3600,
+        roles: ['auditor'],
+        type: 'access',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
       };
       const user = {
         id: '1',
         email: 'test@example.com',
-        name: 'Test User',
-        role: 'auditor',
+        isActive: true,
       };
 
       mockRequest.headers = {
         authorization: `Bearer ${token}`,
       };
-      (jwt.verify as jest.Mock).mockReturnValue(decodedToken);
-      mockUserService.findById.mockResolvedValue(user);
+      
+      // Mock JWTService
+      const { JWTService } = require('../../../src/services/jwt.service');
+      JWTService.extractTokenFromHeader = jest.fn().mockReturnValue(token);
+      JWTService.verifyAccessToken = jest.fn().mockReturnValue(decodedToken);
+      
+      mockPrisma.user.findUnique.mockResolvedValue(user);
 
       // Act
-      await authMiddleware(
+      await authMiddleware.authenticate(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
       );
 
       // Assert
-      expect(jwt.verify).toHaveBeenCalledWith(token, process.env.JWT_SECRET);
-      expect(mockUserService.findById).toHaveBeenCalledWith('1');
-      expect(mockRequest.user).toEqual(user);
+      expect(JWTService.extractTokenFromHeader).toHaveBeenCalledWith(`Bearer ${token}`);
+      expect(JWTService.verifyAccessToken).toHaveBeenCalledWith(token);
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+        select: {
+          id: true,
+          email: true,
+          isActive: true,
+        },
+      });
+      expect(mockRequest.user).toEqual({
+        id: '1',
+        email: 'test@example.com',
+        roles: ['auditor'],
+      });
       expect(mockNext).toHaveBeenCalled();
     });
 
     it('should reject missing authorization header', async () => {
       // Arrange
       mockRequest.headers = {};
+      
+      const { JWTService } = require('../../../src/services/jwt.service');
+      JWTService.extractTokenFromHeader = jest.fn().mockReturnValue(null);
 
       // Act
-      await authMiddleware(
+      await authMiddleware.authenticate(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
@@ -73,10 +115,8 @@ describe('Auth Middleware', () => {
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'No token provided',
-        },
+        error: 'Authentication required',
+        code: 'NO_TOKEN',
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -86,9 +126,12 @@ describe('Auth Middleware', () => {
       mockRequest.headers = {
         authorization: 'InvalidFormat token',
       };
+      
+      const { JWTService } = require('../../../src/services/jwt.service');
+      JWTService.extractTokenFromHeader = jest.fn().mockReturnValue(null);
 
       // Act
-      await authMiddleware(
+      await authMiddleware.authenticate(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
@@ -97,10 +140,8 @@ describe('Auth Middleware', () => {
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'Invalid token format',
-        },
+        error: 'Authentication required',
+        code: 'NO_TOKEN',
       });
     });
 
@@ -110,14 +151,16 @@ describe('Auth Middleware', () => {
       mockRequest.headers = {
         authorization: `Bearer ${token}`,
       };
-      (jwt.verify as jest.Mock).mockImplementation(() => {
-        const error: any = new Error('jwt expired');
-        error.name = 'TokenExpiredError';
+      
+      const { JWTService } = require('../../../src/services/jwt.service');
+      JWTService.extractTokenFromHeader = jest.fn().mockReturnValue(token);
+      JWTService.verifyAccessToken = jest.fn().mockImplementation(() => {
+        const error = new Error('Access token expired');
         throw error;
       });
 
       // Act
-      await authMiddleware(
+      await authMiddleware.authenticate(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
@@ -126,10 +169,8 @@ describe('Auth Middleware', () => {
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'Token expired',
-        },
+        error: 'Token expired',
+        code: 'TOKEN_EXPIRED',
       });
     });
 
@@ -139,12 +180,15 @@ describe('Auth Middleware', () => {
       mockRequest.headers = {
         authorization: `Bearer ${token}`,
       };
-      (jwt.verify as jest.Mock).mockImplementation(() => {
+      
+      const { JWTService } = require('../../../src/services/jwt.service');
+      JWTService.extractTokenFromHeader = jest.fn().mockReturnValue(token);
+      JWTService.verifyAccessToken = jest.fn().mockImplementation(() => {
         throw new Error('invalid token');
       });
 
       // Act
-      await authMiddleware(
+      await authMiddleware.authenticate(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
@@ -153,10 +197,8 @@ describe('Auth Middleware', () => {
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'Invalid token',
-        },
+        error: 'Invalid token',
+        code: 'INVALID_TOKEN',
       });
     });
 
@@ -164,19 +206,23 @@ describe('Auth Middleware', () => {
       // Arrange
       const token = 'valid-token';
       const decodedToken = {
-        id: 'non-existent-id',
+        sub: 'non-existent-id',
         email: 'test@example.com',
-        role: 'auditor',
+        roles: ['auditor'],
+        type: 'access',
       };
 
       mockRequest.headers = {
         authorization: `Bearer ${token}`,
       };
-      (jwt.verify as jest.Mock).mockReturnValue(decodedToken);
-      mockUserService.findById.mockResolvedValue(null);
+      
+      const { JWTService } = require('../../../src/services/jwt.service');
+      JWTService.extractTokenFromHeader = jest.fn().mockReturnValue(token);
+      JWTService.verifyAccessToken = jest.fn().mockReturnValue(decodedToken);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
       // Act
-      await authMiddleware(
+      await authMiddleware.authenticate(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
@@ -185,67 +231,70 @@ describe('Auth Middleware', () => {
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'User not found',
-        },
+        error: 'Invalid token',
+        code: 'INVALID_USER',
       });
     });
   });
 
   describe('requireRole', () => {
-    it('should allow access for matching role', () => {
+    it('should allow access for matching role', async () => {
       // Arrange
       mockRequest.user = {
         id: '1',
         email: 'test@example.com',
-        role: 'admin',
+        roles: ['admin'],
       };
-      const middleware = requireRole('admin');
+      mockRbacService.hasRole.mockResolvedValue(true);
+      const middleware = authMiddleware.requireRole('admin');
 
       // Act
-      middleware(
+      await middleware(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
       );
 
       // Assert
+      expect(mockRbacService.hasRole).toHaveBeenCalledWith('1', 'admin');
       expect(mockNext).toHaveBeenCalled();
       expect(mockResponse.status).not.toHaveBeenCalled();
     });
 
-    it('should allow access for multiple roles', () => {
+    it('should allow access for any role using requireAnyRole', async () => {
       // Arrange
       mockRequest.user = {
         id: '1',
         email: 'test@example.com',
-        role: 'auditor',
+        roles: ['auditor'],
       };
-      const middleware = requireRole(['admin', 'auditor', 'reviewer']);
+      mockRbacService.hasAnyRole.mockResolvedValue(true);
+      const middleware = authMiddleware.requireAnyRole(['admin', 'auditor', 'reviewer']);
 
       // Act
-      middleware(
+      await middleware(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
       );
 
       // Assert
+      expect(mockRbacService.hasAnyRole).toHaveBeenCalledWith('1', ['admin', 'auditor', 'reviewer']);
       expect(mockNext).toHaveBeenCalled();
     });
 
-    it('should deny access for non-matching role', () => {
+    it('should deny access for non-matching role', async () => {
       // Arrange
       mockRequest.user = {
         id: '1',
         email: 'test@example.com',
-        role: 'viewer',
+        roles: ['viewer'],
       };
-      const middleware = requireRole('admin');
+      mockRbacService.hasRole.mockResolvedValue(false);
+      const middleware = authMiddleware.requireRole('admin');
 
       // Act
-      middleware(
+      await middleware(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
@@ -254,21 +303,20 @@ describe('Auth Middleware', () => {
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(403);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'Insufficient permissions',
-        },
+        error: 'Insufficient role',
+        code: 'FORBIDDEN',
+        required: 'admin',
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should handle missing user', () => {
+    it('should handle missing user', async () => {
       // Arrange
       mockRequest.user = undefined;
-      const middleware = requireRole('admin');
+      const middleware = authMiddleware.requireRole('admin');
 
       // Act
-      middleware(
+      await middleware(
         mockRequest as Request,
         mockResponse as Response,
         mockNext
@@ -277,10 +325,8 @@ describe('Auth Middleware', () => {
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'Authentication required',
-        },
+        error: 'Authentication required',
+        code: 'NO_AUTH',
       });
     });
   });

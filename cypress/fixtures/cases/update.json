@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "id": "case-123",
+    "title": "Updated Medical Audit Case",
+    "description": "Patient review updated",
+    "priority": "high",
+    "status": "in_progress",
+    "patientId": "PT123456",
+    "patientName": "John Doe",
+    "medicalRecord": "MRN789012",
+    "assignedTo": "auditor@austa.com",
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "updatedAt": "2024-01-15T11:00:00.000Z"
+  }
+}

@@ -6,18 +6,18 @@ import { RBACService } from '../services/rbac.service';
 
 export class UserController {
   private prisma: PrismaClient;
-  private rbacService: RBACService;
+  // private _rbacService: RBACService;
 
-  constructor(prisma: PrismaClient, rbacService: RBACService) {
+  constructor(prisma: PrismaClient, _rbacService: RBACService) {
     this.prisma = prisma;
-    this.rbacService = rbacService;
+    // this._rbacService = _rbacService;
   }
 
   /**
    * Get all users (paginated)
    * GET /api/users
    */
-  getUsers = [
+  getUsers: any[] = [
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('search').optional().trim(),
@@ -39,7 +39,7 @@ export class UserController {
         const skip = (page - 1) * limit;
 
         // Build where clause
-        const where: any = {};
+        const where: Record<string, any> = {};
         
         if (search) {
           where.OR = [
@@ -96,7 +96,7 @@ export class UserController {
             totalPages: Math.ceil(total / limit),
           },
         });
-      } catch (error: any) {
+      } catch (error) {
         return res.status(500).json({
           error: 'Failed to fetch users',
           code: 'FETCH_USERS_FAILED',
@@ -109,7 +109,7 @@ export class UserController {
    * Get user by ID
    * GET /api/users/:id
    */
-  getUserById = async (req: Request, res: Response) => {
+  getUserById = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { id } = req.params;
 
@@ -165,7 +165,7 @@ export class UserController {
    * Create new user
    * POST /api/users
    */
-  createUser = [
+  createUser: any[] = [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 8 }),
     body('firstName').trim().notEmpty(),
@@ -224,7 +224,7 @@ export class UserController {
           ...user,
           roles: [user.role],
         });
-      } catch (error: any) {
+      } catch (error) {
         return res.status(500).json({
           error: 'Failed to create user',
           code: 'CREATE_USER_FAILED',
@@ -237,7 +237,7 @@ export class UserController {
    * Update user
    * PUT /api/users/:id
    */
-  updateUser = [
+  updateUser: any[] = [
     body('email').optional().isEmail().normalizeEmail(),
     body('firstName').optional().trim().notEmpty(),
     body('lastName').optional().trim().notEmpty(),
@@ -266,7 +266,14 @@ export class UserController {
         }
 
         // Update user
-        const updateData: any = {};
+        const updateData: Partial<{
+          email: string;
+          firstName: string;
+          lastName: string;
+          name: string;
+          username: string;
+          isActive: boolean;
+        }> = {};
         if (email) updateData.email = email;
         if (firstName) updateData.firstName = firstName;
         if (lastName) updateData.lastName = lastName;
@@ -294,7 +301,7 @@ export class UserController {
           ...user,
           roles: [user.role],
         });
-      } catch (error: any) {
+      } catch (error) {
         return res.status(500).json({
           error: 'Failed to update user',
           code: 'UPDATE_USER_FAILED',
@@ -307,7 +314,7 @@ export class UserController {
    * Delete user
    * DELETE /api/users/:id
    */
-  deleteUser = async (req: Request, res: Response) => {
+  deleteUser = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { id } = req.params;
 
@@ -352,7 +359,7 @@ export class UserController {
    * Update user roles
    * PUT /api/users/:id/roles
    */
-  updateUserRoles = [
+  updateUserRoles: any[] = [
     body('role').isString(),
     async (req: Request, res: Response) => {
       try {
@@ -391,7 +398,7 @@ export class UserController {
           ...user,
           roles: [user.role],
         });
-      } catch (error: any) {
+      } catch (error) {
         return res.status(500).json({
           error: 'Failed to update user roles',
           code: 'UPDATE_ROLES_FAILED',
@@ -404,7 +411,7 @@ export class UserController {
    * Reset user password
    * POST /api/users/:id/reset-password
    */
-  resetPassword = [
+  resetPassword: any[] = [
     body('password').isLength({ min: 8 }),
     async (req: Request, res: Response) => {
       try {
@@ -440,7 +447,7 @@ export class UserController {
         });
 
         return res.json({ message: 'Password reset successfully' });
-      } catch (error: any) {
+      } catch (error) {
         return res.status(500).json({
           error: 'Failed to reset password',
           code: 'RESET_PASSWORD_FAILED',

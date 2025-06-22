@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 const { body, query, param, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { queues } from '../config/queues';
-import { logger } from '../utils/logger';
+import { logger, logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
 
@@ -85,7 +85,7 @@ router.get(
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -172,7 +172,7 @@ router.get(
 router.patch(
   '/:id/read',
   [param('id').isUUID()],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -220,7 +220,7 @@ router.patch(
  */
 router.patch(
   '/read-all',
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const updated = await prisma.notification.updateMany({
         where: {
@@ -276,7 +276,7 @@ router.patch(
  */
 router.get(
   '/preferences',
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const preferences = await prisma.notificationPreference.findUnique({
         where: { userId: req.user!.id },
@@ -284,7 +284,7 @@ router.get(
 
       if (!preferences) {
         // Return default preferences
-        return res.json({
+        res.json({
           success: true,
           data: {
             preferences: {
@@ -308,6 +308,7 @@ router.get(
             },
           },
         });
+        return;
       }
 
       res.json({
@@ -352,7 +353,7 @@ router.put(
     body('push').optional().isObject(),
     body('sms').optional().isObject(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -377,7 +378,7 @@ router.put(
         },
       });
 
-      logger.logAudit('notification.preferences.updated', req.user!.id, {
+      logAuditEvent('notification.preferences.updated', req.user!.id, req.user!.id, {
         email,
         push,
         sms,
@@ -450,7 +451,7 @@ router.post(
     body('priority').optional().isIn(['low', 'medium', 'high']),
     body('channels').optional().isArray(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -497,7 +498,7 @@ router.post(
         }
       }
 
-      logger.logAudit('notification.bulk.sent', req.user!.id, {
+      logAuditEvent('notification.bulk.sent', req.user!.id, 'bulk-notification', {
         recipientCount: recipients.length,
         type,
         channels,
@@ -544,7 +545,7 @@ router.post(
 router.post(
   '/test',
   [body('channel').isIn(['email', 'push', 'sms'])],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {

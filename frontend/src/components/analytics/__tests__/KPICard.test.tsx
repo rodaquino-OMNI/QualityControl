@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/test-utils';
 import KPICard from '../KPICard';
-import type { KPIMetric } from '../../../types/analytics';
+import type { KPIMetric } from '@/types/analytics';
 
 describe('KPICard', () => {
   const defaultMetric: KPIMetric = {
@@ -46,7 +46,7 @@ describe('KPICard', () => {
         metric={{
           ...defaultMetric,
           percentage: 0,
-          trend: 'neutral'
+          trend: 'stable'
         }}
       />
     );

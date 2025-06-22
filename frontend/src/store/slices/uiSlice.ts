@@ -10,6 +10,7 @@ interface Notification {
 interface UiState {
   theme: 'light' | 'dark';
   sidebarOpen: boolean;
+  sidebarCollapsed: boolean;
   notifications: Notification[];
   isLoading: boolean;
   activeModal: string | null;
@@ -18,6 +19,7 @@ interface UiState {
 const initialState: UiState = {
   theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'light',
   sidebarOpen: true,
+  sidebarCollapsed: false,
   notifications: [],
   isLoading: false,
   activeModal: null,
@@ -51,6 +53,12 @@ const uiSlice = createSlice({
     setSidebarOpen: (state, action: PayloadAction<boolean>) => {
       state.sidebarOpen = action.payload;
     },
+    toggleSidebarCollapsed: (state) => {
+      state.sidebarCollapsed = !state.sidebarCollapsed;
+    },
+    setSidebarCollapsed: (state, action: PayloadAction<boolean>) => {
+      state.sidebarCollapsed = action.payload;
+    },
     addNotification: (state, action: PayloadAction<Notification>) => {
       state.notifications.push(action.payload);
     },
@@ -76,6 +84,8 @@ export const {
   setTheme,
   toggleSidebar,
   setSidebarOpen,
+  toggleSidebarCollapsed,
+  setSidebarCollapsed,
   addNotification,
   removeNotification,
   setLoading,

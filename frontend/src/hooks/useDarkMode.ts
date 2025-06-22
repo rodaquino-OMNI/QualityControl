@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector } from '../store/hooks';
 
 export const useDarkMode = () => {
   const theme = useAppSelector((state) => state.ui.theme);

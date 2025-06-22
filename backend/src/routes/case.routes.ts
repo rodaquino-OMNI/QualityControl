@@ -95,7 +95,8 @@ router.get(
       const cacheKey = `cases:${JSON.stringify({ where, page, limit, sortBy, sortOrder })}`;
       const cached = await cache.get(cacheKey);
       if (cached) {
-        return res.json(cached);
+        res.json(cached);
+        return;
       }
 
       // Get cases
@@ -116,7 +117,7 @@ router.get(
                 gender: true,
               },
             },
-            // No decisions relation on Case model
+            // associations included
           },
         }),
         prisma.case.count({ where }),
@@ -301,12 +302,15 @@ router.post(
       const newCase = await prisma.case.create({
         data: {
           patientId,
-          procedureCode,
-          procedureDescription,
-          value,
+          title: procedureCode,
+          description: procedureDescription,
           priority,
           status: 'open',
-          requestDate: new Date(),
+          createdBy: req.user!.id,
+          metadata: {
+            procedureCode,
+            value
+          },
           attachments: attachments ? {
             create: attachments,
           } : undefined,
@@ -486,7 +490,7 @@ router.post(
         where: { id },
         data: {
           assignedTo: auditorId,
-          status: 'in_progress',
+          status: 'in_review' as any,
           assignedAt: new Date(),
         },
       });

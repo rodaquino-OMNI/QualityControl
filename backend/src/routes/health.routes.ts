@@ -107,7 +107,7 @@ const router = Router();
  *                   type: string
  *                   example: 1.0.0
  */
-router.get('/', (req: Request, res: Response) => {
+router.get('/', (req: Request, res: Response): void => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -144,11 +144,12 @@ router.get('/', (req: Request, res: Response) => {
  *                 performance:
  *                   type: object
  */
-router.get('/detailed', async (req: Request, res: Response) => {
+router.get('/detailed', async (req: Request, res: Response): Promise<void> => {
   const cacheKey = 'detailed-health';
   const cached = getCachedHealth(cacheKey);
   if (cached) {
-    return res.status(cached.status === 'healthy' ? 200 : 503).json(cached);
+    res.status(cached.status === 'healthy' ? 200 : 503).json(cached);
+    return;
   }
   const startTime = performance.now();
   const healthChecks = {
@@ -184,7 +185,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       circuit_breaker: circuitBreakers.database.getState().state,
       connection_count: result.connectionCount,
       database_size: result.dbSize
-    };
+    } as any;
   } catch (error) {
     logger.error('Database health check failed:', error);
     healthChecks.database = {
@@ -192,7 +193,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       latency: 0,
       circuit_breaker: circuitBreakers.database.getState().state,
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    } as any;
   }
 
   // Check Redis with circuit breaker
@@ -204,7 +205,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       
       // Additional Redis health checks
       const info = await redis.info();
-      const memoryUsage = await redis.memory('usage');
+      const memoryUsage = await redis.memory('STATS');
       
       return {
         latency,
@@ -221,7 +222,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       circuit_breaker: circuitBreakers.redis.getState().state,
       memory_usage: result.memoryUsage,
       connected_clients: result.info.connected_clients || 0
-    };
+    } as any;
   } catch (error) {
     logger.error('Redis health check failed:', error);
     healthChecks.redis = {
@@ -229,7 +230,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       latency: 0,
       circuit_breaker: circuitBreakers.redis.getState().state,
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    } as any;
   }
 
   // Check queues with circuit breaker
@@ -248,7 +249,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       details: result,
       circuit_breaker: circuitBreakers.queues.getState().state,
       failed_jobs_count: failedJobs
-    };
+    } as any;
   } catch (error) {
     logger.error('Queue health check failed:', error);
     healthChecks.queues = {
@@ -256,7 +257,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       details: {},
       circuit_breaker: circuitBreakers.queues.getState().state,
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    } as any;
   }
   
   // Check AI service
@@ -276,7 +277,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       latency: result.latency,
       circuit_breaker: circuitBreakers.aiService.getState().state,
       ai_status: result.data.status
-    };
+    } as any;
   } catch (error) {
     logger.error('AI service health check failed:', error);
     healthChecks.ai_service = {
@@ -284,7 +285,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
       latency: 0,
       circuit_breaker: circuitBreakers.aiService.getState().state,
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    } as any;
   }
   
   // Check external APIs
@@ -365,7 +366,7 @@ router.get('/detailed', async (req: Request, res: Response) => {
  *       503:
  *         description: Service is not ready
  */
-router.get('/ready', async (req: Request, res: Response) => {
+router.get('/ready', async (req: Request, res: Response): Promise<void> => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     await redis.ping();
@@ -386,7 +387,7 @@ router.get('/ready', async (req: Request, res: Response) => {
  *       200:
  *         description: Service is alive
  */
-router.get('/live', (req: Request, res: Response) => {
+router.get('/live', (req: Request, res: Response): void => {
   res.status(200).json({ alive: true });
 });
 
@@ -469,7 +470,7 @@ async function checkExternalAPIs(): Promise<any> {
  *       200:
  *         description: Health metrics
  */
-router.get('/metrics', (req: Request, res: Response) => {
+router.get('/metrics', (req: Request, res: Response): void => {
   const memUsage = process.memoryUsage();
   const cpuUsage = process.cpuUsage();
   
@@ -508,7 +509,7 @@ function getEventLoopLag(): number {
  *       200:
  *         description: Circuit breaker status
  */
-router.get('/circuit-breakers', (req: Request, res: Response) => {
+router.get('/circuit-breakers', (req: Request, res: Response): void => {
   res.json({
     timestamp: new Date().toISOString(),
     circuit_breakers: {

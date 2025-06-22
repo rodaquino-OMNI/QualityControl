@@ -112,7 +112,7 @@ export const metricsMiddleware = (req: Request, res: Response, next: Function) =
 };
 
 // Main metrics endpoint for Prometheus
-router.get('/metrics', async (req: Request, res: Response) => {
+router.get('/metrics', async (_req: Request, res: Response) => {
   try {
     // Update business metrics with current data
     await updateBusinessMetrics();
@@ -126,7 +126,7 @@ router.get('/metrics', async (req: Request, res: Response) => {
 });
 
 // Business metrics endpoint
-router.get('/business-metrics', async (req: Request, res: Response) => {
+router.get('/business-metrics', async (_req: Request, res: Response) => {
   try {
     const businessData = await getBusinessMetrics();
     
@@ -153,7 +153,7 @@ router.get('/business-metrics', async (req: Request, res: Response) => {
 });
 
 // Security metrics endpoint
-router.get('/security-metrics', async (req: Request, res: Response) => {
+router.get('/security-metrics', async (_req: Request, res: Response) => {
   try {
     const securityData = await getSecurityMetrics();
     
@@ -185,9 +185,10 @@ router.get('/security-metrics', async (req: Request, res: Response) => {
 });
 
 // APM metrics endpoint
-router.get('/apm-metrics', async (req: Request, res: Response) => {
+router.get('/apm-metrics', async (_req: Request, res: Response) => {
   try {
-    const apmData = await getAPMMetrics();
+    // Get APM metrics data for monitoring purposes
+    await getAPMMetrics();
     
     const apmMetricsText = await register.getSingleMetricAsString('austa_http_requests_total') +
                           await register.getSingleMetricAsString('austa_http_request_duration_seconds') +
@@ -203,7 +204,7 @@ router.get('/apm-metrics', async (req: Request, res: Response) => {
 });
 
 // Case processing metrics endpoint
-router.get('/case-metrics', async (req: Request, res: Response) => {
+router.get('/case-metrics', async (_req: Request, res: Response) => {
   try {
     const caseData = await getCaseMetrics();
     

@@ -1,4 +1,119 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+echo "🔍 Running pre-commit checks..."
+
+# Check if we're in a merge/rebase
+if [ -f .git/MERGE_HEAD ] || [ -f .git/REBASE_HEAD ]; then
+  echo "⚠️  Skipping pre-commit hooks during merge/rebase"
+  exit 0
+fi
+
+# Run lint-staged
+echo "📝 Running lint-staged..."
 npx lint-staged
+
+# Run type checking for changed TypeScript files
+echo "🔍 Running type checks..."
+if git diff --cached --name-only | grep -E '\.(ts|tsx)$' > /dev/null; then
+  echo "TypeScript files changed, running type check..."
+  
+  # Frontend type check
+  if git diff --cached --name-only | grep '^frontend/' > /dev/null; then
+    echo "Checking frontend types..."
+    cd frontend && npm run typecheck
+    if [ $? -ne 0 ]; then
+      echo "❌ Frontend type check failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+  # Backend type check
+  if git diff --cached --name-only | grep '^backend/' > /dev/null; then
+    echo "Checking backend types..."
+    cd backend && npm run typecheck
+    if [ $? -ne 0 ]; then
+      echo "❌ Backend type check failed"
+      exit 1
+    fi
+    cd ..
+  fi
+fi
+
+# Run Python type checking for AI service
+if git diff --cached --name-only | grep '^ai-service/.*\.py$' > /dev/null; then
+  echo "Python files changed, running mypy..."
+  cd ai-service && python -m mypy app --strict
+  if [ $? -ne 0 ]; then
+    echo "❌ Python type check failed"
+    exit 1
+  fi
+  cd ..
+fi
+
+# Check for debugging statements
+echo "🐛 Checking for debugging statements..."
+if git diff --cached --name-only | xargs grep -l "console\.log\|debugger\|print(" 2>/dev/null; then
+  echo "⚠️  Found debugging statements in staged files:"
+  git diff --cached --name-only | xargs grep -n "console\.log\|debugger\|print(" 2>/dev/null || true
+  echo "Please remove debugging statements before committing."
+  echo "Use 'git add -p' to stage specific changes or add '// eslint-disable-next-line' for intentional console.log"
+fi
+
+# Check for TODO/FIXME comments in staged files
+echo "📝 Checking for TODO/FIXME comments..."
+if git diff --cached --name-only | xargs grep -l "TODO\|FIXME\|XXX" 2>/dev/null; then
+  echo "📋 Found TODO/FIXME comments in staged files:"
+  git diff --cached --name-only | xargs grep -n "TODO\|FIXME\|XXX" 2>/dev/null || true
+  echo "Consider creating GitHub issues for these items."
+fi
+
+# Validate JSON files
+echo "🔍 Validating JSON files..."
+for file in $(git diff --cached --name-only | grep '\.json$'); do
+  if [ -f "$file" ]; then
+    python -m json.tool "$file" > /dev/null
+    if [ $? -ne 0 ]; then
+      echo "❌ Invalid JSON file: $file"
+      exit 1
+    fi
+  fi
+done
+
+# Check for sensitive information
+echo "🔒 Checking for sensitive information..."
+SECRETS_PATTERN="(password|secret|key|token|api_key|private_key|access_key)"
+if git diff --cached --name-only | xargs grep -i "$SECRETS_PATTERN" 2>/dev/null | grep -v "test\|example\|placeholder"; then
+  echo "⚠️  Potential sensitive information found in staged files:"
+  git diff --cached --name-only | xargs grep -i -n "$SECRETS_PATTERN" 2>/dev/null | grep -v "test\|example\|placeholder" || true
+  echo "Please review and ensure no actual secrets are committed."
+fi
+
+# Run quick unit tests for changed files
+echo "🧪 Running quick unit tests for changed files..."
+if git diff --cached --name-only | grep -E '^(frontend|backend)/.*\.(ts|tsx|js|jsx)$' > /dev/null; then
+  # Frontend tests
+  if git diff --cached --name-only | grep '^frontend/' > /dev/null; then
+    echo "Running frontend tests..."
+    cd frontend && npm run test -- --passWithNoTests --findRelatedTests $(git diff --cached --name-only | grep '^frontend/' | tr '\n' ' ')
+    if [ $? -ne 0 ]; then
+      echo "❌ Frontend tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+  # Backend tests
+  if git diff --cached --name-only | grep '^backend/' > /dev/null; then
+    echo "Running backend tests..."
+    cd backend && npm run test:unit -- --passWithNoTests --findRelatedTests $(git diff --cached --name-only | grep '^backend/' | tr '\n' ' ')
+    if [ $? -ne 0 ]; then
+      echo "❌ Backend tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+fi
+
+echo "✅ All pre-commit checks passed!"

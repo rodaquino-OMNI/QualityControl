@@ -72,6 +72,127 @@ export class TestDataFactory {
     });
   }
 
+  async createPatient(overrides: Partial<any> = {}): Promise<any> {
+    const patientData = {
+      id: faker.string.uuid(),
+      name: faker.person.fullName(),
+      dateOfBirth: faker.date.past({ years: 80 }).toISOString().split('T')[0],
+      healthPlan: faker.helpers.arrayElement(['Premium Care', 'Standard Care', 'Basic Care']),
+      providerId: faker.string.uuid(),
+      ...overrides
+    };
+
+    return await this.prisma.patient.create({
+      data: patientData
+    });
+  }
+
+  async createProvider(overrides: Partial<any> = {}): Promise<any> {
+    const providerData = {
+      id: faker.string.uuid(),
+      name: faker.company.name(),
+      type: faker.helpers.arrayElement(['hospital', 'clinic', 'practice']),
+      specialty: faker.helpers.arrayElement(['cardiology', 'neurology', 'orthopedics']),
+      ...overrides
+    };
+
+    return await this.prisma.provider.create({
+      data: providerData
+    });
+  }
+
+  async createCaseWithPatient(userId: string, overrides: Partial<any> = {}): Promise<any> {
+    const patientOverrides = overrides.patientData || {};
+    const patient = await this.createPatient(patientOverrides);
+    const caseData = {
+      ...overrides,
+      patientId: patient.id
+    };
+    if ('patientData' in caseData) {
+      delete caseData.patientData;
+    }
+    
+    const testCase = await this.createCase(userId, caseData);
+    return {
+      ...testCase,
+      patient
+    };
+  }
+
+  async createCaseWithAttachments(userId: string, overrides: Partial<any> = {}): Promise<any> {
+    const testCase = await this.createCase(userId, overrides);
+    
+    // Add attachments
+    const attachments = [];
+    for (let i = 0; i < 3; i++) {
+      const attachment = await this.createCaseAttachment(testCase.id, {
+        filename: `attachment_${i + 1}.pdf`,
+        mimeType: 'application/pdf'
+      });
+      attachments.push(attachment);
+    }
+    
+    return {
+      ...testCase,
+      attachments
+    };
+  }
+
+  async createAnalyticsTestData(userId: string, options: Partial<any> = {}): Promise<void> {
+    const {
+      casesCount = 20,
+      timespan = '30days',
+      includeDecisions = true,
+      includeFraudCases = false
+    } = options;
+    
+    // Create cases with various statuses and priorities
+    const cases = await this.createMultipleCases(casesCount, userId);
+
+    // Update some cases to different statuses
+    const caseIds = cases.map(c => c.id);
+    
+    // Mark some as completed
+    await this.prisma.case.updateMany({
+      where: { id: { in: caseIds.slice(0, Math.floor(casesCount * 0.4)) } },
+      data: { 
+        status: 'completed',
+        completedAt: faker.date.recent(),
+        resolution: faker.lorem.sentence()
+      }
+    });
+
+    // Mark some as in progress
+    await this.prisma.case.updateMany({
+      where: { id: { in: caseIds.slice(Math.floor(casesCount * 0.4), Math.floor(casesCount * 0.75)) } },
+      data: { 
+        status: 'in_progress',
+        startedAt: faker.date.recent()
+      }
+    });
+
+    if (includeFraudCases) {
+      // Mark some as fraud cases
+      await this.prisma.case.updateMany({
+        where: { id: { in: caseIds.slice(Math.floor(casesCount * 0.9)) } },
+        data: { 
+          category: 'fraud_investigation',
+          priority: 'high'
+        }
+      });
+    }
+
+    // Add notes to cases
+    for (const caseId of caseIds.slice(0, Math.floor(casesCount * 0.5))) {
+      await this.createCaseNote(caseId, userId);
+    }
+
+    // Add attachments to some cases
+    for (const caseId of caseIds.slice(0, Math.floor(casesCount * 0.25))) {
+      await this.createCaseAttachment(caseId);
+    }
+  }
+
   async createCase(userId: string, overrides: Partial<any> = {}): Promise<any> {
     const caseData = {
       title: faker.lorem.words(4),
@@ -168,42 +289,6 @@ export class TestDataFactory {
     });
   }
 
-  async createAnalyticsTestData(userId: string): Promise<void> {
-    // Create cases with various statuses and priorities
-    const cases = await this.createMultipleCases(20, userId, {});
-
-    // Update some cases to different statuses
-    const caseIds = cases.map(c => c.id);
-    
-    // Mark some as completed
-    await this.prisma.case.updateMany({
-      where: { id: { in: caseIds.slice(0, 8) } },
-      data: { 
-        status: 'completed',
-        completedAt: faker.date.recent(),
-        resolution: faker.lorem.sentence()
-      }
-    });
-
-    // Mark some as in progress
-    await this.prisma.case.updateMany({
-      where: { id: { in: caseIds.slice(8, 15) } },
-      data: { 
-        status: 'in_progress',
-        startedAt: faker.date.recent()
-      }
-    });
-
-    // Add notes to cases
-    for (const caseId of caseIds.slice(0, 10)) {
-      await this.createCaseNote(caseId, userId);
-    }
-
-    // Add attachments to some cases
-    for (const caseId of caseIds.slice(0, 5)) {
-      await this.createCaseAttachment(caseId);
-    }
-  }
 
   async enableMFA(userId: string): Promise<any> {
     return await this.prisma.user.update({

@@ -35,7 +35,7 @@ describe('Analytics Dashboard Interaction Tests', () => {
     it('should show real-time metrics updates', () => {
       // Check initial values
       cy.get('[data-testid="kpi-total-cases-value"]').then(($el) => {
-        const initialValue = $el.text();
+        const _initialValue = $el.text();
         
         // Trigger real-time update
         cy.get('[data-testid="refresh-metrics"]').click();
@@ -462,10 +462,10 @@ describe('Analytics Dashboard Interaction Tests', () => {
   describe('Dashboard Accessibility and Usability', () => {
     it('should be keyboard navigable', () => {
       // Tab through dashboard elements
-      cy.get('body').tab();
+      cy.tab();
       cy.focused().should('have.attr', 'data-testid', 'dashboard-header');
       
-      cy.focused().tab();
+      cy.tab();
       cy.focused().should('have.attr', 'data-testid').and('contain', 'kpi');
       
       // Navigate through charts with keyboard

@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "id": "user-123",
+    "email": "user@austa.com",
+    "firstName": "Updated",
+    "lastName": "User",
+    "role": "reviewer",
+    "verified": true,
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "updatedAt": "2024-01-15T11:00:00.000Z"
+  }
+}

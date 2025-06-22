@@ -2,44 +2,23 @@ import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
-import { configureStore } from '@reduxjs/toolkit';
+import { store } from '../store';
 import type { RenderResult } from '@testing-library/react';
-import { RootState } from '../store/index';
-
-// Import your reducers here
-import authReducer from '../store/slices/authSlice';
-import uiReducer from '../store/slices/uiSlice';
-import { api } from '../store/api/apiSlice';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
-  preloadedState?: Partial<RootState>;
   store?: any;
 }
 
 export function renderWithProviders(
   ui: ReactElement,
   {
-    preloadedState = {},
-    store = configureStore({
-      reducer: {
-        auth: authReducer,
-        ui: uiReducer,
-        [api.reducerPath]: api.reducer,
-      },
-      preloadedState: preloadedState as any,
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          serializableCheck: {
-            ignoredActions: ['persist/PERSIST'],
-          },
-        }).concat(api.middleware),
-    }),
+    store: testStore = store,
     ...renderOptions
   }: ExtendedRenderOptions = {}
 ): RenderResult & { store: any } {
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <Provider store={store}>
+      <Provider store={testStore}>
         <BrowserRouter>
           {children}
         </BrowserRouter>
@@ -48,7 +27,7 @@ export function renderWithProviders(
   }
 
   const renderResult = render(ui, { wrapper: Wrapper, ...renderOptions });
-  return { ...renderResult, store };
+  return { ...renderResult, store: testStore };
 }
 
 // Re-export everything

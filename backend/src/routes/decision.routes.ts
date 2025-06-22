@@ -3,7 +3,7 @@ const { body, param, query, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
 import { queues } from '../config/queues';
-import { logger } from '../utils/logger';
+import { logger, logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
 import { blockchainService } from '../services/blockchain.service';
@@ -208,8 +208,7 @@ router.post(
       await cache.invalidatePattern(`cases:*`);
       await cache.invalidatePattern(`decisions:*`);
 
-      logger.logAudit('decision.created', req.user!.id, {
-        caseId,
+      logAuditEvent('decision.created', req.user!.id, caseId, {
         decision,
         processingTime,
         blockchainTx,
@@ -547,7 +546,7 @@ router.post(
         decisionId: id,
       });
 
-      logger.logAudit('decision.appeal.created', req.user!.id, {
+      logAuditEvent('decision.appeal.created', req.user!.id, id, {
         decisionId: id,
         caseId: decision.caseId,
         appealId: appeal.id,

@@ -1,0 +1,302 @@
+/* Healthcare Quality Control Utility Classes */
+
+@layer utilities {
+  /* Spacing Utilities for Healthcare Layouts */
+  .section-spacing {
+    @apply py-8 md:py-12;
+  }
+
+  .card-spacing {
+    @apply p-4 md:p-6;
+  }
+
+  .content-spacing {
+    @apply space-y-6;
+  }
+
+  /* Typography Utilities */
+  .text-patient-id {
+    @apply font-mono text-sm tracking-wider;
+  }
+
+  .text-case-title {
+    @apply text-lg font-semibold text-gray-900 dark:text-white;
+  }
+
+  .text-metric {
+    @apply text-2xl md:text-3xl font-bold;
+  }
+
+  .text-label {
+    @apply text-xs uppercase tracking-wide font-medium text-gray-500 dark:text-gray-400;
+  }
+
+  .text-timestamp {
+    @apply text-sm text-gray-500 dark:text-gray-400;
+  }
+
+  /* Layout Utilities */
+  .dashboard-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6;
+  }
+
+  .metric-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+  }
+
+  .table-container {
+    @apply overflow-x-auto shadow-soft rounded-lg;
+  }
+
+  .sidebar-width {
+    @apply w-64;
+  }
+
+  .main-content {
+    @apply flex-1 ml-0 md:ml-64 transition-all duration-300;
+  }
+
+  /* Interactive States */
+  .interactive-card {
+    @apply cursor-pointer transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg;
+  }
+
+  .clickable-row {
+    @apply cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200;
+  }
+
+  /* Status and Priority Colors */
+  .bg-priority-critical {
+    @apply bg-danger-500;
+  }
+
+  .bg-priority-high {
+    @apply bg-warning-500;
+  }
+
+  .bg-priority-medium {
+    @apply bg-primary-500;
+  }
+
+  .bg-priority-low {
+    @apply bg-success-500;
+  }
+
+  .border-priority-critical {
+    @apply border-l-4 border-l-danger-500;
+  }
+
+  .border-priority-high {
+    @apply border-l-4 border-l-warning-500;
+  }
+
+  .border-priority-medium {
+    @apply border-l-4 border-l-primary-500;
+  }
+
+  .border-priority-low {
+    @apply border-l-4 border-l-success-500;
+  }
+
+  /* Compliance Status Colors */
+  .text-compliant {
+    @apply text-success-600 dark:text-success-400;
+  }
+
+  .text-non-compliant {
+    @apply text-danger-600 dark:text-danger-400;
+  }
+
+  .text-under-review {
+    @apply text-warning-600 dark:text-warning-400;
+  }
+
+  /* Healthcare Data Visualization */
+  .chart-container {
+    @apply bg-white dark:bg-gray-800 p-6 rounded-lg shadow-soft;
+  }
+
+  .chart-title {
+    @apply text-lg font-semibold mb-4 text-gray-900 dark:text-white;
+  }
+
+  .chart-legend {
+    @apply flex flex-wrap gap-4 text-sm;
+  }
+
+  .legend-item {
+    @apply flex items-center gap-2;
+  }
+
+  .legend-color {
+    @apply w-3 h-3 rounded-full;
+  }
+
+  /* Form Layout Utilities */
+  .form-layout {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+  }
+
+  .form-full-width {
+    @apply md:col-span-2;
+  }
+
+  .form-actions {
+    @apply flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700;
+  }
+
+  /* Mobile Responsive Utilities */
+  .mobile-hidden {
+    @apply hidden md:block;
+  }
+
+  .mobile-only {
+    @apply block md:hidden;
+  }
+
+  .mobile-menu {
+    @apply md:hidden;
+  }
+
+  /* Print Utilities */
+  .print-hidden {
+    @apply print:hidden;
+  }
+
+  .print-only {
+    @apply hidden print:block;
+  }
+
+  .print-break {
+    @apply print:break-after-page;
+  }
+
+  /* Accessibility Utilities */
+  .screen-reader-only {
+    @apply sr-only;
+  }
+
+  .focus-visible-ring {
+    @apply focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+  }
+
+  /* Animation Utilities */
+  .fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+  }
+
+  .slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  .pulse-slow {
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  /* Custom Animations */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .shimmer {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(
+      to right,
+      #f6f7f8 0%,
+      #eaeaea 20%,
+      #f6f7f8 40%,
+      #f6f7f8 100%
+    );
+    background-size: 1000px 104px;
+  }
+
+  /* Dark Mode Specific Utilities */
+  .dark .shimmer {
+    background: linear-gradient(
+      to right,
+      #374151 0%,
+      #4b5563 20%,
+      #374151 40%,
+      #374151 100%
+    );
+    background-size: 1000px 104px;
+  }
+
+  /* Healthcare Workflow States */
+  .workflow-pending {
+    @apply bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200;
+  }
+
+  .workflow-in-progress {
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900/20 dark:text-primary-200;
+  }
+
+  .workflow-completed {
+    @apply bg-success-100 text-success-800 dark:bg-success-900/20 dark:text-success-200;
+  }
+
+  .workflow-rejected {
+    @apply bg-danger-100 text-danger-800 dark:bg-danger-900/20 dark:text-danger-200;
+  }
+
+  /* Data Quality Indicators */
+  .data-quality-excellent {
+    @apply bg-success-500;
+  }
+
+  .data-quality-good {
+    @apply bg-primary-500;
+  }
+
+  .data-quality-fair {
+    @apply bg-warning-500;
+  }
+
+  .data-quality-poor {
+    @apply bg-danger-500;
+  }
+
+  /* Audit Trail Styles */
+  .audit-entry {
+    @apply border-l-2 border-l-gray-300 dark:border-l-gray-600 pl-4 pb-4;
+  }
+
+  .audit-timestamp {
+    @apply text-xs text-gray-500 dark:text-gray-400 font-mono;
+  }
+
+  .audit-user {
+    @apply text-sm font-medium text-gray-700 dark:text-gray-300;
+  }
+
+  .audit-action {
+    @apply text-sm text-gray-600 dark:text-gray-400;
+  }
+}

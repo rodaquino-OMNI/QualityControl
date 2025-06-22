@@ -22,15 +22,12 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "artillery": "^2.0.0",
-    "k6": "^0.47.0",
     "lighthouse": "^11.0.0",
     "puppeteer": "^21.0.0",
     "axios": "^1.5.0",
     "dotenv": "^16.0.0",
     "uuid": "^9.0.0",
-    "influxdb": "^5.9.0",
-    "prometheus-client": "^1.0.0",
-    "grafana-api": "^1.0.0"
+    "prom-client": "^15.1.0"
   },
   "keywords": ["performance", "testing", "k6", "artillery", "lighthouse", "jmeter", "austa"],
   "author": "AUSTA Performance Team",

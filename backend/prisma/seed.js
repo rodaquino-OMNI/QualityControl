@@ -1,5 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcrypt');
+const argon2 = require('argon2');
 
 const prisma = new PrismaClient();
 
@@ -141,10 +141,12 @@ async function main() {
 
     // Create default admin user
     console.log('Creating default admin user...');
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const hashedPassword = await argon2.hash('admin123');
     const adminUser = await prisma.user.upsert({
       where: { email: 'admin@austa.com' },
-      update: {},
+      update: {
+        password: hashedPassword
+      },
       create: {
         email: 'admin@austa.com',
         name: 'System Administrator',

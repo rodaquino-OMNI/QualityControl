@@ -8,12 +8,12 @@ import { Pact, Matchers } from '@pact-foundation/pact';
 import { resolve } from 'path';
 import request from 'supertest';
 import { Express } from 'express';
-import { createApp } from '../../backend/src/index';
+import { createApp } from '../../backend/src/app';
 
 const { like, eachLike, term, integer } = Matchers;
 
 describe('API Contract Testing', () => {
-  let app: Express;
+  let _app: Express;
   
   // Frontend -> Backend Contract
   const frontendBackendPact = new Pact({
@@ -23,7 +23,7 @@ describe('API Contract Testing', () => {
     log: resolve(process.cwd(), 'test-results', 'pact-logs', 'frontend-backend.log'),
     dir: resolve(process.cwd(), 'test-results', 'pacts'),
     spec: 2,
-    logLevel: 'INFO'
+    logLevel: 'info'
   });
 
   // Backend -> AI Service Contract
@@ -34,11 +34,11 @@ describe('API Contract Testing', () => {
     log: resolve(process.cwd(), 'test-results', 'pact-logs', 'backend-ai.log'),
     dir: resolve(process.cwd(), 'test-results', 'pacts'),
     spec: 2,
-    logLevel: 'INFO'
+    logLevel: 'info'
   });
 
   beforeAll(async () => {
-    app = createApp();
+_app = createApp();
     await Promise.all([
       frontendBackendPact.setup(),
       backendAIPact.setup()
@@ -62,10 +62,10 @@ describe('API Contract Testing', () => {
   describe('Frontend -> Backend Contracts', () => {
     describe('Authentication Endpoints', () => {
       it('should handle login request', async () => {
-        await frontendBackendPact
-          .given('user exists with valid credentials')
-          .uponReceiving('a login request')
-          .withRequest({
+        await frontendBackendPact.addInteraction({
+          state: 'user exists with valid credentials',
+          uponReceiving: 'a login request',
+          withRequest: {
             method: 'POST',
             path: '/api/auth/login',
             headers: {
@@ -75,8 +75,8 @@ describe('API Contract Testing', () => {
               email: like('test@austa.com'),
               password: like('password123')
             }
-          })
-          .willRespondWith({
+          },
+          willRespondWith: {
             status: 200,
             headers: {
               'Content-Type': 'application/json'
@@ -95,7 +95,8 @@ describe('API Contract Testing', () => {
                 expiresAt: like('2024-12-31T23:59:59.999Z')
               }
             }
-          });
+          }
+        });
 
         const response = await request(`http://localhost:3004`)
           .post('/api/auth/login')
@@ -111,18 +112,18 @@ describe('API Contract Testing', () => {
       });
 
       it('should handle logout request', async () => {
-        await frontendBackendPact
-          .given('user is authenticated')
-          .uponReceiving('a logout request')
-          .withRequest({
+        await frontendBackendPact.addInteraction({
+          state: 'user is authenticated',
+          uponReceiving: 'a logout request',
+          withRequest: {
             method: 'POST',
             path: '/api/auth/logout',
             headers: {
               'Authorization': like('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'),
               'Content-Type': 'application/json'
             }
-          })
-          .willRespondWith({
+          },
+          willRespondWith: {
             status: 200,
             headers: {
               'Content-Type': 'application/json'
@@ -131,7 +132,8 @@ describe('API Contract Testing', () => {
               success: true,
               message: like('Logged out successfully')
             }
-          });
+          }
+        });
 
         await request(`http://localhost:3004`)
           .post('/api/auth/logout')

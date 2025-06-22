@@ -1,9 +1,9 @@
 {
-  "version": "1.0.70",
+  "version": "1.0.72",
   "project": {
     "name": "QualityControl",
     "type": "claude-flow",
-    "created": "2025-06-18T22:44:52.708Z"
+    "created": "2025-06-21T14:43:04.461Z"
   },
   "features": {
     "swarm": true,

@@ -1,5 +1,4 @@
 import Bull from 'bull';
-import { redis } from './redis';
 import { logger } from '../utils/logger';
 
 // Queue configurations
@@ -44,7 +43,7 @@ export const queues = {
 // Queue event handlers
 export function setupQueues() {
   Object.entries(queues).forEach(([name, queue]) => {
-    queue.on('completed', (job, result) => {
+    queue.on('completed', (job, _result) => {
       logger.info(`Job ${job.id} in queue ${name} completed`);
     });
 

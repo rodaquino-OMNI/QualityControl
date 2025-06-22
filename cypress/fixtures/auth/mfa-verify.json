@@ -1,0 +1,12 @@
+{
+  "accessToken": "mock-mfa-verified-token",
+  "refreshToken": "mock-mfa-refresh-token",
+  "user": {
+    "id": "user-mfa-123",
+    "email": "mfa-user@example.com",
+    "firstName": "MFA",
+    "lastName": "User",
+    "role": "auditor",
+    "mfaEnabled": true
+  }
+}

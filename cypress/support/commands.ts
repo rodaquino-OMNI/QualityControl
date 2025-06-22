@@ -2,23 +2,24 @@
 // Custom commands for AUSTA Cockpit E2E tests
 // ***********************************************
 
+import 'cypress-file-upload';
+
 // Authentication commands
 Cypress.Commands.add('login', (email: string, password: string) => {
   cy.session([email, password], () => {
     cy.visit('/login');
-    cy.get('[data-testid="email-input"]').type(email);
-    cy.get('[data-testid="password-input"]').type(password);
-    cy.get('[data-testid="login-button"]').click();
+    cy.get('#email').type(email);
+    cy.get('#password').type(password);
+    cy.get('button[type="submit"]').click();
     
     // Wait for authentication to complete
     cy.url().should('not.include', '/login');
-    cy.window().its('localStorage.authToken').should('exist');
+    cy.window().its('localStorage.token').should('exist');
   });
 });
 
 Cypress.Commands.add('logout', () => {
-  cy.get('[data-testid="user-menu"]').click();
-  cy.get('[data-testid="logout-button"]').click();
+  cy.get('[aria-label="User menu"], .user-menu, button:contains("Logout")').first().click();
   cy.url().should('include', '/login');
 });
 
@@ -48,7 +49,7 @@ Cypress.Commands.add('waitForApi', (alias: string) => {
 // Accessibility testing
 Cypress.Commands.add('checkAccessibility', () => {
   cy.injectAxe();
-  cy.checkA11y({
+  cy.checkA11y(undefined, {
     runOnly: {
       type: 'tag',
       values: ['wcag2a', 'wcag2aa'],
@@ -71,16 +72,17 @@ Cypress.Commands.add('cleanupDatabase', () => {
 
 // Utility functions for common operations
 export const waitForPageLoad = () => {
-  cy.get('[data-testid="page-loader"]').should('not.exist');
+  cy.get('.loading, [role="progressbar"], .spinner').should('not.exist');
+  cy.get('body').should('be.visible');
 };
 
-export const selectFromDropdown = (dropdownTestId: string, value: string) => {
-  cy.get(`[data-testid="${dropdownTestId}"]`).click();
-  cy.get(`[data-testid="${dropdownTestId}-option-${value}"]`).click();
+export const selectFromDropdown = (dropdownSelector: string, value: string) => {
+  cy.get(`select[name="${dropdownSelector}"], .${dropdownSelector}, #${dropdownSelector}`).first().select(value);
 };
 
 export const checkNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-  cy.get(`[data-testid="notification-${type}"]`)
+  const colorClass = type === 'success' ? '.text-green-800' : type === 'error' ? '.text-red-800' : '.text-blue-800';
+  cy.get(`${colorClass}, .notification, .alert`)
     .should('be.visible')
     .and('contain', message);
 };
@@ -123,12 +125,12 @@ export const checkFormValidation = (fieldTestId: string, errorMessage: string) =
 export const fillForm = (formData: Record<string, any>) => {
   Object.entries(formData).forEach(([field, value]) => {
     if (typeof value === 'string') {
-      cy.get(`[data-testid="${field}-input"]`).clear().type(value);
+      cy.get(`#${field}, [name="${field}"], .${field}-input`).first().clear().type(value);
     } else if (typeof value === 'boolean') {
-      cy.get(`[data-testid="${field}-checkbox"]`).check();
+      cy.get(`#${field}, [name="${field}"], .${field}-checkbox`).first().check();
     } else if (Array.isArray(value)) {
       value.forEach(v => {
-        cy.get(`[data-testid="${field}-multi-select"]`).select(v);
+        cy.get(`#${field}, [name="${field}"], .${field}-select`).first().select(v);
       });
     }
   });
@@ -230,7 +232,7 @@ Cypress.Commands.add('compareSnapshot', (name: string, options?: any) => {
 Cypress.Commands.add('takeScreenshotOnFail', () => {
   cy.screenshot(`failed-${Cypress.currentTest.title}`, {
     capture: 'viewport',
-    onAfterScreenshot: (el, props) => {
+    onAfterScreenshot: (_el, props) => {
       console.log('Screenshot taken:', props.path);
     },
   });
@@ -374,3 +376,9 @@ export const interceptAllApiCalls = () => {
     body: { status: 'healthy', timestamp: new Date().toISOString() }
   }).as('health');
 };
+
+// Tab navigation command
+Cypress.Commands.add('tab', (options?: { shift?: boolean }) => {
+  const tabKey = options?.shift ? '{shift}{tab}' : '{tab}';
+  return cy.focused().type(tabKey);
+});

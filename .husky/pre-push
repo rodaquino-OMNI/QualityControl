@@ -1,0 +1,194 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🚀 Running pre-push checks..."
+
+# Get the remote and local branch info
+remote="$1"
+url="$2"
+
+# Check if we're pushing to main or develop
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+echo "📋 Current branch: $current_branch"
+
+# Skip checks for feature branches if configured
+if [[ "$current_branch" =~ ^feature/.* ]] && [ "$SKIP_FEATURE_CHECKS" = "true" ]; then
+  echo "⏭️  Skipping checks for feature branch (SKIP_FEATURE_CHECKS=true)"
+  exit 0
+fi
+
+# Run comprehensive tests before pushing to main/develop
+if [[ "$current_branch" == "main" || "$current_branch" == "develop" ]]; then
+  echo "🎯 Pushing to protected branch ($current_branch), running comprehensive checks..."
+  
+  # Ensure we're up to date
+  echo "🔄 Checking if branch is up to date..."
+  git fetch origin $current_branch
+  LOCAL=$(git rev-parse @)
+  REMOTE=$(git rev-parse @{u})
+  
+  if [ "$LOCAL" != "$REMOTE" ]; then
+    echo "❌ Your branch is not up to date with origin/$current_branch"
+    echo "Please run: git pull origin $current_branch"
+    exit 1
+  fi
+  
+  # Run full test suite
+  echo "🧪 Running full test suite..."
+  
+  # Frontend tests
+  if [ -d "frontend" ]; then
+    echo "Testing frontend..."
+    cd frontend
+    npm run test:coverage
+    if [ $? -ne 0 ]; then
+      echo "❌ Frontend tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+  # Backend tests
+  if [ -d "backend" ]; then
+    echo "Testing backend..."
+    cd backend
+    npm run test:unit && npm run test:integration
+    if [ $? -ne 0 ]; then
+      echo "❌ Backend tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+  # AI Service tests
+  if [ -d "ai-service" ]; then
+    echo "Testing AI service..."
+    cd ai-service
+    python -m pytest -v --cov=app
+    if [ $? -ne 0 ]; then
+      echo "❌ AI service tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+  # Build check
+  echo "🏗️  Running build checks..."
+  if [ -d "frontend" ]; then
+    cd frontend && npm run build
+    if [ $? -ne 0 ]; then
+      echo "❌ Frontend build failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+else
+  echo "🔍 Running basic checks for $current_branch..."
+  
+  # Run only related tests for feature branches
+  changed_files=$(git diff --name-only origin/$current_branch..$current_branch)
+  
+  if echo "$changed_files" | grep -q '^frontend/'; then
+    echo "Frontend changes detected, running frontend tests..."
+    cd frontend && npm run test -- --passWithNoTests
+    if [ $? -ne 0 ]; then
+      echo "❌ Frontend tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+  if echo "$changed_files" | grep -q '^backend/'; then
+    echo "Backend changes detected, running backend tests..."
+    cd backend && npm run test:unit
+    if [ $? -ne 0 ]; then
+      echo "❌ Backend tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+  
+  if echo "$changed_files" | grep -q '^ai-service/'; then
+    echo "AI service changes detected, running AI service tests..."
+    cd ai-service && python -m pytest -v -m unit
+    if [ $? -ne 0 ]; then
+      echo "❌ AI service tests failed"
+      exit 1
+    fi
+    cd ..
+  fi
+fi
+
+# Security check for secrets
+echo "🔒 Running security checks..."
+if git log --pretty=format:"%B" -n 10 | grep -i "password\|secret\|key\|token" | grep -v "test\|example"; then
+  echo "⚠️  Recent commits may contain sensitive information:"
+  git log --pretty=format:"%h %s" -n 10 | grep -i "password\|secret\|key\|token" | grep -v "test\|example" || true
+  echo "Please review recent commits for sensitive data."
+fi
+
+# Check for large files
+echo "📁 Checking for large files..."
+large_files=$(git diff --cached --name-only | xargs -I {} sh -c 'if [ -f "{}" ] && [ $(stat -f%z "{}" 2>/dev/null || stat -c%s "{}" 2>/dev/null || echo 0) -gt 10485760 ]; then echo "{}"; fi')
+if [ -n "$large_files" ]; then
+  echo "⚠️  Large files detected (>10MB):"
+  echo "$large_files"
+  echo "Consider using Git LFS for large files."
+fi
+
+# Check commit messages
+echo "📝 Checking commit messages..."
+commit_messages=$(git log origin/$current_branch..$current_branch --pretty=format:"%s")
+if echo "$commit_messages" | grep -q "^WIP\|^wip\|^fix\|^temp"; then
+  echo "⚠️  Found WIP/temporary commits:"
+  echo "$commit_messages" | grep "^WIP\|^wip\|^fix\|^temp" || true
+  echo "Consider squashing temporary commits before pushing to main/develop."
+fi
+
+# Performance check - ensure no performance regression
+if [[ "$current_branch" == "main" || "$current_branch" == "develop" ]]; then
+  echo "⚡ Running performance regression checks..."
+  
+  # Run lighthouse CI if available
+  if command -v lhci >/dev/null 2>&1; then
+    echo "Running Lighthouse CI..."
+    cd frontend && npm run build && lhci autorun --collect.numberOfRuns=1 || echo "⚠️  Lighthouse CI failed or not configured"
+    cd ..
+  fi
+  
+  # Bundle size check
+  if [ -d "frontend" ]; then
+    echo "Checking bundle size..."
+    cd frontend
+    npm run build
+    bundle_size=$(du -sh dist/ | cut -f1)
+    echo "📦 Frontend bundle size: $bundle_size"
+    cd ..
+  fi
+fi
+
+# Database migration check
+if [ -d "backend" ] && git diff --name-only origin/$current_branch..$current_branch | grep -q "prisma/migrations"; then
+  echo "🗄️  Database migrations detected"
+  echo "⚠️  Please ensure:"
+  echo "   - Migrations are backwards compatible"
+  echo "   - Production migration plan is ready"
+  echo "   - Rollback plan is documented"
+fi
+
+# Check for breaking changes
+echo "🔍 Checking for potential breaking changes..."
+if git diff --name-only origin/$current_branch..$current_branch | grep -E "(package\.json|requirements\.txt|Dockerfile|docker-compose|\.env)"; then
+  echo "⚠️  Configuration files changed:"
+  git diff --name-only origin/$current_branch..$current_branch | grep -E "(package\.json|requirements\.txt|Dockerfile|docker-compose|\.env)" || true
+  echo "Please ensure backward compatibility and update documentation."
+fi
+
+# Final validation
+echo "✅ Pre-push checks completed successfully!"
+echo "🎉 Ready to push to $remote ($current_branch)"
+
+# Optional: Show what's being pushed
+echo "📋 Commits being pushed:"
+git log --oneline origin/$current_branch..$current_branch | head -10

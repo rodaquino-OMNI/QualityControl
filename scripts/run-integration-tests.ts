@@ -156,7 +156,7 @@ class IntegrationTestRunner {
 
       console.log('✅ Docker environment is ready\n');
     } catch (error) {
-      throw new Error(`Failed to setup Docker environment: ${error.message}`);
+      throw new Error(`Failed to setup Docker environment: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -375,7 +375,7 @@ class IntegrationTestRunner {
 
       console.log('✅ Cleanup completed');
     } catch (error) {
-      console.error('⚠️  Cleanup warning:', error.message);
+      console.error('⚠️  Cleanup warning:', error instanceof Error ? error.message : String(error));
     }
   }
 }
@@ -452,4 +452,5 @@ if (require.main === module) {
   });
 }
 
-export { IntegrationTestRunner, TestConfig };
+export { IntegrationTestRunner };
+export type { TestConfig };

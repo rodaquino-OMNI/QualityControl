@@ -5,7 +5,7 @@
 import Redis from 'ioredis';
 import request from 'supertest';
 import { Express } from 'express';
-import { createApp } from '../../backend/src/index';
+import { createApp } from '../../backend/src/app';
 import { setupTestDatabase, cleanupTestDatabase } from '../utils/test-db-setup';
 import { TestDataFactory } from '../utils/test-data-factory';
 import { AuthTestHelper } from '../utils/auth-test-helper';

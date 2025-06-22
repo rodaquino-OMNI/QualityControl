@@ -98,7 +98,7 @@ export interface IntegrationTestReport {
 }
 
 export class IntegrationTestReporter {
-  private report: IntegrationTestReport;
+  private report!: IntegrationTestReport;
   private outputDir: string;
   private currentSuite: TestSuiteResult | null = null;
 

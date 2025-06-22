@@ -16,7 +16,7 @@ export class AuthTestHelper {
   /**
    * Generate a JWT token for testing
    */
-  async generateToken(user: any, options: any = {}): Promise<string> {
+  generateToken(user: any, options: any = {}): string {
     const payload = {
       id: user.id,
       email: user.email,
@@ -58,7 +58,7 @@ export class AuthTestHelper {
     try {
       return jwt.verify(token, this.jwtSecret);
     } catch (error) {
-      throw new Error(`Token verification failed: ${error.message}`);
+      throw new Error(`Token verification failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

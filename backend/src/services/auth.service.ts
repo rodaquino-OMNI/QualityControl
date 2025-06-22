@@ -4,7 +4,10 @@ import { Issuer } from 'openid-client';
 import speakeasy from 'speakeasy';
 import { authConfig } from '../config/auth.config';
 import { JWTService } from './jwt.service';
-import { RedisService } from './redis.service';
+import { RedisService } from './redisService';
+import { AppError, ErrorSeverity, ErrorCategory } from '../middleware/errorHandler';
+import { withBusinessOperation, withDatabaseTransaction } from '../utils/asyncWrapper';
+import { logger } from '../utils/logger';
 
 export interface LoginResult {
   user: User;
@@ -41,89 +44,259 @@ export class AuthService {
     lastName: string,
     username?: string
   ): Promise<User> {
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
+    return withBusinessOperation(
+      'user_registration',
+      undefined,
+      async () => {
+        return withDatabaseTransaction(
+          this.prisma,
+          async (tx) => {
+            // Check if user already exists
+            const existingUser = await tx.user.findUnique({
+              where: { email },
+            });
 
-    if (existingUser) {
-      throw new Error('User with this email already exists');
-    }
+            if (existingUser) {
+              throw new AppError(
+                'User with this email already exists',
+                409,
+                'USER_ALREADY_EXISTS',
+                { email },
+                ErrorSeverity.LOW,
+                ErrorCategory.VALIDATION
+              );
+            }
 
-    // Hash password
-    const hashedPassword = await argon2.hash(password);
+            // Validate password strength
+            if (password.length < 8) {
+              throw new AppError(
+                'Password must be at least 8 characters long',
+                400,
+                'WEAK_PASSWORD',
+                { minLength: 8 },
+                ErrorSeverity.LOW,
+                ErrorCategory.VALIDATION
+              );
+            }
 
-    // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name: `${firstName} ${lastName}`,
-        firstName,
-        lastName,
-        username,
-        role: 'auditor', // Default role
-      },
-    });
+            try {
+              // Hash password
+              const hashedPassword = await argon2.hash(password, {
+                type: argon2.argon2id,
+                memoryCost: 2 ** 16,
+                timeCost: 3,
+                parallelism: 1,
+              });
 
-    // Log registration
-    await this.logAuthEvent(user.id, 'register', true);
-    return user;
+              // Create user
+              const user = await tx.user.create({
+                data: {
+                  email,
+                  password: hashedPassword,
+                  name: `${firstName} ${lastName}`,
+                  firstName,
+                  lastName,
+                  username,
+                  role: 'auditor', // Default role
+                },
+              });
+
+              // Log registration
+              await this.logAuthEvent(user.id, 'register', true);
+              
+              logger.info('User registered successfully', {
+                userId: user.id,
+                email,
+                role: user.role,
+              });
+
+              return user;
+
+            } catch (hashError) {
+              logger.error('Password hashing failed during registration', {
+                email,
+                error: (hashError as Error).message,
+              });
+              
+              throw new AppError(
+                'Failed to process registration',
+                500,
+                'REGISTRATION_PROCESSING_ERROR',
+                undefined,
+                ErrorSeverity.HIGH,
+                ErrorCategory.SYSTEM
+              );
+            }
+          }
+        );
+      }
+    );
   }
 
   /**
    * Login with email and password
    */
   async login(email: string, password: string, deviceId?: string): Promise<LoginResult> {
-    // Find user
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
+    return withBusinessOperation(
+      'user_login',
+      undefined,
+      async () => {
+        try {
+          // Find user
+          const user = await this.prisma.user.findUnique({
+            where: { email },
+          });
 
-    if (!user || !user.password) {
-      await this.logAuthEvent(null, 'login', false, 'Invalid credentials');
-      throw new Error('Invalid email or password');
-    }
+          if (!user || !user.password) {
+            await this.logAuthEvent(null, 'login', false, 'Invalid credentials');
+            
+            throw new AppError(
+              'Invalid email or password',
+              401,
+              'INVALID_CREDENTIALS',
+              undefined,
+              ErrorSeverity.MEDIUM,
+              ErrorCategory.AUTHENTICATION
+            );
+          }
 
-    // Verify password
-    const isValidPassword = await argon2.verify(user.password, password);
-    if (!isValidPassword) {
-      await this.logAuthEvent(user.id, 'login', false, 'Invalid password');
-      throw new Error('Invalid email or password');
-    }
+          try {
+            // Verify password
+            const isValidPassword = await argon2.verify(user.password, password);
+            if (!isValidPassword) {
+              await this.logAuthEvent(user.id, 'login', false, 'Invalid password');
+              
+              throw new AppError(
+                'Invalid email or password',
+                401,
+                'INVALID_CREDENTIALS',
+                undefined,
+                ErrorSeverity.MEDIUM,
+                ErrorCategory.AUTHENTICATION
+              );
+            }
+          } catch (verifyError) {
+            logger.error('Password verification failed during login', {
+              userId: user.id,
+              email,
+              error: (verifyError as Error).message,
+            });
+            
+            if (verifyError instanceof AppError) {
+              throw verifyError;
+            }
+            
+            throw new AppError(
+              'Authentication processing error',
+              500,
+              'AUTH_PROCESSING_ERROR',
+              undefined,
+              ErrorSeverity.HIGH,
+              ErrorCategory.SYSTEM
+            );
+          }
 
-    // Check if user is active
-    if (!user.isActive) {
-      await this.logAuthEvent(user.id, 'login', false, 'Account inactive');
-      throw new Error('Account is inactive');
-    }
+          // Check if user is active
+          if (!user.isActive) {
+            await this.logAuthEvent(user.id, 'login', false, 'Account inactive');
+            
+            throw new AppError(
+              'Account is inactive',
+              403,
+              'ACCOUNT_INACTIVE',
+              { userId: user.id },
+              ErrorSeverity.MEDIUM,
+              ErrorCategory.AUTHORIZATION
+            );
+          }
 
-    // Check if MFA is enabled
-    if (user.mfaEnabled) {
-      await this.logAuthEvent(user.id, 'login', true, 'MFA required');
-      return {
-        user,
-        accessToken: '',
-        refreshToken: '',
-        requiresMFA: true,
-      };
-    }
+          // Check if MFA is enabled
+          if (user.mfaEnabled) {
+            await this.logAuthEvent(user.id, 'login', true, 'MFA required');
+            
+            logger.info('MFA required for user login', {
+              userId: user.id,
+              email,
+            });
+            
+            return {
+              user,
+              accessToken: '',
+              refreshToken: '',
+              requiresMFA: true,
+            };
+          }
 
-    // Generate tokens
-    const roles = [user.role];
-    const { accessToken, refreshToken } = JWTService.generateTokenPair(user, roles, deviceId);
+          try {
+            // Generate tokens
+            const roles = [user.role];
+            const { accessToken, refreshToken } = JWTService.generateTokenPair(user, roles, deviceId);
 
-    // Store refresh token
-    await this.storeRefreshToken(user.id, refreshToken, deviceId);
+            // Store refresh token in transaction
+            await withDatabaseTransaction(
+              this.prisma,
+              async () => {
+                await this.storeRefreshToken(user.id, refreshToken, deviceId);
+              }
+            );
 
-    // Log successful login
-    await this.logAuthEvent(user.id, 'login', true);
+            // Log successful login
+            await this.logAuthEvent(user.id, 'login', true);
+            
+            logger.info('User login successful', {
+              userId: user.id,
+              email,
+              role: user.role,
+              deviceId,
+            });
 
-    return {
-      user,
-      accessToken,
-      refreshToken,
-    };
+            return {
+              user,
+              accessToken,
+              refreshToken,
+            };
+
+          } catch (tokenError) {
+            logger.error('Token generation failed during login', {
+              userId: user.id,
+              email,
+              error: (tokenError as Error).message,
+            });
+            
+            throw new AppError(
+              'Failed to complete login process',
+              500,
+              'LOGIN_TOKEN_ERROR',
+              undefined,
+              ErrorSeverity.HIGH,
+              ErrorCategory.SYSTEM
+            );
+          }
+
+        } catch (error) {
+          // Re-throw AppErrors as-is
+          if (error instanceof AppError) {
+            throw error;
+          }
+          
+          // Handle unexpected errors
+          logger.error('Unexpected error during login', {
+            email,
+            error: (error as Error).message,
+            stack: (error as Error).stack,
+          });
+          
+          throw new AppError(
+            'Login failed due to an unexpected error',
+            500,
+            'LOGIN_UNEXPECTED_ERROR',
+            undefined,
+            ErrorSeverity.CRITICAL,
+            ErrorCategory.SYSTEM
+          );
+        }
+      }
+    );
   }
 
   /**
@@ -377,7 +550,7 @@ export class AuthService {
   /**
    * Store refresh token in database
    */
-  private async storeRefreshToken(userId: string, token: string, deviceId?: string): Promise<void> {
+  private async storeRefreshToken(userId: string, token: string, _deviceId?: string): Promise<void> {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
@@ -395,9 +568,9 @@ export class AuthService {
    */
   private async logAuthEvent(
     userId: string | null,
-    action: string,
+    _action: string,
     success: boolean,
-    details?: string
+    _details?: string
   ): Promise<void> {
     if (userId) {
       await this.prisma.loginHistory.create({

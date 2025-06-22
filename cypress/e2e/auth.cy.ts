@@ -6,43 +6,44 @@ describe('Authentication Flow', () => {
   describe('Login', () => {
     it('should display login form', () => {
       cy.visit('/login');
-      cy.get('[data-testid="login-form"]').should('be.visible');
-      cy.get('[data-testid="email-input"]').should('be.visible');
-      cy.get('[data-testid="password-input"]').should('be.visible');
-      cy.get('[data-testid="login-button"]').should('be.visible');
+      cy.get('form').should('be.visible');
+      cy.get('#email').should('be.visible');
+      cy.get('#password').should('be.visible');
+      cy.get('button[type="submit"]').should('be.visible');
     });
 
     it('should show validation errors for empty fields', () => {
       cy.visit('/login');
-      cy.get('[data-testid="login-button"]').click();
+      cy.get('button[type="submit"]').click();
       
-      cy.get('[data-testid="email-error"]').should('contain', 'Email is required');
-      cy.get('[data-testid="password-error"]').should('contain', 'Password is required');
+      // Check HTML5 validation
+      cy.get('#email:invalid').should('exist');
+      cy.get('#password:invalid').should('exist');
     });
 
     it('should show error for invalid credentials', () => {
       cy.visit('/login');
-      cy.get('[data-testid="email-input"]').type('wrong@example.com');
-      cy.get('[data-testid="password-input"]').type('wrongpassword');
-      cy.get('[data-testid="login-button"]').click();
+      cy.get('#email').type('wrong@example.com');
+      cy.get('#password').type('wrongpassword');
+      cy.get('button[type="submit"]').click();
       
-      cy.get('[data-testid="notification-error"]')
+      cy.get('.text-red-800')
         .should('be.visible')
         .and('contain', 'Invalid credentials');
     });
 
     it('should successfully login with valid credentials', () => {
       cy.visit('/login');
-      cy.get('[data-testid="email-input"]').type('test@example.com');
-      cy.get('[data-testid="password-input"]').type('TestPassword123!');
-      cy.get('[data-testid="login-button"]').click();
+      cy.get('#email').type('test@example.com');
+      cy.get('#password').type('TestPassword123!');
+      cy.get('button[type="submit"]').click();
       
       // Should redirect to dashboard
       cy.url().should('include', '/dashboard');
-      cy.get('[data-testid="welcome-message"]').should('contain', 'Welcome');
+      cy.get('h1').should('contain', 'Dashboard');
       
       // Should store auth token
-      cy.window().its('localStorage.authToken').should('exist');
+      cy.window().its('localStorage.token').should('exist');
     });
 
     it('should redirect to originally requested page after login', () => {
@@ -53,9 +54,9 @@ describe('Authentication Flow', () => {
       cy.url().should('include', '/login');
       
       // Login
-      cy.get('[data-testid="email-input"]').type('test@example.com');
-      cy.get('[data-testid="password-input"]').type('TestPassword123!');
-      cy.get('[data-testid="login-button"]').click();
+      cy.get('#email').type('test@example.com');
+      cy.get('#password').type('TestPassword123!');
+      cy.get('button[type="submit"]').click();
       
       // Should redirect back to cases
       cy.url().should('include', '/cases');
@@ -69,14 +70,13 @@ describe('Authentication Flow', () => {
     });
 
     it('should successfully logout', () => {
-      cy.get('[data-testid="user-menu"]').click();
-      cy.get('[data-testid="logout-button"]').click();
+      cy.get('[aria-label="User menu"], .user-menu, button:contains("Logout")').first().click();
       
       // Should redirect to login
       cy.url().should('include', '/login');
       
       // Should clear auth token
-      cy.window().its('localStorage.authToken').should('not.exist');
+      cy.window().its('localStorage.token').should('not.exist');
       
       // Should not be able to access protected routes
       cy.visit('/dashboard');
@@ -199,36 +199,36 @@ describe('Authentication Flow', () => {
     });
 
     it('should prompt for MFA after valid credentials', () => {
-      cy.get('[data-testid="email-input"]').type('mfa-user@example.com');
-      cy.get('[data-testid="password-input"]').type('Password123!');
-      cy.get('[data-testid="login-button"]').click();
+      cy.get('#email').type('mfa-user@example.com');
+      cy.get('#password').type('Password123!');
+      cy.get('button[type="submit"]').click();
       
-      cy.url().should('include', '/mfa-verify');
-      cy.get('[data-testid="mfa-form"]').should('be.visible');
-      cy.get('[data-testid="mfa-code-input"]').should('be.visible');
+      // MFA form should be visible (same page, different form)
+      cy.get('#mfaToken').should('be.visible');
+      cy.contains('Two-Factor Authentication').should('be.visible');
     });
 
     it('should verify MFA code successfully', () => {
-      cy.get('[data-testid="email-input"]').type('mfa-user@example.com');
-      cy.get('[data-testid="password-input"]').type('Password123!');
-      cy.get('[data-testid="login-button"]').click();
+      cy.get('#email').type('mfa-user@example.com');
+      cy.get('#password').type('Password123!');
+      cy.get('button[type="submit"]').click();
       
-      cy.get('[data-testid="mfa-code-input"]').type('123456');
-      cy.get('[data-testid="verify-mfa-button"]').click();
+      cy.get('#mfaToken').type('123456');
+      cy.get('button:contains("Verify")').click();
       
       cy.url().should('include', '/dashboard');
-      cy.get('[data-testid="welcome-message"]').should('be.visible');
+      cy.get('h1').should('contain', 'Dashboard');
     });
 
     it('should handle invalid MFA code', () => {
-      cy.get('[data-testid="email-input"]').type('mfa-user@example.com');
-      cy.get('[data-testid="password-input"]').type('Password123!');
-      cy.get('[data-testid="login-button"]').click();
+      cy.get('#email').type('mfa-user@example.com');
+      cy.get('#password').type('Password123!');
+      cy.get('button[type="submit"]').click();
       
-      cy.get('[data-testid="mfa-code-input"]').type('000000');
-      cy.get('[data-testid="verify-mfa-button"]').click();
+      cy.get('#mfaToken').type('000000');
+      cy.get('button:contains("Verify")').click();
       
-      cy.get('[data-testid="notification-error"]')
+      cy.get('.text-red-800')
         .should('be.visible')
         .and('contain', 'Invalid verification code');
     });

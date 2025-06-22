@@ -38,14 +38,14 @@ function extractRequestContext(req: Request) {
     url: req.url,
     ip: req.ip || req.socket.remoteAddress,
     userAgent: req.get('user-agent'),
-    userId: (req as any).user?.id,
-    sessionId: (req as any).sessionId
+    userId: (req as Request & { user?: { id: string } }).user?.id,
+    sessionId: (req as Request & { sessionId?: string }).sessionId
   };
 }
 
 // Log with context
-export function logWithContext(level: string, message: string, context?: any, req?: Request) {
-  const logData: any = { message };
+export function logWithContext(level: string, message: string, context?: unknown, req?: Request) {
+  const logData: Record<string, unknown> = { message };
   
   if (req) {
     logData.request = extractRequestContext(req);
@@ -63,7 +63,7 @@ export function logSecurityEvent(
   eventType: string,
   severity: string,
   details: string,
-  metadata?: any
+  metadata?: Record<string, unknown>
 ) {
   logger.warn({
     type: 'SECURITY_EVENT',
@@ -80,7 +80,7 @@ export function logAuditEvent(
   action: string,
   userId: string | undefined,
   resourceId: string,
-  details?: any
+  details?: Record<string, unknown>
 ) {
   logger.info({
     type: 'AUDIT_EVENT',
@@ -93,9 +93,13 @@ export function logAuditEvent(
 }
 
 // Add logAudit method to logger object for compatibility
-(logger as any).logAudit = function(action: string, userId: string | undefined, metadata?: any) {
+interface ExtendedLogger extends winston.Logger {
+  logAudit: (action: string, userId: string | undefined, metadata?: Record<string, unknown>) => void;
+}
+
+(logger as ExtendedLogger).logAudit = function(action: string, userId: string | undefined, metadata?: Record<string, unknown>) {
   // Extract resourceId from metadata if available
-  const resourceId = metadata?.caseId || metadata?.decisionId || metadata?.appealId || metadata?.id || '';
+  const resourceId = (metadata?.caseId || metadata?.decisionId || metadata?.appealId || metadata?.id || '') as string;
   logAuditEvent(action, userId, resourceId, metadata);
 };
 

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { JWTService } from '../services/jwt.service';
 import { RBACService } from '../services/rbac.service';
-import { RedisService } from '../services/redis.service';
+import { RedisService } from '../services/redisService';
 
 // Extend Express Request type
 declare global {
@@ -94,7 +94,7 @@ export class AuthMiddleware {
   /**
    * Optional authentication - doesn't fail if no token
    */
-  optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
+  optionalAuth = async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const authHeader = req.headers.authorization;
       const token = JWTService.extractTokenFromHeader(authHeader);

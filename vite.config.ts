@@ -7,14 +7,14 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-      '@types': path.resolve(__dirname, './src/types'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@store': path.resolve(__dirname, './src/store'),
-      '@assets': path.resolve(__dirname, './src/assets'),
+      '@': path.resolve(__dirname, './frontend/src'),
+      '@components': path.resolve(__dirname, './frontend/src/components'),
+      '@services': path.resolve(__dirname, './frontend/src/services'),
+      '@utils': path.resolve(__dirname, './frontend/src/utils'),
+      '@types': path.resolve(__dirname, './frontend/src/types'),
+      '@hooks': path.resolve(__dirname, './frontend/src/hooks'),
+      '@store': path.resolve(__dirname, './frontend/src/store'),
+      '@assets': path.resolve(__dirname, './frontend/src/assets'),
     },
   },
   server: {

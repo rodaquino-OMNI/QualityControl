@@ -22,14 +22,14 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ requiredRoles = [], require
 
   // Check role requirements
   const hasRequiredRole = requiredRoles.length === 0 || 
-    (user && requiredRoles.some(role => user.roles.some(r => r.name === role)));
+    (user && requiredRoles.some(role => user.roles?.some((r: any) => r.name === role)));
 
   // Check permission requirements
   const hasRequiredPermissions = requiredPermissions.length === 0 || 
     (user && requiredPermissions.every(() => {
       // This would need to be implemented based on your permission structure
       // For now, admins have all permissions
-      return user.roles.some(r => r.name === 'admin');
+      return user.roles?.some((r: any) => r.name === 'admin');
     }));
 
   if (isLoading) {

@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 const { query, validationResult } = require('express-validator');
 import { prisma } from '../config/database';
 import { cache } from '../config/redis';
-import { logger, logAuditEvent } from '../utils/logger';
+import { logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
 import { queues } from '../config/queues';
@@ -52,7 +52,7 @@ router.use(authenticate);
 router.get(
   '/dashboard',
   [query('period').optional().isIn(['today', 'week', 'month', 'quarter', 'year'])],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -86,7 +86,8 @@ router.get(
       const cacheKey = `analytics:dashboard:${period}:${startDate.toISOString()}`;
       const cached = await cache.get(cacheKey);
       if (cached) {
-        return res.json(cached);
+        res.json(cached);
+        return;
       }
 
       // Get overview metrics
@@ -109,7 +110,7 @@ router.get(
         }),
         prisma.authorizationDecision.aggregate({
           where: { createdAt: { gte: startDate, lte: endDate } },
-          _avg: { processingTime: true },
+          _avg: { processingTime: true } as any,
         }),
         prisma.case.aggregate({
           where: { createdAt: { gte: startDate, lte: endDate } },
@@ -149,7 +150,7 @@ router.get(
         where: {
           createdAt: { gte: startDate },
           isRead: false,
-          type: 'alert',
+          type: 'CASE_UPDATE' as any,
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -162,8 +163,8 @@ router.get(
             totalCases,
             pendingCases,
             totalDecisions,
-            avgProcessingTime: avgProcessingTime._avg.processingTime || 0,
-            totalValue: totalValue._sum.value || 0,
+            avgProcessingTime: (avgProcessingTime as any)._avg?.processingTime || 0,
+            totalValue: totalValue._count || 0,
             approvalRate: approvalRate[0]?.rate || 0,
           },
           performance: {
@@ -219,7 +220,7 @@ router.get(
     query('startDate').optional().isISO8601(),
     query('endDate').optional().isISO8601(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -237,7 +238,7 @@ router.get(
       };
 
       // Get metrics
-      const metrics = await prisma.decision.aggregate({
+      const metrics = await prisma.authorizationDecision.aggregate({
         where: whereClause,
         _count: true,
         _avg: {
@@ -247,7 +248,7 @@ router.get(
       });
 
       // Get decision breakdown
-      const decisionBreakdown = await prisma.decision.groupBy({
+      const decisionBreakdown = await prisma.authorizationDecision.groupBy({
         by: ['decision'],
         where: whereClause,
         _count: true,
@@ -328,7 +329,7 @@ router.get(
     query('startDate').optional().isISO8601(),
     query('endDate').optional().isISO8601(),
   ],
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -457,7 +458,7 @@ router.get(
 router.post(
   '/reports/generate',
   authorize('admin'),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { reportType, startDate, endDate, filters = {}, format = 'pdf' } = req.body;
 
@@ -517,7 +518,7 @@ async function getTrendsData(startDate: Date, endDate: Date, period: string) {
 
   const trends = await prisma.$queryRaw<any[]>`
     SELECT 
-      DATE_TRUNC('${dateFormat}', c.created_at) as date,
+      DATE_TRUNC(${dateFormat}, c.created_at) as date,
       COUNT(c.id) as cases_created,
       COUNT(d.id) as decisions_made,
       AVG(d.processing_time) as avg_processing_time,

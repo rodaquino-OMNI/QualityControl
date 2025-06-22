@@ -262,7 +262,8 @@ router.get(
       const cacheKey = `compliance:${startDate}:${endDate}:${reportType}`;
       const cached = await cache.get(cacheKey);
       if (cached) {
-        return res.json(cached);
+        res.json(cached);
+        return;
       }
 
       const start = new Date(startDate as string);

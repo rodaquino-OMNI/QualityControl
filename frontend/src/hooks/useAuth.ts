@@ -74,11 +74,11 @@ export const useAuth = () => {
   }, [auth.refreshToken, logoutMutation, dispatch, navigate]);
 
   const hasRole = useCallback((roleName: string): boolean => {
-    return auth.user?.roles.some(role => role.name === roleName) || false;
+    return auth.user?.roles?.some((role: any) => role.name === roleName) || false;
   }, [auth.user]);
 
   const hasAnyRole = useCallback((roleNames: string[]): boolean => {
-    return auth.user?.roles.some(role => roleNames.includes(role.name)) || false;
+    return auth.user?.roles?.some((role: any) => roleNames.includes(role.name)) || false;
   }, [auth.user]);
 
   const hasPermission = useCallback((): boolean => {

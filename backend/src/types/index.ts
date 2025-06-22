@@ -409,6 +409,128 @@ export interface Session {
   createdAt: Date;
 }
 
+// AI Analysis types
+export interface AIAnalysis {
+  id: string;
+  entityType: string;
+  entityId: string;
+  analysisType: string;
+  result: AIAnalysisResult;
+  confidence: number;
+  createdAt: Date;
+}
+
+export interface AIAnalysisResult {
+  recommendation: 'approved' | 'denied' | 'partial' | 'review';
+  confidence: number;
+  explanation: string;
+  riskFactors: AIRiskFactor[];
+  similarCases: AISimilarCase[];
+  medicalContext: AIMedicalContext;
+  modelVersion: string;
+  processingTime: number;
+}
+
+export interface AIRiskFactor {
+  factor: string;
+  score: number;
+  description: string;
+}
+
+export interface AISimilarCase {
+  caseId: string;
+  similarity: number;
+  decision: string;
+  procedureCode?: string;
+  value?: number;
+  decidedAt?: Date;
+}
+
+export interface AIMedicalContext {
+  guidelines: string[];
+  protocols: string[];
+  evidence: string[];
+}
+
+// AI Conversation types
+export interface AIConversation {
+  id: string;
+  userId: string;
+  caseId?: string;
+  title?: string;
+  context: Record<string, any>;
+  messages?: AIMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AIMessage {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  confidence?: number;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+}
+
+// AI Chat types
+export interface AIChatRequest {
+  message: string;
+  caseId: string;
+  conversationId?: string;
+}
+
+export interface AIChatResponse {
+  response: string;
+  conversationId: string;
+  confidence: number;
+  sources: string[];
+}
+
+// AI Fraud Detection types
+export interface AIFraudDetectionResult {
+  fraudScore: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  indicators: AIFraudIndicator[];
+  modelVersion: string;
+}
+
+export interface AIFraudIndicator {
+  type: string;
+  description: string;
+  severity: string;
+  confidence: number;
+}
+
+// AI Service Case Data interface
+export interface AICaseData {
+  id: string;
+  procedureCode: string;
+  procedureDescription: string;
+  value: number;
+  patient: {
+    id: string;
+    age?: number;
+    gender?: string;
+    medicalHistory?: Record<string, unknown>;
+  };
+  attachments?: Array<{
+    id: string;
+    type: string;
+    url?: string;
+    content?: string;
+  }>;
+  metadata?: Record<string, any>;
+}
+
+// AI Analysis Request types
+export interface AIAnalysisRequest {
+  caseId: string;
+  forceReanalysis?: boolean;
+  analysisType?: 'full' | 'quick' | 'fraud_only' | 'medical_only';
+}
+
 // Webhook types
 export interface Webhook {
   id: string;

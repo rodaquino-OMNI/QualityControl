@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+/* Import additional CSS modules */
+@import './themes.css';
+@import './components.css';
+@import './utilities.css';
+@import './animations.css';
+@import './responsive.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

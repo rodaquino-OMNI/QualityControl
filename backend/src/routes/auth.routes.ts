@@ -3,7 +3,7 @@ import { AuthController } from '../controllers/auth.controller';
 import { AuthMiddleware } from '../middleware/auth.middleware';
 import { AuthService } from '../services/auth.service';
 import { RBACService } from '../services/rbac.service';
-import { RedisService } from '../services/redis.service';
+import { RedisService } from '../services/redisService';
 import { PrismaClient } from '@prisma/client';
 
 export function createAuthRoutes(

@@ -718,6 +718,7 @@ enum OrganizationType {
   administrator
   auditor
   @@map("organization_type")
+  @@schema("auth")
 }
 
 enum OrganizationStatus {
@@ -725,17 +726,10 @@ enum OrganizationStatus {
   suspended
   inactive
   @@map("organization_status")
+  @@schema("auth")
 }
 
-enum UserRole {
-  admin
-  doctor
-  nurse
-  auditor
-  analyst
-  reviewer
-  @@map("user_role")
-}
+// Removed UserRole enum due to conflict with UserRole model
 
 enum UserStatus {
   active
@@ -743,6 +737,7 @@ enum UserStatus {
   inactive
   pending
   @@map("user_status")
+  @@schema("auth")
 }
 
 enum RiskCategory {
@@ -751,6 +746,7 @@ enum RiskCategory {
   high
   critical
   @@map("risk_category")
+  @@schema("medical")
 }
 
 enum RiskLevel {
@@ -758,6 +754,7 @@ enum RiskLevel {
   medium
   high
   @@map("risk_level")
+  @@schema("medical")
 }
 
 enum UrgencyLevel {
@@ -765,6 +762,7 @@ enum UrgencyLevel {
   urgent
   emergency
   @@map("urgency_level")
+  @@schema("medical")
 }
 
 enum AuthorizationStatus {
@@ -775,6 +773,7 @@ enum AuthorizationStatus {
   expired
   cancelled
   @@map("authorization_status")
+  @@schema("medical")
 }
 
 enum DecisionType {
@@ -782,6 +781,7 @@ enum DecisionType {
   manual
   ai_assisted
   @@map("decision_type")
+  @@schema("medical")
 }
 
 enum Decision {
@@ -790,6 +790,7 @@ enum Decision {
   partial
   deferred
   @@map("decision")
+  @@schema("medical")
 }
 
 enum ClaimStatus {
@@ -800,6 +801,7 @@ enum ClaimStatus {
   appealed
   paid
   @@map("claim_status")
+  @@schema("medical")
 }
 
 enum AIModelType {
@@ -808,6 +810,7 @@ enum AIModelType {
   risk_assessment
   pattern_analysis
   @@map("ai_model_type")
+  @@schema("ai")
 }
 
 enum AIModelStatus {
@@ -816,6 +819,7 @@ enum AIModelStatus {
   deprecated
   inactive
   @@map("ai_model_status")
+  @@schema("ai")
 }
 
 enum EntityType {
@@ -824,6 +828,7 @@ enum EntityType {
   provider
   patient
   @@map("entity_type")
+  @@schema("ai")
 }
 
 enum Severity {
@@ -836,6 +841,7 @@ enum Severity {
   moderate
   major
   @@map("violation_severity")
+  @@schema("audit")
 }
 
 enum FraudStatus {
@@ -844,6 +850,7 @@ enum FraudStatus {
   confirmed
   dismissed
   @@map("fraud_status")
+  @@schema("ai")
 }
 
 enum DecisionMakerType {
@@ -851,6 +858,7 @@ enum DecisionMakerType {
   ai
   system
   @@map("decision_maker_type")
+  @@schema("audit")
 }
 
 enum DetectionMethod {
@@ -858,6 +866,7 @@ enum DetectionMethod {
   ai
   manual
   @@map("detection_method")
+  @@schema("audit")
 }
 
 enum ViolationStatus {
@@ -866,6 +875,7 @@ enum ViolationStatus {
   resolved
   escalated
   @@map("violation_status")
+  @@schema("audit")
 }
 
 enum CasePriority {
@@ -874,6 +884,7 @@ enum CasePriority {
   high
   critical
   @@map("case_priority")
+  @@schema("medical")
 }
 
 enum CaseStatus {
@@ -883,6 +894,7 @@ enum CaseStatus {
   closed
   cancelled
   @@map("case_status")
+  @@schema("medical")
 }
 
 enum NotificationType {
@@ -893,6 +905,7 @@ enum NotificationType {
   case_update
   system_alert
   @@map("notification_type")
+  @@schema("auth")
 }
 
 enum NotificationPriority {
@@ -901,4 +914,5 @@ enum NotificationPriority {
   high
   urgent
   @@map("notification_priority")
+  @@schema("auth")
 }
