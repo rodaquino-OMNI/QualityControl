@@ -31,17 +31,89 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // Copy service worker to root for proper scope
+    copyPublicDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          redux: ['@reduxjs/toolkit', 'react-redux'],
-          charts: ['recharts', 'd3'],
-          utils: ['date-fns', 'jspdf', 'xlsx'],
+        manualChunks: (id) => {
+          // Core vendor chunks for optimal loading
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor';
+          }
+          if (id.includes('node_modules/react-router-dom/')) {
+            return 'router';
+          }
+          if (id.includes('node_modules/@reduxjs/toolkit/') || id.includes('node_modules/react-redux/')) {
+            return 'redux';
+          }
+          
+          // Feature-specific chunks for code splitting
+          if (id.includes('node_modules/recharts/') || id.includes('node_modules/d3/')) {
+            return 'charts';
+          }
+          if (id.includes('node_modules/lucide-react/')) {
+            return 'icons';
+          }
+          if (id.includes('node_modules/date-fns/') || id.includes('node_modules/jspdf/') || id.includes('node_modules/exceljs/')) {
+            return 'utils';
+          }
+          if (id.includes('node_modules/idb/')) {
+            return 'offline';
+          }
+          
+          // Healthcare-specific chunks
+          if (id.includes('src/components/mobile/')) {
+            return 'mobile-components';
+          }
+          if (id.includes('src/components/analytics/')) {
+            return 'analytics';
+          }
+          if (id.includes('src/components/cases/')) {
+            return 'cases';
+          }
+        },
+        // Optimize chunk sizes for mobile networks
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId 
+            ? chunkInfo.facadeModuleId.split('/').pop()?.replace('.tsx', '').replace('.ts', '') 
+            : 'chunk';
+          return `assets/${facadeModuleId}-[hash].js`;
         },
       },
     },
-    chunkSizeWarningLimit: 1000,
+    // Increase chunk size warning for mobile optimization
+    chunkSizeWarningLimit: 800,
+    
+    // Mobile-specific build optimizations
+    target: ['es2015', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.debug'],
+        // Keep emergency console functions
+        pure_getters: true,
+        unsafe_comps: true,
+        unsafe_math: true,
+        passes: 2
+      },
+      mangle: {
+        safari10: true,
+        keep_fnames: /^(Emergency|Critical|Alert)/
+      },
+      format: {
+        comments: false
+      }
+    },
+    
+    // PWA-specific build settings
+    assetsInlineLimit: 4096, // Inline small assets
+    cssCodeSplit: true,
+    reportCompressedSize: false, // Faster builds
+    
+    // PWA and mobile optimization
+    emptyOutDir: true
   },
   optimizeDeps: {
     include: [
@@ -54,7 +126,7 @@ export default defineConfig({
       'd3',
       'date-fns',
       'jspdf',
-      'xlsx',
+      'exceljs',
     ],
   },
   test: {

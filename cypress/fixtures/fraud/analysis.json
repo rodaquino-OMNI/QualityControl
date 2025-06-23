@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "data": {
+    "fraudScore": 23.5,
+    "riskLevel": "low",
+    "indicators": [
+      {
+        "type": "billing_pattern",
+        "description": "Normal billing frequency for provider",
+        "severity": "low",
+        "weight": 0.1
+      },
+      {
+        "type": "procedure_pattern",
+        "description": "Standard procedure for patient condition",
+        "severity": "low",
+        "weight": 0.1
+      }
+    ],
+    "recommendations": [
+      "Continue standard review process",
+      "No additional investigation required"
+    ],
+    "confidence": 87.3
+  }
+}

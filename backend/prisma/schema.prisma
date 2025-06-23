@@ -221,19 +221,22 @@ model OAuthAccount {
 // =====================================================
 
 model Case {
-  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title         String   @db.VarChar(255)
-  description   String?  @db.Text
-  patientId     String?  @map("patient_id") @db.Uuid
-  patientName   String?  @map("patient_name") @db.VarChar(255)
-  priority      CasePriority @default(medium)
-  status        CaseStatus @default(open)
-  assignedTo    String?  @map("assigned_to") @db.Uuid
-  createdBy     String   @map("created_by") @db.Uuid
-  tags          Json     @default("[]")
-  metadata      Json     @default("{}")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                String   @db.VarChar(255)
+  description          String?  @db.Text
+  patientId            String?  @map("patient_id") @db.Uuid
+  patientName          String?  @map("patient_name") @db.VarChar(255)
+  procedureCode        String?  @map("procedure_code") @db.VarChar(50)
+  procedureDescription String?  @map("procedure_description") @db.VarChar(500)
+  value                Decimal? @db.Decimal(10, 2)
+  priority             CasePriority @default(medium)
+  status               CaseStatus @default(open)
+  assignedTo           String?  @map("assigned_to") @db.Uuid
+  createdBy            String   @map("created_by") @db.Uuid
+  tags                 Json     @default("[]")
+  metadata             Json     @default("{}")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   
   patient       Patient?     @relation(fields: [patientId], references: [id])
   assignedUser  User?        @relation("AssignedCases", fields: [assignedTo], references: [id])
@@ -706,6 +709,94 @@ model UserActivitySummary {
   @@unique([userId, activityDate])
   @@map("user_activity_summary")
   @@schema("analytics")
+}
+
+// =====================================================
+// WORKFLOW AUTOMATION
+// =====================================================
+
+model WorkflowInstance {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  definitionId     String   @map("definition_id") @db.VarChar(255)
+  definitionVersion String   @map("definition_version") @db.VarChar(50)
+  entityType       String   @map("entity_type") @db.VarChar(50)
+  entityId         String   @map("entity_id") @db.Uuid
+  status           String   @db.VarChar(50)
+  currentStep      String?  @map("current_step") @db.VarChar(255)
+  inputData        Json     @default("{}") @map("input_data")
+  outputData       Json     @default("{}") @map("output_data")
+  variables        Json     @default("{}")
+  assignedTo       String?  @map("assigned_to") @db.Uuid
+  priority         String   @default("normal") @db.VarChar(20)
+  dueDate          DateTime? @map("due_date") @db.Timestamptz(6)
+  version          Int      @default(0)
+  startedAt        DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  @@index([definitionId, status])
+  @@index([entityType, entityId])
+  @@index([assignedTo])
+  @@map("workflow_instances")
+  @@schema("medical")
+}
+
+model WorkflowEvent {
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workflowId         String   @map("workflow_id") @db.Uuid
+  stepExecutionId    String?  @map("step_execution_id") @db.Uuid
+  eventType          String   @map("event_type") @db.VarChar(100)
+  eventData          Json     @default("{}") @map("event_data")
+  source             String   @db.VarChar(100)
+  userId             String?  @map("user_id") @db.Uuid
+  correlationId      String   @map("correlation_id") @db.Uuid
+  causationId        String?  @map("causation_id") @db.Uuid
+  traceId            String   @map("trace_id") @db.Uuid
+  timestamp          DateTime @default(now()) @db.Timestamptz(6)
+  version            Int
+  metadata           Json     @default("{}")
+  
+  @@index([workflowId, version])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("workflow_events")
+  @@schema("medical")
+}
+
+model WorkflowSnapshot {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workflowId String   @unique @map("workflow_id") @db.Uuid
+  version    Int
+  data       Json
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  @@index([workflowId])
+  @@map("workflow_snapshots")
+  @@schema("medical")
+}
+
+model BusinessRule {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String    @db.VarChar(255)
+  category       String    @db.VarChar(100)
+  priority       Int       @default(0)
+  status         String    @default("active") @db.VarChar(20)
+  effectiveDate  DateTime  @map("effective_date") @db.Date
+  expirationDate DateTime? @map("expiration_date") @db.Date
+  version        String    @db.VarChar(50)
+  condition      Json      @default("{}")
+  action         Json      @default("[]")
+  description    String?   @db.Text
+  tags           Json      @default("[]")
+  createdBy      String    @map("created_by") @db.VarChar(255)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  @@index([category, status])
+  @@index([effectiveDate, expirationDate])
+  @@map("business_rules")
+  @@schema("medical")
 }
 
 // =====================================================

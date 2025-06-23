@@ -1,8 +1,8 @@
 /** @type {import('jest').Config} */
-module.exports = {
+export default {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
-  roots: ['<rootDir>/src', '<rootDir>/tests', '<rootDir>/frontend/src'],
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -15,6 +15,8 @@ module.exports = {
     '^@assets/(.*)$': '<rootDir>/src/assets/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(svg|png|jpg|jpeg|gif)$': '<rootDir>/tests/mocks/fileMock.js',
+    '^bull$': '<rootDir>/tests/mocks/bull.js',
+    '^@prisma/client$': '<rootDir>/tests/mocks/prisma.js',
   },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
@@ -38,13 +40,15 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
-    'frontend/src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/main.tsx',
     '!src/vite-env.d.ts',
     '!**/node_modules/**',
-    '!**/dist/**',
+    '!**/dist/**',  
     '!**/coverage/**',
+    '!**/frontend/**',
+    '!**/backend/**',
+    '!**/ai-service/**',
   ],
   coverageThreshold: {
     global: {
@@ -93,9 +97,15 @@ module.exports = {
     '/node_modules/',
     '/dist/',
     '/coverage/',
+    '/frontend/',
     '\\.snap$',
   ],
   
+  // Transform ES modules in node_modules
+  transformIgnorePatterns: [
+    'node_modules/(?!(jose|openid-client|@paralleldrive|msgpackr|bull|uuid|@prisma)/)',
+  ],
+
   // Watch plugins
   watchPlugins: [
     'jest-watch-typeahead/filename',

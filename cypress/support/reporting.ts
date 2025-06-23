@@ -393,9 +393,9 @@ export const generateFinalReport = () => {
 };
 
 // Custom command to add test metadata
-Cypress.Commands.add('addTestMetadata', (key: string, value: any) => {
+Cypress.Commands.add('addTestMetadata', (metadata: Record<string, any>) => {
   // This would be used to add custom metadata to test reports
-  cy.log(`Test metadata: ${key} = ${JSON.stringify(value)}`);
+  cy.log(`Test metadata: ${JSON.stringify(metadata)}`);
 });
 
 // Performance monitoring
@@ -423,6 +423,6 @@ export const monitorPerformance = (pageName: string) => {
     cy.log(`Performance metrics for ${pageName}:`, metrics);
     
     // Add performance data to test metadata
-    cy.addTestMetadata('performance', metrics);
+    cy.addTestMetadata({ performance: metrics });
   });
 };

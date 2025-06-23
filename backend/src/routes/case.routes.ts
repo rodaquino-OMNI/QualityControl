@@ -63,11 +63,11 @@ router.use(authenticate);
 router.get(
   '/',
   [
-    query('status').optional().isIn(['pending', 'in_review', 'approved', 'denied', 'partial']),
+    query('status').optional().isIn(['open', 'in_progress', 'resolved', 'closed', 'cancelled']),
     query('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
-    query('sortBy').optional().isIn(['createdAt', 'updatedAt', 'priority', 'value']),
+    query('sortBy').optional().isIn(['createdAt', 'updatedAt', 'priority', 'title']),
     query('sortOrder').optional().isIn(['asc', 'desc']),
   ],
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -283,9 +283,9 @@ router.post(
   authorize('admin', 'auditor'),
   [
     body('patientId').notEmpty(),
-    body('procedureCode').notEmpty().trim(),
-    body('procedureDescription').notEmpty().trim(),
-    body('value').isFloat({ min: 0 }),
+    body('procedureCode').optional().trim(),
+    body('procedureDescription').optional().trim(),
+    // body('value').isFloat({ min: 0 }), // value field not in schema
     body('priority').isIn(['low', 'medium', 'high', 'urgent']),
     body('attachments').optional().isArray(),
   ],
@@ -296,7 +296,11 @@ router.post(
         throw new AppError('Validation failed', 400, 'VALIDATION_ERROR', errors.array());
       }
 
-      const { patientId, procedureCode, procedureDescription, value, priority, attachments } = req.body;
+      const { patientId, priority, attachments } = req.body;
+      // procedureCode, procedureDescription, value not in schema
+      const procedureCode = req.body.procedureCode || req.body.title;
+      const procedureDescription = req.body.procedureDescription || req.body.description;
+      const value = req.body.value;
 
       // Create case
       const newCase = await prisma.case.create({
@@ -309,10 +313,17 @@ router.post(
           createdBy: req.user!.id,
           metadata: {
             procedureCode,
+            procedureDescription,
             value
           },
           attachments: attachments ? {
-            create: attachments,
+            create: attachments.map((att: any) => ({
+              fileName: att.name || att.fileName,
+              fileType: att.type || att.fileType,
+              fileSize: att.size || att.fileSize || 0,
+              url: att.url,
+              uploadedBy: req.user!.id
+            })),
           } : undefined,
         },
         include: {
@@ -343,8 +354,8 @@ router.post(
       logAuditEvent('case.created', req.user!.id, newCase.id, {
         caseId: newCase.id,
         patientId,
-        procedureCode,
-        value,
+        procedureCode: procedureCode || 'N/A',
+        value: value || 0,
       });
 
       res.status(201).json({
@@ -396,7 +407,7 @@ router.patch(
   authorize('admin', 'auditor'),
   [
     param('id').isUUID(),
-    body('status').isIn(['pending', 'in_review', 'approved', 'denied', 'partial']),
+    body('status').isIn(['open', 'in_progress', 'resolved', 'closed', 'cancelled']),
   ],
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -490,8 +501,8 @@ router.post(
         where: { id },
         data: {
           assignedTo: auditorId,
-          status: 'in_review' as any,
-          assignedAt: new Date(),
+          status: 'in_progress', // Use valid status from schema
+          updatedAt: new Date(),
         },
       });
 

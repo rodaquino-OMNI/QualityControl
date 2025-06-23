@@ -378,7 +378,20 @@ export const interceptAllApiCalls = () => {
 };
 
 // Tab navigation command
-Cypress.Commands.add('tab', (options?: { shift?: boolean }) => {
+Cypress.Commands.add('tab', (options?: { shift?: boolean }): void => {
   const tabKey = options?.shift ? '{shift}{tab}' : '{tab}';
-  return cy.focused().type(tabKey);
+  cy.focused().type(tabKey);
+});
+
+// Download verification command
+Cypress.Commands.add('verifyDownload', (fileName: string, timeout = 10000) => {
+  const downloadsFolder = Cypress.config('downloadsFolder');
+  const filePath = `${downloadsFolder}/${fileName}`;
+  
+  return cy.readFile(filePath, { timeout }).should('exist');
+});
+
+// Test metadata command
+Cypress.Commands.add('addTestMetadata', (metadata: Record<string, any>) => {
+  cy.task('addTestMetadata', metadata);
 });

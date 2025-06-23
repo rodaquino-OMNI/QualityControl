@@ -238,3 +238,12 @@ export const createRateLimitReset = (
     }
   };
 };
+
+// Default export for backward compatibility
+const redisService = new RedisService();
+
+export const rateLimiter = createRateLimiter(redisService, {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  message: 'Too many requests, please try again later.',
+});

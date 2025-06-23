@@ -23,14 +23,39 @@ vi.mock('@/store/api/apiSlice', () => {
 });
 
 // Mock the auth service
-vi.mock('@/services/authService', () => ({
-  useLoginMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-  useLogoutMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-  useGetCurrentUserQuery: () => ({ data: null, isLoading: false, refetch: vi.fn() }),
-  useVerifyMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-  useEnableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-  useDisableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
-}));
+vi.mock('@/services/authService', () => {
+  const mockApi = {
+    reducerPath: 'authApi',
+    reducer: (state = {}) => state,
+    middleware: vi.fn(() => (next: any) => (action: any) => next(action)),
+    endpoints: {
+      login: {
+        matchFulfilled: vi.fn(() => ({ type: 'authApi/login/fulfilled' })),
+        matchRejected: vi.fn(() => ({ type: 'authApi/login/rejected' })),
+      },
+      logout: {
+        matchFulfilled: vi.fn(() => ({ type: 'authApi/logout/fulfilled' })),
+      },
+      getCurrentUser: {
+        matchFulfilled: vi.fn(() => ({ type: 'authApi/getCurrentUser/fulfilled' })),
+        matchRejected: vi.fn(() => ({ type: 'authApi/getCurrentUser/rejected' })),
+      },
+      refreshToken: {
+        matchRejected: vi.fn(() => ({ type: 'authApi/refreshToken/rejected' })),
+      },
+    },
+  };
+  
+  return {
+    authApi: mockApi,
+    useLoginMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+    useLogoutMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+    useGetCurrentUserQuery: () => ({ data: null, isLoading: false, refetch: vi.fn() }),
+    useVerifyMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+    useEnableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+    useDisableMFAMutation: () => [vi.fn().mockResolvedValue({ data: {} }), { isLoading: false }],
+  };
+});
 
 describe('useAuth', () => {
   let store: any;

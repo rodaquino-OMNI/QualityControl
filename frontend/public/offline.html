@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QualityControl - Offline Mode</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        
+        .offline-container {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            animation: slideUp 0.6s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .offline-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+        }
+        
+        .offline-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+        
+        .offline-message {
+            font-size: 1.1rem;
+            color: #718096;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .offline-features {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            text-align: left;
+        }
+        
+        .offline-features h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+        
+        .offline-features ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .offline-features li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            color: #4a5568;
+        }
+        
+        .offline-features li::before {
+            content: "✓";
+            color: #48bb78;
+            font-weight: bold;
+            margin-right: 0.8rem;
+            font-size: 1.1rem;
+        }
+        
+        .retry-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 1rem 0.5rem;
+            min-width: 140px;
+        }
+        
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .retry-btn:active {
+            transform: translateY(0);
+        }
+        
+        .cached-btn {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .cached-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1.5rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .connection-offline {
+            background: #fed7d7;
+            color: #c53030;
+        }
+        
+        .connection-online {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-offline {
+            background: #c53030;
+        }
+        
+        .status-online {
+            background: #2f855a;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .emergency-notice {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .emergency-notice strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 640px) {
+            .offline-container {
+                padding: 2rem 1.5rem;
+            }
+            
+            .offline-title {
+                font-size: 1.5rem;
+            }
+            
+            .retry-btn {
+                width: 100%;
+                margin: 0.5rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">
+            📶
+        </div>
+        
+        <h1 class="offline-title">You're Offline</h1>
+        
+        <p class="offline-message">
+            Don't worry! QualityControl PWA is designed to work offline. 
+            Many features are still available while you're disconnected.
+        </p>
+        
+        <div class="offline-features">
+            <h3>Available Offline:</h3>
+            <ul>
+                <li>View cached patient cases</li>
+                <li>Access emergency protocols</li>
+                <li>Review quality metrics</li>
+                <li>Use medical calculators</li>
+                <li>Access emergency contacts</li>
+                <li>View offline documentation</li>
+            </ul>
+        </div>
+        
+        <button class="retry-btn" onclick="retryConnection()">
+            Try Again
+        </button>
+        
+        <button class="retry-btn cached-btn" onclick="viewCachedData()">
+            View Cached Data
+        </button>
+        
+        <div id="connection-status" class="connection-status connection-offline">
+            <div class="status-dot status-offline"></div>
+            <span>Connection Status: Offline</span>
+        </div>
+        
+        <div class="emergency-notice">
+            <strong>⚠️ Emergency Notice:</strong>
+            For critical medical emergencies, use hospital communication systems or call emergency services directly.
+        </div>
+    </div>
+    
+    <script>
+        // Connection status monitoring
+        function updateConnectionStatus() {
+            const statusEl = document.getElementById('connection-status');
+            const statusDot = statusEl.querySelector('.status-dot');
+            const statusText = statusEl.querySelector('span');
+            
+            if (navigator.onLine) {
+                statusEl.className = 'connection-status connection-online';
+                statusDot.className = 'status-dot status-online';
+                statusText.textContent = 'Connection Status: Online';
+                
+                // Auto-redirect when back online
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 2000);
+            } else {
+                statusEl.className = 'connection-status connection-offline';
+                statusDot.className = 'status-dot status-offline';
+                statusText.textContent = 'Connection Status: Offline';
+            }
+        }
+        
+        // Retry connection
+        function retryConnection() {
+            const btn = event.target;
+            btn.textContent = 'Checking...';
+            btn.disabled = true;
+            
+            // Check if online
+            if (navigator.onLine) {
+                // Test actual connectivity
+                fetch('/api/health', { 
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                })
+                .then(() => {
+                    btn.textContent = 'Connected! Redirecting...';
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1000);
+                })
+                .catch(() => {
+                    btn.textContent = 'Still Offline';
+                    setTimeout(() => {
+                        btn.textContent = 'Try Again';
+                        btn.disabled = false;
+                    }, 2000);
+                });
+            } else {
+                btn.textContent = 'Still Offline';
+                setTimeout(() => {
+                    btn.textContent = 'Try Again';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+        
+        // View cached data
+        function viewCachedData() {
+            // Try to access cached dashboard
+            window.location.href = '/dashboard?offline=true';
+        }
+        
+        // Event listeners for connection changes
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+        
+        // Initial status check
+        updateConnectionStatus();
+        
+        // Periodic connection check
+        setInterval(updateConnectionStatus, 10000);
+        
+        // Service Worker messaging
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                // Get cache status
+                const messageChannel = new MessageChannel();
+                messageChannel.port1.onmessage = function(event) {
+                    if (event.data.type === 'CACHE_STATUS') {
+                        console.log('Cache status:', event.data.cacheSize, 'items cached');
+                    }
+                };
+                
+                registration.active?.postMessage({
+                    type: 'GET_CACHE_STATUS'
+                }, [messageChannel.port2]);
+            });
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                retryConnection();
+            } else if (e.key === 'd' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                viewCachedData();
+            }
+        });
+        
+        // Touch/gesture support for mobile
+        let touchStartY = 0;
+        let touchEndY = 0;
+        
+        document.addEventListener('touchstart', function(e) {
+            touchStartY = e.changedTouches[0].screenY;
+        });
+        
+        document.addEventListener('touchend', function(e) {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        });
+        
+        function handleSwipe() {
+            const swipeDistance = touchStartY - touchEndY;
+            
+            // Swipe up to retry connection
+            if (swipeDistance > 50) {
+                retryConnection();
+            }
+            // Swipe down to view cached data
+            else if (swipeDistance < -50) {
+                viewCachedData();
+            }
+        }
+    </script>
+</body>
+</html>

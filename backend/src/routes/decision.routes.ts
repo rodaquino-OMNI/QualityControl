@@ -109,63 +109,97 @@ router.post(
         );
       }
 
-      // Get case with AI analysis
-      const caseData = await prisma.case.findUnique({
-        where: { id: caseId },
+      // Get authorization request with details
+      const authRequest = await prisma.authorizationRequest.findUnique({
+        where: { id: caseId }, // Using caseId as authorizationRequestId
         include: {
-          aiAnalyses: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
+          patient: true,
+          procedure: true,
         },
       });
 
-      if (!caseData) {
-        throw new AppError('Case not found', 404, 'CASE_NOT_FOUND');
+      if (!authRequest) {
+        throw new AppError('Authorization request not found', 404, 'AUTH_REQUEST_NOT_FOUND');
       }
 
-      // Check if case is already decided
-      if (['approved', 'denied', 'partial'].includes(caseData.status)) {
-        throw new AppError('Case already has a decision', 400, 'CASE_ALREADY_DECIDED');
+      // Check if authorization already has a decision
+      const existingDecision = await prisma.authorizationDecision.findFirst({
+        where: { authorizationRequestId: caseId },
+      });
+
+      if (existingDecision) {
+        throw new AppError('Authorization already has a decision', 400, 'AUTH_ALREADY_DECIDED');
       }
+
+      // Get AI analysis separately if available
+      const aiAnalysis = await prisma.aIAnalysis.findFirst({
+        where: {
+          entityId: caseId,
+          entityType: 'authorization',
+        },
+        orderBy: { createdAt: 'desc' },
+      });
 
       // Calculate processing time
       const processingTime = Math.floor(
-        (Date.now() - caseData.createdAt.getTime()) / 1000
+        (Date.now() - authRequest.createdAt.getTime()) / 1000
       );
 
+      // Map decision to Decision enum
+      let decisionEnum: 'approved' | 'denied' | 'partial' | 'deferred';
+      if (decision === 'approved') decisionEnum = 'approved';
+      else if (decision === 'denied') decisionEnum = 'denied';
+      else if (decision === 'partial') decisionEnum = 'partial';
+      else decisionEnum = 'deferred';
+
+      // Calculate valid dates
+      const validFrom = new Date();
+      const validUntil = new Date();
+      validUntil.setMonth(validUntil.getMonth() + 6); // Default 6 months validity
+
       // Create decision
-      const newDecision = await prisma.decision.create({
+      const newDecision = await prisma.authorizationDecision.create({
         data: {
-          caseId,
-          auditorId: req.user!.id,
-          decision,
-          justification,
-          approvedAmount: decision === 'partial' ? approvedAmount : caseData.value,
-          conditions,
-          followUpRequired,
-          aiRecommendation: caseData.aiAnalyses[0]?.recommendation,
-          aiConfidence: caseData.aiAnalyses[0]?.confidence,
-          processingTime,
+          authorizationRequestId: caseId,
+          reviewerId: req.user!.id,
+          decision: decisionEnum,
+          decisionType: 'manual',
+          decisionRationale: justification,
+          conditionsApplied: conditions || [],
+          validFrom,
+          validUntil,
+          appealDeadline: followUpRequired ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
         },
         include: {
-          auditor: {
+          reviewer: {
             select: {
               id: true,
               name: true,
               email: true,
             },
           },
+          authorizationRequest: {
+            select: {
+              id: true,
+              requestNumber: true,
+              procedureId: true,
+            },
+          },
         },
       });
 
-      // Update case status
-      await prisma.case.update({
+      // Update authorization request status
+      let authStatus: 'approved' | 'denied' | 'pending' | 'in_review' | 'expired' | 'cancelled';
+      if (decision === 'approved') authStatus = 'approved';
+      else if (decision === 'denied') authStatus = 'denied';
+      else if (decision === 'partial') authStatus = 'approved'; // Partial is still approved
+      else authStatus = 'in_review';
+
+      await prisma.authorizationRequest.update({
         where: { id: caseId },
         data: {
-          status: decision,
-          decidedAt: new Date(),
-          decidedBy: req.user!.id,
+          status: authStatus,
+          updatedAt: new Date(),
         },
       });
 
@@ -178,7 +212,7 @@ router.post(
             decision,
             auditorId: req.user!.id,
             justification,
-            aiHash: caseData.aiAnalyses[0]?.id || '',
+            aiHash: aiAnalysis?.id || '',
           });
         } catch (error) {
           logger.error('Blockchain recording failed:', error);
@@ -188,19 +222,19 @@ router.post(
 
       // Queue notifications
       await queues.notifications.add('decision-made', {
-        caseId,
+        authorizationId: caseId,
         decision,
-        patientId: caseData.patientId,
+        patientId: authRequest.patientId,
       });
 
       // Queue analytics update
       await queues.analytics.add('update-metrics', {
         type: 'decision',
         data: {
-          auditorId: req.user!.id,
+          reviewerId: req.user!.id,
           decision,
           processingTime,
-          aiAgreement: decision === caseData.aiAnalyses[0]?.recommendation,
+          aiAgreement: aiAnalysis ? decision === (aiAnalysis.result as any).recommendation : null,
         },
       });
 
@@ -273,15 +307,17 @@ router.get(
 
       const { id } = req.params;
 
-      const decision = await prisma.decision.findUnique({
+      const decision = await prisma.authorizationDecision.findUnique({
         where: { id },
         include: {
-          case: {
+          authorizationRequest: {
             include: {
               patient: true,
+              procedure: true,
+              requestingProvider: true,
             },
           },
-          auditor: {
+          reviewer: {
             select: {
               id: true,
               name: true,
@@ -381,30 +417,35 @@ router.get(
       // Build filter
       const where: any = {};
       if (decision) where.decision = decision;
-      if (auditorId) where.auditorId = auditorId;
+      if (auditorId) where.reviewerId = auditorId;
       if (dateFrom || dateTo) {
-        where.createdAt = {};
-        if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
-        if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+        where.decidedAt = {};
+        if (dateFrom) where.decidedAt.gte = new Date(dateFrom as string);
+        if (dateTo) where.decidedAt.lte = new Date(dateTo as string);
       }
 
       // Get decisions
       const [decisions, total] = await Promise.all([
-        prisma.decision.findMany({
+        prisma.authorizationDecision.findMany({
           where,
           skip: ((page as number) - 1) * (limit as number),
           take: limit as number,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { decidedAt: 'desc' },
           include: {
-            case: {
+            authorizationRequest: {
               select: {
                 id: true,
-                procedureCode: true,
-                value: true,
-                priority: true,
+                requestNumber: true,
+                urgencyLevel: true,
+                procedure: {
+                  select: {
+                    code: true,
+                    name: true,
+                  },
+                },
               },
             },
-            auditor: {
+            reviewer: {
               select: {
                 id: true,
                 name: true,
@@ -413,7 +454,7 @@ router.get(
             },
           },
         }),
-        prisma.decision.count({ where }),
+        prisma.authorizationDecision.count({ where }),
       ]);
 
       res.json({
@@ -496,10 +537,10 @@ router.post(
       const { reason, additionalDocuments } = req.body;
 
       // Get decision
-      const decision = await prisma.decision.findUnique({
+      const decision = await prisma.authorizationDecision.findUnique({
         where: { id },
         include: {
-          case: true,
+          authorizationRequest: true,
         },
       });
 
@@ -507,48 +548,57 @@ router.post(
         throw new AppError('Decision not found', 404, 'DECISION_NOT_FOUND');
       }
 
-      // Check if appeal already exists
-      const existingAppeal = await prisma.appeal.findFirst({
-        where: { decisionId: id },
-      });
-
-      if (existingAppeal) {
-        throw new AppError('Appeal already exists for this decision', 400, 'APPEAL_EXISTS');
-      }
-
-      // Create appeal
-      const appeal = await prisma.appeal.create({
-        data: {
-          decisionId: id,
-          caseId: decision.caseId,
-          reason,
-          requestedBy: req.user!.id,
-          status: 'pending',
-          documents: additionalDocuments ? {
-            create: additionalDocuments,
-          } : undefined,
+      // Check if appeal already exists by checking metadata
+      const existingCase = await prisma.case.findFirst({
+        where: {
+          metadata: {
+            path: ['appealForDecisionId'],
+            equals: id,
+          },
         },
       });
 
-      // Update case status
-      await prisma.case.update({
-        where: { id: decision.caseId },
+      if (existingCase) {
+        throw new AppError('Appeal already exists for this decision', 400, 'APPEAL_EXISTS');
+      }
+
+      // Create appeal as a new case
+      const appeal = await prisma.case.create({
+        data: {
+          title: `Appeal for Authorization ${decision.authorizationRequest.requestNumber}`,
+          description: reason,
+          procedureCode: (decision.authorizationRequest as any).procedureId,
+          patientId: decision.authorizationRequest.patientId,
+          priority: 'high',
+          status: 'open',
+          createdBy: req.user!.id,
+          metadata: {
+            appealForDecisionId: id,
+            authorizationRequestId: decision.authorizationRequestId,
+            originalDecision: decision.decision,
+            additionalDocuments: additionalDocuments || [],
+          },
+        },
+      });
+
+      // Update authorization request status
+      await prisma.authorizationRequest.update({
+        where: { id: decision.authorizationRequestId },
         data: {
           status: 'in_review',
-          hasAppeal: true,
         },
       });
 
       // Queue notification
       await queues.notifications.add('appeal-created', {
         appealId: appeal.id,
-        caseId: decision.caseId,
+        authorizationRequestId: decision.authorizationRequestId,
         decisionId: id,
       });
 
       logAuditEvent('decision.appeal.created', req.user!.id, id, {
         decisionId: id,
-        caseId: decision.caseId,
+        authorizationRequestId: decision.authorizationRequestId,
         appealId: appeal.id,
       });
 

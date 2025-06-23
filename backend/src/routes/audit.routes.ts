@@ -284,18 +284,21 @@ router.get(
         prisma.authorizationDecision.count({
           where: { createdAt: { gte: start, lte: end } },
         }),
-        prisma.authorizationDecision.aggregate({
-          where: { createdAt: { gte: start, lte: end } },
-          _avg: { processingTime: true },
-        }),
-        // AI agreement rate
+        // Calculate average processing time from authorization requests
+        prisma.$queryRaw<[{ avgProcessingTime: number | null }]>`
+          SELECT 
+            AVG(EXTRACT(EPOCH FROM (ad.created_at - ar.submitted_at)) / 60) as "avgProcessingTime"
+          FROM authorization_decisions ad
+          JOIN authorization_requests ar ON ad.authorization_request_id = ar.id
+          WHERE ad.created_at BETWEEN ${start} AND ${end}
+        `,
+        // AI agreement rate (based on AI-assisted decisions)
         prisma.$queryRaw<[{ rate: number }]>`
           SELECT 
-            CAST(COUNT(CASE WHEN d.decision = d.ai_recommendation THEN 1 END) AS FLOAT) / 
+            CAST(COUNT(CASE WHEN decision_type = 'ai_assisted' THEN 1 END) AS FLOAT) / 
             NULLIF(COUNT(*), 0) as rate
-          FROM authorization_decisions d
-          WHERE d.created_at BETWEEN ${start} AND ${end}
-            AND d.ai_recommendation IS NOT NULL
+          FROM authorization_decisions
+          WHERE created_at BETWEEN ${start} AND ${end}
         `,
         // Appeal rate
         prisma.$queryRaw<[{ rate: number }]>`
@@ -318,19 +321,24 @@ router.get(
       ]);
 
       // Decision breakdown
-      const decisionBreakdown = await prisma.decision.groupBy({
+      const decisionBreakdown = await prisma.authorizationDecision.groupBy({
         by: ['decision'],
         where: { createdAt: { gte: start, lte: end } },
         _count: true,
       });
 
       // Auditor performance
-      const auditorPerformance = await prisma.decision.groupBy({
-        by: ['auditorId'],
-        where: { createdAt: { gte: start, lte: end } },
-        _count: true,
-        _avg: { processingTime: true },
-      });
+      const auditorPerformance = await prisma.$queryRaw<Array<{ reviewerId: string; _count: number; avgProcessingTime: number | null }>>`
+        SELECT 
+          ad.reviewer_id as "reviewerId",
+          COUNT(*)::int as "_count",
+          AVG(EXTRACT(EPOCH FROM (ad.created_at - ar.submitted_at)) / 60) as "avgProcessingTime"
+        FROM authorization_decisions ad
+        JOIN authorization_requests ar ON ad.authorization_request_id = ar.id
+        WHERE ad.created_at BETWEEN ${start} AND ${end}
+          AND ad.reviewer_id IS NOT NULL
+        GROUP BY ad.reviewer_id
+      `;
 
       // Compliance metrics
       const compliance = {
@@ -357,7 +365,7 @@ router.get(
         statistics: {
           totalCases,
           totalDecisions,
-          avgProcessingTime: avgProcessingTime._avg.processingTime || 0,
+          avgProcessingTime: avgProcessingTime[0]?.avgProcessingTime || 0,
           aiAgreementRate: aiAgreementRate[0]?.rate || 0,
           appealRate: appealRate[0]?.rate || 0,
           fraudDetectionRate: fraudDetectionRate[0]?.rate || 0,
@@ -484,10 +492,11 @@ router.get(
 async function calculateSLACompliance(start: Date, end: Date): Promise<number> {
   const result = await prisma.$queryRaw<[{ compliance: number }]>`
     SELECT 
-      CAST(COUNT(CASE WHEN processing_time <= 300 THEN 1 END) AS FLOAT) / 
+      CAST(COUNT(CASE WHEN EXTRACT(EPOCH FROM (ad.created_at - ar.submitted_at)) / 60 <= 5 THEN 1 END) AS FLOAT) / 
       NULLIF(COUNT(*), 0) as compliance
-    FROM decisions
-    WHERE created_at BETWEEN ${start} AND ${end}
+    FROM authorization_decisions ad
+    JOIN authorization_requests ar ON ad.authorization_request_id = ar.id
+    WHERE ad.created_at BETWEEN ${start} AND ${end}
   `;
   return result[0]?.compliance || 0;
 }
@@ -495,20 +504,22 @@ async function calculateSLACompliance(start: Date, end: Date): Promise<number> {
 async function calculateDocumentationCompliance(start: Date, end: Date): Promise<number> {
   const result = await prisma.$queryRaw<[{ compliance: number }]>`
     SELECT 
-      CAST(COUNT(CASE WHEN LENGTH(justification) >= 50 THEN 1 END) AS FLOAT) / 
+      CAST(COUNT(CASE WHEN LENGTH(decision_rationale) >= 50 THEN 1 END) AS FLOAT) / 
       NULLIF(COUNT(*), 0) as compliance
-    FROM decisions
+    FROM authorization_decisions
     WHERE created_at BETWEEN ${start} AND ${end}
   `;
   return result[0]?.compliance || 0;
 }
 
 async function calculateProcessCompliance(start: Date, end: Date): Promise<number> {
+  // Since AuthorizationDecision doesn't have ai_recommendation field,
+  // we'll check for AI-assisted decision type instead
   const result = await prisma.$queryRaw<[{ compliance: number }]>`
     SELECT 
-      CAST(COUNT(CASE WHEN ai_recommendation IS NOT NULL THEN 1 END) AS FLOAT) / 
+      CAST(COUNT(CASE WHEN decision_type = 'ai_assisted' THEN 1 END) AS FLOAT) / 
       NULLIF(COUNT(*), 0) as compliance
-    FROM decisions
+    FROM authorization_decisions
     WHERE created_at BETWEEN ${start} AND ${end}
   `;
   return result[0]?.compliance || 0;
@@ -520,9 +531,10 @@ async function identifyComplianceRisks(start: Date, end: Date): Promise<any[]> {
   // Check for rapid decisions (potential insufficient review)
   const rapidDecisions = await prisma.$queryRaw<[{ count: bigint }]>`
     SELECT COUNT(*) as count
-    FROM decisions
-    WHERE created_at BETWEEN ${start} AND ${end}
-      AND processing_time < 60
+    FROM authorization_decisions ad
+    JOIN authorization_requests ar ON ad.authorization_request_id = ar.id
+    WHERE ad.created_at BETWEEN ${start} AND ${end}
+      AND EXTRACT(EPOCH FROM (ad.created_at - ar.submitted_at)) < 60
   `;
 
   if (Number(rapidDecisions[0].count) > 0) {
@@ -535,13 +547,13 @@ async function identifyComplianceRisks(start: Date, end: Date): Promise<any[]> {
   }
 
   // Check for high disagreement with AI
+  // Since we don't have ai_recommendation field, we'll check manual overrides of AI-assisted decisions
   const aiDisagreement = await prisma.$queryRaw<[{ rate: number }]>`
     SELECT 
-      CAST(COUNT(CASE WHEN d.decision != d.ai_recommendation THEN 1 END) AS FLOAT) / 
+      CAST(COUNT(CASE WHEN decision_type = 'manual' THEN 1 END) AS FLOAT) / 
       NULLIF(COUNT(*), 0) as rate
-    FROM decisions d
-    WHERE d.created_at BETWEEN ${start} AND ${end}
-      AND d.ai_recommendation IS NOT NULL
+    FROM authorization_decisions
+    WHERE created_at BETWEEN ${start} AND ${end}
   `;
 
   if (aiDisagreement[0]?.rate > 0.3) {

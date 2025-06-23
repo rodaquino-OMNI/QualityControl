@@ -17,7 +17,12 @@ const renderWithProviders = (ui: React.ReactElement) => {
   return render(
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
           {ui}
         </BrowserRouter>
       </QueryClientProvider>

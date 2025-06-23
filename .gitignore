@@ -115,3 +115,46 @@ backend/tests/**/*.d.ts.map
 test.html
 *.tmp
 temp-*
+
+# Fix and utility scripts
+backend/fix-*.js
+backend/quick-final-fix.js
+*fix*.js
+deploy-*.sh
+
+# Analysis and report files
+*_ANALYSIS_REPORT.md
+*_DEPLOYMENT_PLAN.md
+*_STRATEGY.md
+*_DOCUMENTATION.md
+*_FIXES.md
+DEVOPS_*.md
+SECURITY_*.md
+ML_*.md
+MOBILE_*.md
+COMPREHENSIVE_*.md
+VALIDATION_SUMMARY.md
+backend-api-optimization-report.md
+e2e-test-journeys.md
+e2e-testing-strategy.md
+
+# Storage and analysis files
+backend_analysis_storage.js
+memory_update.js
+memory_security_analysis.json
+security_action_plan.json
+security_audit_results.json
+
+# Build and compilation artifacts
+backend/dist/
+frontend/dist/
+frontend/build/
+*.tsbuildinfo
+
+# Generated schema files (keep only main schema)
+backend/prisma/schema-fixed.prisma
+backend/prisma/workflow-models.prisma
+
+# Performance test outputs
+performance-tests/PERFORMANCE_TESTING_REPORT.md
+performance-tests/scripts/

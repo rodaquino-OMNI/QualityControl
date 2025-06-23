@@ -1,0 +1,110 @@
+{
+  "users": [
+    {
+      "id": "test-user-1",
+      "email": "auditor@test.com",
+      "name": "Test Auditor",
+      "role": "auditor",
+      "isActive": true,
+      "emailVerified": true
+    },
+    {
+      "id": "test-user-2", 
+      "email": "admin@test.com",
+      "name": "Test Admin",
+      "role": "admin",
+      "isActive": true,
+      "emailVerified": true
+    },
+    {
+      "id": "test-user-3",
+      "email": "manager@test.com", 
+      "name": "Test Manager",
+      "role": "manager",
+      "isActive": true,
+      "emailVerified": true
+    }
+  ],
+  "departments": [
+    {
+      "id": "dept-1",
+      "name": "Cardiology",
+      "code": "CARD",
+      "description": "Cardiac and cardiovascular department",
+      "isActive": true
+    },
+    {
+      "id": "dept-2",
+      "name": "Neurology", 
+      "code": "NEURO",
+      "description": "Neurological department",
+      "isActive": true
+    }
+  ],
+  "patients": [
+    {
+      "id": "patient-1",
+      "name": "John Doe",
+      "dateOfBirth": "1980-05-15",
+      "healthPlan": "Premium Care"
+    },
+    {
+      "id": "patient-2",
+      "name": "Jane Smith", 
+      "dateOfBirth": "1975-12-22",
+      "healthPlan": "Standard Care"
+    }
+  ],
+  "providers": [
+    {
+      "id": "provider-1",
+      "name": "City General Hospital",
+      "type": "hospital",
+      "specialty": "general"
+    },
+    {
+      "id": "provider-2",
+      "name": "Heart Specialists Clinic",
+      "type": "clinic", 
+      "specialty": "cardiology"
+    }
+  ],
+  "sampleCases": [
+    {
+      "title": "Cardiac procedure review",
+      "description": "Review of cardiac catheterization procedure",
+      "priority": "high",
+      "category": "medical_records",
+      "status": "pending"
+    },
+    {
+      "title": "Medication audit",
+      "description": "Audit of diabetes medication prescriptions",
+      "priority": "medium", 
+      "category": "billing_audit",
+      "status": "in_progress"
+    }
+  ],
+  "testConfig": {
+    "defaultPassword": "TestPassword123!",
+    "jwtSecret": "test-jwt-secret-key",
+    "sessionTimeout": 3600,
+    "rateLimitWindow": 900,
+    "rateLimitMax": 100
+  },
+  "apiResponses": {
+    "healthCheck": {
+      "status": "healthy",
+      "timestamp": "2024-01-15T10:30:00.000Z",
+      "uptime": 86400
+    },
+    "errorResponse": {
+      "success": false,
+      "error": {
+        "type": "validation_error",
+        "message": "Validation failed",
+        "timestamp": "2024-01-15T10:30:00.000Z"
+      }
+    }
+  }
+}

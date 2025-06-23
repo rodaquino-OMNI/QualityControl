@@ -2,13 +2,453 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="description" content="QualityControl Healthcare PWA - Advanced platform for healthcare quality control, case management, and fraud detection with offline capabilities" />
+    <meta name="keywords" content="healthcare, quality control, PWA, offline, case management, fraud detection, medical audit" />
+    <meta name="author" content="QualityControl Healthcare Team" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/frontend/public/manifest.json" />
+    
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="msapplication-TileColor" content="#2563eb" />
+    <meta name="msapplication-navbutton-color" content="#2563eb" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="QualityControl" />
+    
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="AUSTA Cockpit - Platform for human and AI interaction deployed on quality control of production in Healthcare" />
-    <title>AUSTA Cockpit</title>
+    <link rel="apple-touch-icon" href="/frontend/public/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/frontend/public/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/frontend/public/icons/icon-192x192.png" />
+    
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileImage" content="/frontend/public/icons/icon-144x144.png" />
+    <meta name="msapplication-square70x70logo" content="/frontend/public/icons/icon-72x72.png" />
+    <meta name="msapplication-square150x150logo" content="/frontend/public/icons/icon-144x144.png" />
+    
+    <!-- Security Headers (X-Frame-Options removed - should be set as HTTP header) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    
+    <!-- Performance Hints - Will be configured dynamically based on environment -->
+    
+    <!-- PWA Splash Screens for iOS -->
+    <!-- iPhone X -->
+    <link rel="apple-touch-startup-image" href="/frontend/public/splash/iphone-x-splash.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <!-- iPhone 8 Plus -->
+    <link rel="apple-touch-startup-image" href="/frontend/public/splash/iphone-8-plus-splash.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+    <!-- iPhone 8 -->
+    <link rel="apple-touch-startup-image" href="/frontend/public/splash/iphone-8-splash.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <!-- iPad Pro 12.9" -->
+    <link rel="apple-touch-startup-image" href="/frontend/public/splash/ipad-pro-12-splash.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+    <!-- iPad Pro 10.5" -->
+    <link rel="apple-touch-startup-image" href="/frontend/public/splash/ipad-pro-10-splash.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)">
+    
+    <title>QualityControl Healthcare PWA</title>
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- PWA Installation Banner -->
+    <div id="pwa-banner" class="pwa-install-banner" style="display: none;">
+      <div class="pwa-banner-content">
+        <img src="/frontend/public/icons/icon-72x72.png" alt="QualityControl" class="pwa-banner-icon" />
+        <div class="pwa-banner-text">
+          <h3>Install QualityControl</h3>
+          <p>Get the full app experience with offline access</p>
+        </div>
+        <div class="pwa-banner-actions">
+          <button id="pwa-install-btn" class="pwa-install-button">Install</button>
+          <button id="pwa-dismiss-btn" class="pwa-dismiss-button">×</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Loading Screen -->
+    <div id="app-loading" class="app-loading-screen">
+      <div class="loading-content">
+        <img src="/frontend/public/icons/icon-192x192.png" alt="QualityControl" class="loading-logo" />
+        <div class="loading-spinner"></div>
+        <h2>QualityControl Healthcare</h2>
+        <p>Loading your quality control dashboard...</p>
+      </div>
+    </div>
+    
+    <!-- PWA Update Banner -->
+    <div id="pwa-update-banner" class="pwa-update-banner" style="display: none;">
+      <div class="pwa-update-content">
+        <span>New version available!</span>
+        <button id="pwa-update-btn" class="pwa-update-button">Update</button>
+        <button id="pwa-update-dismiss" class="pwa-update-dismiss">Later</button>
+      </div>
+    </div>
+    
     <script type="module" src="/frontend/src/main.tsx"></script>
+    
+    <!-- PWA Installation Script -->
+    <script>
+      // PWA Installation Logic
+      let deferredPrompt;
+      let pwaInstalled = localStorage.getItem('pwa-installed') === 'true';
+      
+      // Service Worker Registration
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', async () => {
+          try {
+            const registration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/'
+            });
+            
+            console.log('SW registered:', registration);
+            
+            // Handle service worker updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showUpdateBanner();
+                }
+              });
+            });
+            
+          } catch (error) {
+            console.error('SW registration failed:', error);
+          }
+        });
+      }
+      
+      // PWA Install Prompt
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        if (!pwaInstalled) {
+          showInstallBanner();
+        }
+      });
+      
+      // PWA Installed
+      window.addEventListener('appinstalled', () => {
+        localStorage.setItem('pwa-installed', 'true');
+        hideInstallBanner();
+        
+        // Track installation
+        if (typeof gtag !== 'undefined') {
+          gtag('event', 'pwa_installed', {
+            event_category: 'PWA',
+            event_label: 'Healthcare_App'
+          });
+        }
+      });
+      
+      function showInstallBanner() {
+        const banner = document.getElementById('pwa-banner');
+        banner.style.display = 'block';
+        banner.style.animation = 'slideInUp 0.3s ease-out';
+        
+        document.getElementById('pwa-install-btn').addEventListener('click', installPWA);
+        document.getElementById('pwa-dismiss-btn').addEventListener('click', hideInstallBanner);
+      }
+      
+      function hideInstallBanner() {
+        const banner = document.getElementById('pwa-banner');
+        banner.style.animation = 'slideOutDown 0.3s ease-in';
+        setTimeout(() => {
+          banner.style.display = 'none';
+        }, 300);
+      }
+      
+      function installPWA() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('PWA installation accepted');
+              localStorage.setItem('pwa-installed', 'true');
+            }
+            deferredPrompt = null;
+            hideInstallBanner();
+          });
+        }
+      }
+      
+      function showUpdateBanner() {
+        const banner = document.getElementById('pwa-update-banner');
+        banner.style.display = 'block';
+        
+        document.getElementById('pwa-update-btn').addEventListener('click', () => {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+              registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+              window.location.reload();
+            });
+          }
+        });
+        
+        document.getElementById('pwa-update-dismiss').addEventListener('click', () => {
+          banner.style.display = 'none';
+        });
+      }
+      
+      // Hide loading screen when app loads
+      window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+          const loadingScreen = document.getElementById('app-loading');
+          loadingScreen.style.opacity = '0';
+          setTimeout(() => {
+            loadingScreen.style.display = 'none';
+          }, 500);
+        }, 1000);
+      });
+      
+      // Offline/Online status
+      window.addEventListener('online', () => {
+        console.log('Back online');
+        document.body.classList.remove('offline');
+      });
+      
+      window.addEventListener('offline', () => {
+        console.log('Gone offline');
+        document.body.classList.add('offline');
+      });
+    </script>
+    
+    <!-- PWA Styles -->
+    <style>
+      .pwa-install-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        padding: 1rem;
+        z-index: 1000;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+      }
+      
+      .pwa-banner-content {
+        display: flex;
+        align-items: center;
+        max-width: 600px;
+        margin: 0 auto;
+        gap: 1rem;
+      }
+      
+      .pwa-banner-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+      }
+      
+      .pwa-banner-text {
+        flex: 1;
+      }
+      
+      .pwa-banner-text h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+      
+      .pwa-banner-text p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
+      }
+      
+      .pwa-banner-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+      
+      .pwa-install-button {
+        background: white;
+        color: #2563eb;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      
+      .pwa-dismiss-button {
+        background: transparent;
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .pwa-update-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #059669;
+        color: white;
+        padding: 0.75rem 1rem;
+        z-index: 1001;
+        text-align: center;
+      }
+      
+      .pwa-update-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+      }
+      
+      .pwa-update-button {
+        background: white;
+        color: #059669;
+        border: none;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+      }
+      
+      .pwa-update-dismiss {
+        background: transparent;
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.875rem;
+      }
+      
+      .app-loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease;
+      }
+      
+      .loading-content {
+        text-align: center;
+        color: white;
+      }
+      
+      .loading-logo {
+        width: 80px;
+        height: 80px;
+        border-radius: 16px;
+        margin-bottom: 1rem;
+        animation: pulse 2s infinite;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        margin: 1rem auto;
+        animation: spin 1s linear infinite;
+      }
+      
+      .loading-content h2 {
+        margin: 1rem 0 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      
+      .loading-content p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 1rem;
+      }
+      
+      @keyframes slideInUp {
+        from {
+          transform: translateY(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes slideOutDown {
+        from {
+          transform: translateY(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(100%);
+          opacity: 0;
+        }
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      body.offline {
+        position: relative;
+      }
+      
+      body.offline::before {
+        content: "⚠️ Offline Mode - Limited functionality available";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #fbbf24;
+        color: #92400e;
+        text-align: center;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        z-index: 1000;
+      }
+      
+      @media (max-width: 640px) {
+        .pwa-banner-content {
+          flex-direction: column;
+          text-align: center;
+        }
+        
+        .pwa-banner-actions {
+          justify-content: center;
+        }
+        
+        .pwa-update-content {
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+      }
+    </style>
   </body>
 </html>

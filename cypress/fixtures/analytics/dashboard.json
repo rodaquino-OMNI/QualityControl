@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "data": {
+    "metrics": {
+      "totalCases": 1247,
+      "pendingCases": 89,
+      "approvedCases": 956,
+      "deniedCases": 202,
+      "approvalRate": 76.8,
+      "averageProcessingTime": "2.3 days"
+    },
+    "recentActivity": [
+      {
+        "id": "activity-1",
+        "type": "case_approved",
+        "description": "Case #1245 approved by Dr. Smith",
+        "timestamp": "2024-01-15T10:30:00.000Z"
+      },
+      {
+        "id": "activity-2",
+        "type": "case_created",
+        "description": "New case #1246 created for Patient PT789",
+        "timestamp": "2024-01-15T09:15:00.000Z"
+      }
+    ],
+    "alerts": [
+      {
+        "id": "alert-1",
+        "type": "high_priority",
+        "message": "3 high-priority cases require immediate attention",
+        "count": 3
+      }
+    ]
+  }
+}

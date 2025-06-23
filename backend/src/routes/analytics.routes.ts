@@ -6,6 +6,8 @@ import { logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
 import { queues } from '../config/queues';
+import { NotificationType } from '@prisma/client';
+import { toNumber } from '../types/database.types';
 
 const router = Router();
 
@@ -108,14 +110,15 @@ router.get(
         prisma.authorizationDecision.count({
           where: { createdAt: { gte: startDate, lte: endDate } },
         }),
-        prisma.authorizationDecision.aggregate({
-          where: { createdAt: { gte: startDate, lte: endDate } },
-          _avg: { processingTime: true } as any,
-        }),
+        prisma.$queryRaw<[{ avgProcessingTime: number }]>`
+        SELECT AVG(EXTRACT(EPOCH FROM (created_at - updated_at)) / 60) as avgProcessingTime
+        FROM authorization_decisions
+        WHERE created_at >= ${startDate} AND created_at <= ${endDate}
+      `,
         prisma.case.aggregate({
           where: { createdAt: { gte: startDate, lte: endDate } },
-          _count: true,
-        }),
+          _sum: { value: true },
+        }).then(result => ({ totalValue: toNumber(result._sum?.value, 0) })),
         prisma.$queryRaw<[{ rate: number }]>`
           SELECT 
             CAST(COUNT(CASE WHEN decision = 'approved' THEN 1 END) AS FLOAT) / 
@@ -150,7 +153,7 @@ router.get(
         where: {
           createdAt: { gte: startDate },
           isRead: false,
-          type: 'CASE_UPDATE' as any,
+          type: NotificationType.case_update,
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -163,8 +166,8 @@ router.get(
             totalCases,
             pendingCases,
             totalDecisions,
-            avgProcessingTime: (avgProcessingTime as any)._avg?.processingTime || 0,
-            totalValue: totalValue._count || 0,
+            avgProcessingTime: avgProcessingTime[0]?.avgProcessingTime || 0,
+            totalValue: (totalValue as any).totalValue || 0,
             approvalRate: approvalRate[0]?.rate || 0,
           },
           performance: {
@@ -237,15 +240,27 @@ router.get(
         ...(auditorId ? { auditorId: auditorId as string } : {}),
       };
 
-      // Get metrics
-      const metrics = await prisma.authorizationDecision.aggregate({
+      // Get decision count
+      const decisionCount = await prisma.authorizationDecision.count({
         where: whereClause,
-        _count: true,
-        _avg: {
-          processingTime: true,
-          aiConfidence: true,
-        },
       });
+
+      // Get average values using raw query to avoid type issues
+      const avgValues = await prisma.$queryRaw<[{ avgProcessingTime: number | null; avgAIConfidence: number | null }]>`
+        SELECT 
+          AVG("processingTime") as "avgProcessingTime",
+          AVG("aiConfidence") as "avgAIConfidence"
+        FROM "AuthorizationDecision"
+        WHERE "createdAt" BETWEEN ${start} AND ${end}
+          ${auditorId ? `AND "auditorId" = ${auditorId}` : ''}
+      `;
+
+      // Transform metrics to handle null values
+      const metrics = {
+        _count: decisionCount,
+        avgProcessingTime: avgValues[0]?.avgProcessingTime ?? 0,
+        avgAIConfidence: avgValues[0]?.avgAIConfidence ?? 0,
+      };
 
       // Get decision breakdown
       const decisionBreakdown = await prisma.authorizationDecision.groupBy({
@@ -281,8 +296,8 @@ router.get(
         data: {
           metrics: {
             totalDecisions: metrics._count,
-            avgProcessingTime: metrics._avg.processingTime || 0,
-            avgAIConfidence: metrics._avg.aiConfidence || 0,
+            avgProcessingTime: metrics.avgProcessingTime,
+            avgAIConfidence: metrics.avgAIConfidence,
             aiAgreementRate: aiAgreement[0]?.agreementRate || 0,
           },
           decisionBreakdown,
@@ -534,3 +549,4 @@ async function getTrendsData(startDate: Date, endDate: Date, period: string) {
 }
 
 export { router as analyticsRoutes };
+export default router;

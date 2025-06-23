@@ -42,6 +42,9 @@ declare global {
       takeScreenshotOnFail(): Chainable<void>;
       measurePageLoad(pageName: string): Chainable<void>;
       skipOnBrowser(browser: string): Chainable<void>;
+      tab(options?: { shift?: boolean }): Chainable<void>;
+      verifyDownload(fileName: string, timeout?: number): Chainable<void>;
+      addTestMetadata(metadata: Record<string, any>): Chainable<void>;
     }
   }
 }
@@ -219,13 +222,14 @@ after(() => {
 });
 
 // Custom commands for enhanced error handling
-Cypress.Commands.overwrite('visit', (originalFn, url, options?) => {
-  return originalFn(url, {
+Cypress.Commands.overwrite('visit', (originalFn, options, ...args) => {
+  const enhancedOptions = {
     timeout: 30000,
     retryOnNetworkFailure: true,
     retryOnStatusCodeFailure: true,
     ...options,
-  });
+  };
+  return originalFn(enhancedOptions, ...args);
 });
 
 Cypress.Commands.overwrite('get', (originalFn, selector, options) => {

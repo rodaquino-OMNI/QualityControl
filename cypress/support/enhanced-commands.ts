@@ -199,7 +199,7 @@ Cypress.Commands.add('setupUserRole', (role: string, permissions: string[] = [])
 Cypress.Commands.add('simulateSlowNetwork', (delay: number = 2000) => {
   cy.intercept('**', (req) => {
     req.reply((res) => {
-      res.delay(delay);
+      res.setDelay?.(delay);
       res.send();
     });
   });

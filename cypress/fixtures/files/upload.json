@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "data": {
+    "fileId": "file-123",
+    "fileName": "medical-record.pdf",
+    "fileSize": 2048576,
+    "mimeType": "application/pdf",
+    "uploadedAt": "2024-01-15T10:30:00.000Z",
+    "url": "/api/files/download/file-123"
+  }
+}

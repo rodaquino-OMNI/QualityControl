@@ -6,6 +6,8 @@ import { logger } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
 import { aiService } from '../services/ai.service';
+import { EntityType, NotificationType, NotificationPriority } from '@prisma/client';
+import { toNumber } from '../types/database.types';
 
 const router = Router();
 
@@ -102,13 +104,32 @@ router.post(
         }
       }
 
+      // Transform case data to match CaseData interface expected by AI service
+      const caseDataForAI = {
+        id: caseData.id,
+        procedureCode: caseData.procedureCode || '',
+        procedureDescription: caseData.procedureDescription || '',
+        value: toNumber(caseData.value, 0),
+        patient: {
+          id: caseData.patient?.id || '',
+          age: caseData.patient?.birthYear ? new Date().getFullYear() - caseData.patient.birthYear : undefined,
+          gender: caseData.patient?.gender || undefined,
+          medicalHistory: (caseData.patient?.metadata as any)?.medicalHistory || {},
+        },
+        documents: caseData.attachments?.map(att => ({
+          id: att.id,
+          type: att.fileType || 'unknown',
+          url: att.url || undefined,
+        })) || [],
+      };
+
       // Perform AI analysis
-      const analysis = await aiService.analyzeCase(caseData, analysisType);
+      const analysis = await aiService.analyzeCase(caseDataForAI, analysisType);
 
       // Store analysis in database
       const savedAnalysis = await prisma.aIAnalysis.create({
         data: {
-          entityType: 'CASE',
+          entityType: 'case', // Use lowercase as string, not enum
           entityId: caseId,
           analysisType,
           result: {
@@ -239,7 +260,7 @@ router.post(
       // Get latest AI analysis for this case
       const latestAnalysis = await prisma.aIAnalysis.findFirst({
         where: {
-          entityType: 'CASE',
+          entityType: 'case', // Use lowercase as string
           entityId: caseId,
         },
         orderBy: { createdAt: 'desc' },
@@ -266,8 +287,10 @@ router.post(
       if (!conversation) {
         conversation = await prisma.aIConversation.create({
           data: {
-            caseId,
             userId: req.user!.id,
+            context: {
+              caseId, // Store caseId in context field as JSON
+            },
           },
           include: {
             messages: true,
@@ -275,14 +298,28 @@ router.post(
         });
       }
 
+      // Transform case data for chat context
+      const caseContext = {
+        id: caseData.id,
+        procedureCode: caseData.procedureCode || '',
+        procedureDescription: caseData.procedureDescription || '',
+        value: toNumber(caseData.value, 0),
+        patient: {
+          id: caseData.patient?.id || '',
+          age: caseData.patient?.birthYear ? new Date().getFullYear() - caseData.patient.birthYear : undefined,
+          gender: caseData.patient?.gender || undefined,
+          medicalHistory: (caseData.patient?.metadata as any)?.medicalHistory || {},
+        },
+      };
+
       // Get AI response
       const aiResponse = await aiService.chat({
         message,
-        caseContext: {
-          ...caseData,
-          latestAnalysis: latestAnalysis,
-        },
-        conversationHistory: conversation.messages,
+        caseContext,
+        conversationHistory: conversation?.messages?.map(msg => ({
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: msg.content,
+        })) || [],
       });
 
       // Save message and response
@@ -292,12 +329,15 @@ router.post(
             conversationId: conversation.id,
             role: 'user',
             content: message,
+            metadata: {}, // Required field
           },
           {
             conversationId: conversation.id,
             role: 'assistant',
             content: aiResponse.response,
-            confidence: aiResponse.confidence,
+            metadata: {
+              confidence: aiResponse.confidence, // Store confidence in metadata
+            },
           },
         ],
       });
@@ -408,13 +448,27 @@ router.post(
         throw new AppError('Case not found', 404, 'CASE_NOT_FOUND');
       }
 
+      // Transform case data to match CaseData interface expected by AI service
+      const caseDataForAI = {
+        id: caseData.id,
+        procedureCode: caseData.procedureCode || '',
+        procedureDescription: caseData.procedureDescription || '',
+        value: toNumber(caseData.value, 0),
+        patient: {
+          id: caseData.patient?.id || '',
+          age: caseData.patient?.birthYear ? new Date().getFullYear() - caseData.patient.birthYear : undefined,
+          gender: caseData.patient?.gender || undefined,
+          medicalHistory: (caseData.patient?.metadata as any)?.medicalHistory || {},
+        },
+      };
+
       // Run fraud detection
-      const fraudResult = await aiService.detectFraud(caseData);
+      const fraudResult = await aiService.detectFraud(caseDataForAI);
 
       // Save fraud detection result
       await prisma.fraudDetection.create({
         data: {
-          entityType: 'CASE',
+          entityType: EntityType.claim, // Use the proper enum value
           entityId: caseId,
           indicatorId: '00000000-0000-0000-0000-000000000001',
           confidenceScore: fraudResult.fraudScore,
@@ -442,10 +496,10 @@ router.post(
         await prisma.notification.create({
           data: {
             userId: req.user!.id,
-            type: 'alert' as const,
-            priority: fraudResult.riskLevel === 'critical' ? 'high' as const : 'medium' as const,
+            type: NotificationType.system_alert,
+            priority: fraudResult.riskLevel === 'critical' ? NotificationPriority.high : NotificationPriority.medium,
             title: `High fraud risk detected for case ${caseId}`,
-            description: `Fraud score: ${fraudResult.fraudScore}. ${fraudResult.indicators.length} risk indicators found.`,
+            message: `Fraud score: ${fraudResult.fraudScore}. ${fraudResult.indicators.length} risk indicators found.`, // Changed from description to message
             metadata: {
               caseId,
               fraudScore: fraudResult.fraudScore,
@@ -542,17 +596,34 @@ router.get(
       const { caseId } = req.params;
       const { limit = 5 } = req.query;
 
-      // Get case data
+      // Get case data with required fields for AI service
       const caseData = await prisma.case.findUnique({
         where: { id: caseId },
+        include: {
+          patient: true,
+        },
       });
 
       if (!caseData) {
         throw new AppError('Case not found', 404, 'CASE_NOT_FOUND');
       }
 
+      // Transform case data to match CaseData interface expected by AI service
+      const caseDataForAI = {
+        id: caseData.id,
+        procedureCode: caseData.procedureCode || '',
+        procedureDescription: caseData.procedureDescription || '',
+        value: toNumber(caseData.value, 0),
+        patient: {
+          id: caseData.patient?.id || '',
+          age: caseData.patient?.birthYear ? new Date().getFullYear() - caseData.patient.birthYear : undefined,
+          gender: caseData.patient?.gender || undefined,
+          medicalHistory: (caseData.patient?.metadata as any)?.medicalHistory || {},
+        },
+      };
+
       // Find similar cases
-      const similarCases = await aiService.findSimilarCases(caseData, limit as number);
+      const similarCases = await aiService.findSimilarCases(caseDataForAI, limit as number);
 
       res.json({
         success: true,

@@ -1,0 +1,499 @@
+{
+  "workflow": {
+    "name": "Prior Authorization Workflow",
+    "version": "1.0.0",
+    "type": "prior_authorization",
+    "description": "Comprehensive prior authorization workflow for medical procedures and treatments"
+  },
+  "variables": {
+    "patientId": {
+      "type": "string",
+      "required": true,
+      "description": "Unique patient identifier"
+    },
+    "procedureCode": {
+      "type": "string",
+      "required": true,
+      "description": "CPT or HCPCS procedure code"
+    },
+    "diagnosisCode": {
+      "type": "string",
+      "required": true,
+      "description": "ICD-10 diagnosis code"
+    },
+    "requestingProvider": {
+      "type": "object",
+      "required": true,
+      "description": "Provider information requesting authorization"
+    },
+    "urgencyLevel": {
+      "type": "string",
+      "default": "routine",
+      "description": "Priority level: routine, urgent, emergency"
+    },
+    "memberInsurance": {
+      "type": "object",
+      "required": true,
+      "description": "Patient insurance information"
+    },
+    "clinicalInfo": {
+      "type": "object",
+      "required": true,
+      "description": "Clinical justification and supporting documentation"
+    },
+    "estimatedCost": {
+      "type": "number",
+      "required": false,
+      "description": "Estimated procedure cost"
+    }
+  },
+  "steps": {
+    "validate_request": {
+      "type": "task",
+      "name": "Validate Authorization Request",
+      "description": "Validate incoming authorization request for completeness and accuracy",
+      "executor": "AuthorizationValidator",
+      "input": {
+        "request": "{{input}}"
+      },
+      "output": ["validationResult", "missingFields"],
+      "timeout": "5 minutes",
+      "retry": {
+        "attempts": 2,
+        "delay": "30 seconds"
+      },
+      "on": {
+        "success": "check_eligibility",
+        "failure": "request_additional_info"
+      }
+    },
+    "check_eligibility": {
+      "type": "integration",
+      "name": "Verify Member Eligibility",
+      "description": "Check patient eligibility and benefits with insurance payer",
+      "executor": "EligibilityChecker",
+      "input": {
+        "memberId": "{{memberInsurance.memberId}}",
+        "procedureCode": "{{procedureCode}}",
+        "serviceDate": "{{requestedDate}}"
+      },
+      "output": ["eligibilityStatus", "benefits", "copayAmount"],
+      "timeout": "2 minutes",
+      "retry": {
+        "attempts": 3,
+        "delay": "1 minute"
+      },
+      "on": {
+        "success": "evaluate_medical_necessity",
+        "failure": "eligibility_failed"
+      }
+    },
+    "evaluate_medical_necessity": {
+      "type": "decision",
+      "name": "Evaluate Medical Necessity",
+      "description": "Apply clinical guidelines and rules to determine medical necessity",
+      "executor": "MedicalNecessityEvaluator",
+      "input": {
+        "procedureCode": "{{procedureCode}}",
+        "diagnosisCode": "{{diagnosisCode}}",
+        "clinicalInfo": "{{clinicalInfo}}",
+        "patientHistory": "{{patientHistory}}"
+      },
+      "output": ["necessityScore", "guidelinesApplied", "recommendation"],
+      "timeout": "10 minutes",
+      "when": "{{eligibilityStatus}} == 'eligible'",
+      "on": {
+        "success": ["check_network_provider", "ai_risk_assessment"],
+        "failure": "clinical_review_required"
+      }
+    },
+    "check_network_provider": {
+      "type": "task",
+      "name": "Verify Network Provider",
+      "description": "Verify that requesting provider is in network",
+      "executor": "NetworkValidator",
+      "input": {
+        "providerId": "{{requestingProvider.id}}",
+        "procedureCode": "{{procedureCode}}",
+        "serviceLocation": "{{requestingProvider.location}}"
+      },
+      "output": ["networkStatus", "contractDetails"],
+      "timeout": "3 minutes",
+      "on": {
+        "success": "cost_analysis",
+        "failure": "out_of_network_review"
+      }
+    },
+    "ai_risk_assessment": {
+      "type": "integration",
+      "name": "AI Risk Assessment",
+      "description": "Perform AI-based risk assessment for fraud and appropriateness",
+      "executor": "AIRiskAssessor",
+      "input": {
+        "patientId": "{{patientId}}",
+        "procedureCode": "{{procedureCode}}",
+        "providerHistory": "{{requestingProvider.history}}",
+        "clinicalData": "{{clinicalInfo}}"
+      },
+      "output": ["riskScore", "fraudIndicators", "recommendedActions"],
+      "timeout": "5 minutes",
+      "retry": {
+        "attempts": 2,
+        "delay": "1 minute"
+      },
+      "on": {
+        "success": "cost_analysis",
+        "failure": "manual_review_required"
+      }
+    },
+    "cost_analysis": {
+      "type": "task",
+      "name": "Cost Analysis and Budget Check",
+      "description": "Analyze costs and check against budget allocations",
+      "executor": "CostAnalyzer",
+      "input": {
+        "procedureCode": "{{procedureCode}}",
+        "providerId": "{{requestingProvider.id}}",
+        "memberBenefits": "{{benefits}}",
+        "estimatedCost": "{{estimatedCost}}"
+      },
+      "output": ["totalCost", "memberCost", "budgetImpact"],
+      "timeout": "3 minutes",
+      "when": "{{networkStatus}} == 'in_network' && {{riskScore}} < 0.7",
+      "on": {
+        "success": "automated_decision",
+        "failure": "cost_review_required"
+      }
+    },
+    "automated_decision": {
+      "type": "decision",
+      "name": "Automated Authorization Decision",
+      "description": "Make automated decision based on all assessment results",
+      "executor": "AutomatedDecisionMaker",
+      "input": {
+        "necessityScore": "{{necessityScore}}",
+        "riskScore": "{{riskScore}}",
+        "networkStatus": "{{networkStatus}}",
+        "totalCost": "{{totalCost}}",
+        "urgencyLevel": "{{urgencyLevel}}"
+      },
+      "output": ["decision", "confidence", "rationale"],
+      "timeout": "2 minutes",
+      "when": "{{riskScore}} < 0.5 && {{necessityScore}} > 0.8 && {{totalCost}} < 10000",
+      "on": {
+        "success": ["approve_authorization", "deny_authorization"],
+        "failure": "manual_review_required"
+      }
+    },
+    "approve_authorization": {
+      "type": "task",
+      "name": "Approve Authorization",
+      "description": "Generate approval with authorization number and conditions",
+      "executor": "AuthorizationApprover",
+      "input": {
+        "decision": "{{decision}}",
+        "rationale": "{{rationale}}",
+        "validPeriod": "90 days"
+      },
+      "output": ["authorizationNumber", "approvalConditions", "validUntil"],
+      "timeout": "2 minutes",
+      "when": "{{decision}} == 'approve'",
+      "on": {
+        "success": "notify_approval"
+      }
+    },
+    "deny_authorization": {
+      "type": "task",
+      "name": "Deny Authorization",
+      "description": "Generate denial with detailed rationale and appeal rights",
+      "executor": "AuthorizationDenier",
+      "input": {
+        "decision": "{{decision}}",
+        "rationale": "{{rationale}}",
+        "guidelinesApplied": "{{guidelinesApplied}}"
+      },
+      "output": ["denialReason", "appealRights", "alternativeOptions"],
+      "timeout": "2 minutes",
+      "when": "{{decision}} == 'deny'",
+      "on": {
+        "success": "notify_denial"
+      }
+    },
+    "clinical_review_required": {
+      "type": "manual",
+      "name": "Clinical Review Required",
+      "description": "Route to clinical reviewer for manual assessment",
+      "executor": "ClinicalReviewAssigner",
+      "input": {
+        "urgencyLevel": "{{urgencyLevel}}",
+        "procedureCode": "{{procedureCode}}",
+        "clinicalInfo": "{{clinicalInfo}}"
+      },
+      "output": ["assignedReviewer", "reviewDueDate"],
+      "timeout": "2 hours",
+      "on": {
+        "success": "await_clinical_decision",
+        "timeout": "escalate_clinical_review"
+      }
+    },
+    "await_clinical_decision": {
+      "type": "wait",
+      "name": "Await Clinical Decision",
+      "description": "Wait for clinical reviewer to make decision",
+      "timeout": "24 hours",
+      "on": {
+        "success": ["approve_authorization", "deny_authorization", "request_additional_info"],
+        "timeout": "escalate_clinical_review"
+      }
+    },
+    "manual_review_required": {
+      "type": "manual",
+      "name": "Manual Review Required",
+      "description": "Route to manual reviewer for complex cases",
+      "executor": "ManualReviewAssigner",
+      "input": {
+        "riskScore": "{{riskScore}}",
+        "fraudIndicators": "{{fraudIndicators}}",
+        "urgencyLevel": "{{urgencyLevel}}"
+      },
+      "output": ["assignedReviewer", "reviewDueDate"],
+      "timeout": "30 minutes",
+      "on": {
+        "success": "await_manual_decision",
+        "timeout": "escalate_manual_review"
+      }
+    },
+    "await_manual_decision": {
+      "type": "wait",
+      "name": "Await Manual Decision",
+      "description": "Wait for manual reviewer decision",
+      "timeout": "4 hours",
+      "on": {
+        "success": ["approve_authorization", "deny_authorization", "request_additional_info"],
+        "timeout": "escalate_manual_review"
+      }
+    },
+    "request_additional_info": {
+      "type": "task",
+      "name": "Request Additional Information",
+      "description": "Request additional clinical or administrative information",
+      "executor": "AdditionalInfoRequester",
+      "input": {
+        "missingFields": "{{missingFields}}",
+        "requestingProvider": "{{requestingProvider}}"
+      },
+      "output": ["requestSent", "responseDeadline"],
+      "timeout": "5 minutes",
+      "on": {
+        "success": "await_additional_info"
+      }
+    },
+    "await_additional_info": {
+      "type": "wait",
+      "name": "Await Additional Information",
+      "description": "Wait for provider to submit additional information",
+      "timeout": "72 hours",
+      "on": {
+        "success": "validate_request",
+        "timeout": "deny_insufficient_info"
+      }
+    },
+    "deny_insufficient_info": {
+      "type": "task",
+      "name": "Deny Due to Insufficient Information",
+      "description": "Deny authorization due to insufficient information provided",
+      "executor": "InsufficientInfoDenier",
+      "timeout": "2 minutes",
+      "on": {
+        "success": "notify_denial"
+      }
+    },
+    "eligibility_failed": {
+      "type": "task",
+      "name": "Handle Eligibility Failure",
+      "description": "Handle cases where eligibility verification failed",
+      "executor": "EligibilityFailureHandler",
+      "timeout": "5 minutes",
+      "on": {
+        "success": "notify_eligibility_issue"
+      }
+    },
+    "out_of_network_review": {
+      "type": "manual",
+      "name": "Out of Network Review",
+      "description": "Review out-of-network authorization request",
+      "executor": "OutOfNetworkReviewer",
+      "timeout": "2 hours",
+      "on": {
+        "success": ["approve_out_of_network", "deny_out_of_network"],
+        "timeout": "escalate_out_of_network"
+      }
+    },
+    "cost_review_required": {
+      "type": "manual",
+      "name": "Cost Review Required",
+      "description": "Review high-cost authorization request",
+      "executor": "CostReviewer",
+      "timeout": "1 hour",
+      "when": "{{totalCost}} > 10000",
+      "on": {
+        "success": "automated_decision",
+        "timeout": "escalate_cost_review"
+      }
+    },
+    "notify_approval": {
+      "type": "task",
+      "name": "Notify Authorization Approval",
+      "description": "Send approval notifications to all stakeholders",
+      "executor": "ApprovalNotifier",
+      "input": {
+        "authorizationNumber": "{{authorizationNumber}}",
+        "requestingProvider": "{{requestingProvider}}",
+        "patient": "{{patientId}}",
+        "validUntil": "{{validUntil}}"
+      },
+      "timeout": "3 minutes",
+      "on": {
+        "success": "update_claims_system"
+      }
+    },
+    "notify_denial": {
+      "type": "task",
+      "name": "Notify Authorization Denial",
+      "description": "Send denial notifications with appeal rights",
+      "executor": "DenialNotifier",
+      "input": {
+        "denialReason": "{{denialReason}}",
+        "appealRights": "{{appealRights}}",
+        "requestingProvider": "{{requestingProvider}}",
+        "patient": "{{patientId}}"
+      },
+      "timeout": "3 minutes",
+      "on": {
+        "success": "end_workflow"
+      }
+    },
+    "update_claims_system": {
+      "type": "integration",
+      "name": "Update Claims Processing System",
+      "description": "Update claims system with authorization details",
+      "executor": "ClaimsSystemUpdater",
+      "input": {
+        "authorizationNumber": "{{authorizationNumber}}",
+        "procedureCode": "{{procedureCode}}",
+        "approvedAmount": "{{totalCost}}",
+        "validUntil": "{{validUntil}}"
+      },
+      "timeout": "5 minutes",
+      "retry": {
+        "attempts": 3,
+        "delay": "1 minute"
+      },
+      "on": {
+        "success": "end_workflow",
+        "failure": "claims_update_failed"
+      }
+    },
+    "claims_update_failed": {
+      "type": "task",
+      "name": "Handle Claims Update Failure",
+      "description": "Handle failure to update claims system",
+      "executor": "ClaimsUpdateFailureHandler",
+      "timeout": "2 minutes",
+      "on": {
+        "success": "end_workflow"
+      }
+    },
+    "escalate_clinical_review": {
+      "type": "task",
+      "name": "Escalate Clinical Review",
+      "description": "Escalate to senior clinical reviewer",
+      "executor": "ClinicalEscalator",
+      "timeout": "30 minutes",
+      "on": {
+        "success": "await_clinical_decision"
+      }
+    },
+    "escalate_manual_review": {
+      "type": "task",
+      "name": "Escalate Manual Review",
+      "description": "Escalate to senior manual reviewer",
+      "executor": "ManualEscalator",
+      "timeout": "30 minutes",
+      "on": {
+        "success": "await_manual_decision"
+      }
+    },
+    "end_workflow": {
+      "type": "task",
+      "name": "End Workflow",
+      "description": "Complete workflow processing and cleanup",
+      "executor": "WorkflowCompleter",
+      "timeout": "1 minute"
+    }
+  },
+  "start": "validate_request",
+  "sla": {
+    "target": "2 hours",
+    "warning": "1.5 hours",
+    "critical": "4 hours"
+  },
+  "compliance": [
+    "HIPAA Privacy Rule",
+    "HIPAA Security Rule",
+    "State Insurance Regulations",
+    "CMS Guidelines"
+  ],
+  "integrations": {
+    "eligibility_service": {
+      "type": "payer",
+      "endpoint": "https://api.payer.com/eligibility/v1",
+      "method": "POST",
+      "auth": {
+        "type": "oauth2",
+        "credentials": {
+          "clientId": "${PAYER_CLIENT_ID}",
+          "clientSecret": "${PAYER_CLIENT_SECRET}",
+          "scope": ["eligibility.read"]
+        }
+      },
+      "mapping": {
+        "memberId": "subscriber.id",
+        "procedureCode": "service.code",
+        "serviceDate": "service.date"
+      }
+    },
+    "ai_service": {
+      "type": "api",
+      "endpoint": "http://ai-service:8000/analysis/risk-assessment",
+      "method": "POST",
+      "auth": {
+        "type": "bearer",
+        "credentials": {
+          "token": "${AI_SERVICE_TOKEN}"
+        }
+      },
+      "mapping": {
+        "patientId": "patient.id",
+        "procedureCode": "procedure.code",
+        "clinicalData": "clinical.data"
+      }
+    },
+    "claims_system": {
+      "type": "clearinghouse",
+      "endpoint": "https://api.clearinghouse.com/claims/v2",
+      "method": "PUT",
+      "auth": {
+        "type": "apikey",
+        "credentials": {
+          "apiKey": "${CLEARINGHOUSE_API_KEY}"
+        }
+      },
+      "mapping": {
+        "authorizationNumber": "authorization.number",
+        "procedureCode": "procedure.code",
+        "approvedAmount": "amount.approved"
+      }
+    }
+  }
+}

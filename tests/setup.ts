@@ -25,3 +25,18 @@ global.IntersectionObserver = class IntersectionObserver {
     return [];
   }
 } as any;
+
+// Mock TextEncoder/TextDecoder for Node.js environment
+if (typeof global.TextEncoder === 'undefined') {
+  const util = require('util');
+  global.TextEncoder = util.TextEncoder;
+  global.TextDecoder = util.TextDecoder as any;
+}
+
+// Mock setImmediate for Node.js polyfills
+if (typeof global.setImmediate === 'undefined') {
+  const setImmediateFn = (fn: any, ...args: any[]) => setTimeout(fn, 0, ...args);
+  setImmediateFn.__promisify__ = () => new Promise(resolve => setImmediateFn(resolve));
+  global.setImmediate = setImmediateFn as any;
+  global.clearImmediate = (id: any) => clearTimeout(id);
+}

@@ -1544,6 +1544,3 @@ SOFTWARE.
 **Built with ❤️ by AUSTA Team**  
 Transforming Healthcare Authorization with AI
 
-# QualityControl
-
-Platform for human and AI interaction deployed on quality control of production in Healthcare

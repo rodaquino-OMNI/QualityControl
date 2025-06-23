@@ -143,7 +143,7 @@ pm2 start ecosystem.config.js
 
 ## Environment Variables
 
-See `.env.example` for all available configuration options.
+Create a `.env` file in the backend directory with the following variables:
 
 Key variables:
 - `DATABASE_URL` - PostgreSQL connection string
@@ -172,7 +172,7 @@ npm run test:e2e
 
 Swagger documentation is available at:
 - Development: http://localhost:3000/api-docs
-- Production: https://api.austa.com.br/api-docs
+- Production: Configure based on your deployment
 
 ## Security
 

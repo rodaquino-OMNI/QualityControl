@@ -19,7 +19,11 @@
     },
     "ecmaVersion": "latest",
     "sourceType": "module",
-    "project": "./tsconfig.json"
+    "project": [
+      "./tsconfig.json",
+      "./frontend/tsconfig.json",
+      "./backend/tsconfig.json"
+    ]
   },
   "plugins": [
     "react",
@@ -48,6 +52,9 @@
     "node_modules",
     "coverage",
     "*.config.js",
-    "*.config.ts"
+    "*.config.ts",
+    "ai-service/**",
+    "performance-tests/**",
+    "scripts/**"
   ]
 }

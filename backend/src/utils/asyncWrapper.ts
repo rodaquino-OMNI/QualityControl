@@ -3,6 +3,22 @@ import { logger, logAuditEvent } from './logger';
 import { AppError, ErrorSeverity, ErrorCategory } from '../middleware/errorHandler';
 import { PrismaClient } from '@prisma/client';
 
+// Type guard for error handling
+function isError(error: unknown): error is Error {
+  return error instanceof Error;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (isError(error)) return error.message;
+  if (typeof error === 'string') return error;
+  return 'An unknown error occurred';
+}
+
+function getErrorStack(error: unknown): string | undefined {
+  if (isError(error)) return error.stack;
+  return undefined;
+}
+
 // Async operation configuration
 interface AsyncConfig {
   timeout?: number;
@@ -153,7 +169,7 @@ export const withExternalService = async <T>(
       return result;
 
     } catch (error) {
-      lastError = error;
+      lastError = error as Error;
       
       // Update circuit breaker on failure
       cbState.failures++;
@@ -173,18 +189,18 @@ export const withExternalService = async <T>(
         logger.error(`External service ${serviceName} call failed`, {
           attempt: attempt + 1,
           totalAttempts: retries + 1,
-          error: error.message,
+          error: getErrorMessage(error),
           isRetryable,
           circuitBreakerState: cbState.state,
         });
         
         throw new AppError(
           `External service ${serviceName} call failed`,
-          error.statusCode || 502,
+          (error as any).statusCode || 502,
           'EXTERNAL_SERVICE_ERROR',
           { 
             serviceName,
-            originalError: error.message,
+            originalError: getErrorMessage(error),
             attempts: attempt + 1,
             isRetryable,
             circuitBreakerState: cbState.state,
@@ -197,7 +213,7 @@ export const withExternalService = async <T>(
       // Wait before retry with exponential backoff
       const delay = retryDelay * Math.pow(2, attempt);
       logger.warn(`External service ${serviceName} retry ${attempt + 1}/${retries + 1} after ${delay}ms`, {
-        error: error.message,
+        error: getErrorMessage(error),
       });
       
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -229,9 +245,9 @@ export const asyncRouteHandler = (
         },
         user: req.user?.id,
         error: {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
+          name: getErrorMessage(error),
+          message: getErrorMessage(error),
+          stack: getErrorStack(error),
         },
       });
 
@@ -242,8 +258,8 @@ export const asyncRouteHandler = (
           req.user.id,
           `${req.method} ${req.path}`,
           {
-            error: error.message,
-            statusCode: error.statusCode || 500,
+            error: getErrorMessage(error),
+            statusCode: (error as any).statusCode || 500,
           }
         );
       }
@@ -318,7 +334,7 @@ export const withBusinessOperation = async <T>(
       operationName,
       userId,
       duration,
-      error: error.message,
+      error: getErrorMessage(error),
       success: false,
     });
 
@@ -330,21 +346,21 @@ export const withBusinessOperation = async <T>(
         operationName,
         { 
           duration,
-          error: error.message,
+          error: getErrorMessage(error),
           success: false,
         }
       );
     }
 
     // Re-throw as business logic error if not already an AppError
-    if (!(error instanceof AppError)) {
+    if (!(isError(error) && AppError)) {
       throw new AppError(
-        `Business operation ${operationName} failed: ${error.message}`,
+        `Business operation ${operationName} failed: ${getErrorMessage(error)}`,
         500,
         'BUSINESS_OPERATION_FAILED',
         { 
           operationName,
-          originalError: error.message,
+          originalError: getErrorMessage(error),
           duration,
         },
         ErrorSeverity.HIGH,
@@ -367,7 +383,7 @@ export const withCacheOperation = async <T>(
   } catch (error: any) {
     logger.warn(`Cache operation failed for key ${cacheKey}, falling back`, {
       cacheKey,
-      error: error.message,
+      error: getErrorMessage(error),
     });
     
     return await fallback();
@@ -386,16 +402,16 @@ export const withValidation = async <T, D = unknown>(
     logger.error(`Validation failed for ${context}`, {
       context,
       data: sanitizeDataForLogging(data),
-      error: error.message,
+      error: getErrorMessage(error),
     });
 
     throw new AppError(
-      `Validation failed: ${error.message}`,
+      `Validation failed: ${getErrorMessage(error)}`,
       400,
       'VALIDATION_FAILED',
       { 
         context,
-        validationErrors: error.details || error.message,
+        validationErrors: error.details || getErrorMessage(error),
       },
       ErrorSeverity.LOW,
       ErrorCategory.VALIDATION
@@ -419,8 +435,8 @@ function isRetryableError(error: unknown): boolean {
   ];
 
   return retryableCodes.includes(err.code || '') || 
-         err.message?.includes('connection') ||
-         err.message?.includes('timeout');
+         (err.message?.includes('connection') ?? false) ||
+         (err.message?.includes('timeout') ?? false);
 }
 
 function isRetryableExternalError(error: unknown): boolean {

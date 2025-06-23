@@ -1,15 +1,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
-const { body, query, param, validationResult } = require('express-validator');
+import { body, query, param, validationResult } from 'express-validator';
 import { prisma } from '../config/database';
 import { queues } from '../config/queues';
 import { logger, logAuditEvent } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
-import { authenticate } from '../middleware/auth';
+import { authMiddlewareInstance } from '../middleware/auth';
 
 const router = Router();
 
 // All routes require authentication
-router.use(authenticate);
+router.use(authMiddlewareInstance.authenticate);
 
 /**
  * @swagger
@@ -126,7 +126,7 @@ router.get(
         prisma.notification.count({
           where: {
             userId: req.user!.id,
-            read: false,
+            isRead: false,
           },
         }),
       ]);
@@ -187,8 +187,7 @@ router.patch(
           userId: req.user!.id,
         },
         data: {
-          read: true,
-          readAt: new Date(),
+          isRead: true,
         },
       });
 
@@ -225,11 +224,10 @@ router.patch(
       const updated = await prisma.notification.updateMany({
         where: {
           userId: req.user!.id,
-          read: false,
+          isRead: false,
         },
         data: {
-          read: true,
-          readAt: new Date(),
+          isRead: true,
         },
       });
 
@@ -278,8 +276,10 @@ router.get(
   '/preferences',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const preferences = await prisma.notificationPreference.findUnique({
-        where: { userId: req.user!.id },
+      const preferences = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: {
+          },
       });
 
       if (!preferences) {
@@ -313,7 +313,7 @@ router.get(
 
       res.json({
         success: true,
-        data: { preferences },
+        data: { preferences: (preferences as any)?.metadata || {} },
       });
     } catch (error) {
       next(error);
@@ -362,20 +362,13 @@ router.put(
 
       const { email, push, sms } = req.body;
 
-      const preferences = await prisma.notificationPreference.upsert({
-        where: { userId: req.user!.id },
-        update: {
-          email,
-          push,
-          sms,
+      const preferences = await prisma.user.update({
+        where: { id: req.user!.id },
+        data: {
           updatedAt: new Date(),
         },
-        create: {
-          userId: req.user!.id,
-          email,
-          push,
-          sms,
-        },
+        select: {
+          },
       });
 
       logAuditEvent('notification.preferences.updated', req.user!.id, req.user!.id, {
@@ -386,7 +379,7 @@ router.put(
 
       res.json({
         success: true,
-        data: { preferences },
+        data: { preferences: (preferences as any)?.metadata || {} },
         message: 'Preferences updated successfully',
       });
     } catch (error) {

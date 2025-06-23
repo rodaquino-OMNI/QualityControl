@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "data": {
+    "performance": {
+      "casesPerHour": 4.2,
+      "averageDecisionTime": "34 minutes",
+      "accuracyScore": 94.5,
+      "qualityScore": 92.1
+    },
+    "trends": {
+      "daily": [
+        {"date": "2024-01-15", "cases": 45, "approved": 34, "denied": 8, "pending": 3},
+        {"date": "2024-01-14", "cases": 52, "approved": 39, "denied": 10, "pending": 3},
+        {"date": "2024-01-13", "cases": 48, "approved": 36, "denied": 9, "pending": 3}
+      ],
+      "weekly": [
+        {"week": "2024-W03", "cases": 315, "approved": 240, "denied": 58, "pending": 17},
+        {"week": "2024-W02", "cases": 298, "approved": 228, "denied": 53, "pending": 17}
+      ]
+    }
+  }
+}

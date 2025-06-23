@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "alert-1",
+      "type": "high_frequency_billing",
+      "description": "Provider billing unusual frequency of procedures",
+      "providerId": "PRV-12345",
+      "providerName": "Medical Center ABC",
+      "severity": "medium",
+      "flaggedAt": "2024-01-15T08:00:00.000Z",
+      "status": "open"
+    },
+    {
+      "id": "alert-2",
+      "type": "duplicate_claims",
+      "description": "Potential duplicate claims detected",
+      "patientId": "PT-67890",
+      "severity": "high",
+      "flaggedAt": "2024-01-15T07:30:00.000Z",
+      "status": "investigating"
+    }
+  ]
+}

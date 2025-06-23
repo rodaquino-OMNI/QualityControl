@@ -239,9 +239,10 @@ describe('Performance and Load Testing', () => {
       }
 
       // Wait for all concurrent operations to complete
-      cy.wrap(Promise.all(promises)).then((results: any[]) => {
+      cy.wrap(Promise.all(promises)).then((results) => {
         // Verify all users completed successfully
-        results.forEach((result: any, index: number) => {
+        const resultsArray = results as any[];
+        resultsArray.forEach((result: any, index: number) => {
           expect(result).to.have.property('success', true);
           expect(result.userId).to.equal(`test-user-${index}`);
         });
@@ -375,9 +376,9 @@ describe('Performance and Load Testing', () => {
         const originalWebSocket = win.WebSocket;
         
         win.WebSocket = new Proxy(originalWebSocket, {
-          construct(target, args) {
+          construct(target, args: any[]) {
             wsConnections++;
-            return new target(...args);
+            return new (target as any)(...args);
           }
         });
 
@@ -400,7 +401,7 @@ describe('Performance and Load Testing', () => {
       // Simulate slow 3G connection
       cy.intercept('GET', '/api/**', (req) => {
         req.reply((res) => {
-          res.delay(2000); // 2 second delay
+          res.setDelay(2000); // 2 second delay
           res.send();
         });
       }).as('slowApiCall');

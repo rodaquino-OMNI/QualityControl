@@ -44,11 +44,16 @@ This guide covers the complete deployment process for AUSTA Cockpit in productio
 export AWS_PROFILE=austa-production
 export AWS_REGION=us-east-1
 
-# Create infrastructure with Terraform
-cd infrastructure/terraform/aws
-terraform init
-terraform plan -out=tfplan
-terraform apply tfplan
+# Note: Terraform infrastructure files should be created based on the
+# configuration examples below. Store them in a separate infrastructure
+# repository or in an 'infrastructure/terraform/aws' directory.
+# Example structure:
+# infrastructure/
+# └── terraform/
+#     └── aws/
+#         ├── main.tf
+#         ├── variables.tf
+#         └── outputs.tf
 ```
 
 **Terraform Configuration** (`main.tf`):
@@ -282,10 +287,10 @@ aws rds create-db-instance-read-replica \
 ### 1. Build and Push Images
 
 ```bash
-# Build images
-docker build -t $ECR_REGISTRY/austa/cockpit-frontend:$VERSION -f Dockerfile.frontend .
-docker build -t $ECR_REGISTRY/austa/cockpit-backend:$VERSION -f Dockerfile.backend .
-docker build -t $ECR_REGISTRY/austa/cockpit-ai-service:$VERSION -f Dockerfile.ai-service .
+# Build images from the appropriate directories
+cd frontend && docker build -t $ECR_REGISTRY/austa/cockpit-frontend:$VERSION -f Dockerfile . && cd ..
+cd backend && docker build -t $ECR_REGISTRY/austa/cockpit-backend:$VERSION -f Dockerfile . && cd ..
+cd ai-service && docker build -t $ECR_REGISTRY/austa/cockpit-ai-service:$VERSION -f Dockerfile . && cd ..
 
 # Push to registry
 docker push $ECR_REGISTRY/austa/cockpit-frontend:$VERSION
@@ -296,7 +301,8 @@ docker push $ECR_REGISTRY/austa/cockpit-ai-service:$VERSION
 ### 2. Helm Chart Configuration
 
 ```yaml
-# values-production.yaml
+# helm/cockpit/values-production.yaml
+# This file should be created in a helm/cockpit directory
 global:
   environment: production
   domain: cockpit.austa.com.br
@@ -1223,6 +1229,6 @@ kubectl get pods -n austa-system
 ## Support
 
 For deployment issues:
-- **Slack**: #austa-ops
-- **Email**: devops@austa.com.br
-- **On-call**: +55 11 9999-9999
+- **Documentation**: Check the project README and docs directory
+- **GitHub Issues**: Report problems in the project repository
+- **Team Communication**: Use your organization's internal channels

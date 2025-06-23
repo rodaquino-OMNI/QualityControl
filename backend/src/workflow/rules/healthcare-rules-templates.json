@@ -1,0 +1,587 @@
+{
+  "medicalNecessityRules": [
+    {
+      "id": "mn_001",
+      "name": "MRI Medical Necessity - Lower Back Pain",
+      "category": "medical_necessity",
+      "priority": 100,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Medical necessity criteria for MRI of lower back for chronic pain",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "procedure.code",
+            "conditionOperator": "in",
+            "value": ["72148", "72149", "72158"],
+            "dataType": "array"
+          },
+          {
+            "type": "simple",
+            "field": "authorization.diagnosis",
+            "conditionOperator": "contains",
+            "value": "M54",
+            "dataType": "string"
+          },
+          {
+            "type": "composite",
+            "operator": "OR",
+            "conditions": [
+              {
+                "type": "simple",
+                "field": "patient.symptomDuration",
+                "conditionOperator": "greater_than",
+                "value": 90,
+                "dataType": "number"
+              },
+              {
+                "type": "simple",
+                "field": "patient.neurologicalSymptoms",
+                "conditionOperator": "equals",
+                "value": true,
+                "dataType": "boolean"
+              },
+              {
+                "type": "simple",
+                "field": "patient.conservativeTreatmentFailed",
+                "conditionOperator": "equals",
+                "value": true,
+                "dataType": "boolean"
+              }
+            ]
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "approve",
+          "priority": 1,
+          "parameters": {
+            "authorizationPeriod": "6 months",
+            "conditions": ["Conservative treatment attempted for minimum 6 weeks"],
+            "notes": "MRI approved based on chronic symptoms and failed conservative treatment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mn_002",
+      "name": "Cardiac Catheterization Medical Necessity",
+      "category": "medical_necessity",
+      "priority": 50,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Medical necessity for cardiac catheterization procedures",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "procedure.code",
+            "conditionOperator": "in",
+            "value": ["93454", "93455", "93456", "93457"],
+            "dataType": "array"
+          },
+          {
+            "type": "composite",
+            "operator": "OR",
+            "conditions": [
+              {
+                "type": "simple",
+                "field": "patient.chestPainClass",
+                "conditionOperator": "in",
+                "value": ["CCS III", "CCS IV"],
+                "dataType": "array"
+              },
+              {
+                "type": "simple",
+                "field": "patient.stressTestResult",
+                "conditionOperator": "equals",
+                "value": "positive",
+                "dataType": "string"
+              },
+              {
+                "type": "simple",
+                "field": "patient.ejectionFraction",
+                "conditionOperator": "less_than",
+                "value": 40,
+                "dataType": "number"
+              },
+              {
+                "type": "simple",
+                "field": "patient.acuteCoronarySyndrome",
+                "conditionOperator": "equals",
+                "value": true,
+                "dataType": "boolean"
+              }
+            ]
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "approve",
+          "priority": 1,
+          "parameters": {
+            "authorizationPeriod": "30 days",
+            "conditions": ["Must be performed at accredited facility"],
+            "notes": "Cardiac catheterization approved based on clinical indications"
+          }
+        }
+      ]
+    }
+  ],
+  "eligibilityRules": [
+    {
+      "id": "el_001",
+      "name": "Active Member Eligibility Check",
+      "category": "eligibility",
+      "priority": 10,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Verify member has active eligibility",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "insurance.memberStatus",
+            "conditionOperator": "equals",
+            "value": "active",
+            "dataType": "string"
+          },
+          {
+            "type": "simple",
+            "field": "insurance.effectiveDate",
+            "conditionOperator": "date_before",
+            "value": "{{current_date}}",
+            "dataType": "date"
+          },
+          {
+            "type": "simple",
+            "field": "insurance.terminationDate",
+            "conditionOperator": "date_after",
+            "value": "{{current_date}}",
+            "dataType": "date"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "validate",
+          "priority": 1,
+          "parameters": {
+            "validationResult": "eligible",
+            "message": "Member eligibility verified"
+          }
+        }
+      ]
+    },
+    {
+      "id": "el_002",
+      "name": "Benefit Coverage Verification",
+      "category": "eligibility",
+      "priority": 20,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Verify procedure is covered under member benefits",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "insurance.coverageLevel",
+            "conditionOperator": "in",
+            "value": ["comprehensive", "standard"],
+            "dataType": "array"
+          },
+          {
+            "type": "simple",
+            "field": "procedure.coverageCategory",
+            "conditionOperator": "in",
+            "value": "{{insurance.coveredServices}}",
+            "dataType": "array"
+          },
+          {
+            "type": "simple",
+            "field": "insurance.annualLimit",
+            "conditionOperator": "greater_than",
+            "value": "{{insurance.usedBenefits + procedure.estimatedCost}}",
+            "dataType": "number"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "validate",
+          "priority": 1,
+          "parameters": {
+            "validationResult": "covered",
+            "copayAmount": "{{insurance.copayAmount}}",
+            "message": "Procedure covered under current benefits"
+          }
+        }
+      ]
+    }
+  ],
+  "providerNetworkRules": [
+    {
+      "id": "pn_001",
+      "name": "In-Network Provider Validation",
+      "category": "provider_network",
+      "priority": 30,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Validate provider is in network and credentialed",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "provider.networkStatus",
+            "conditionOperator": "equals",
+            "value": "in_network",
+            "dataType": "string"
+          },
+          {
+            "type": "simple",
+            "field": "provider.credentialingStatus",
+            "conditionOperator": "equals",
+            "value": "active",
+            "dataType": "string"
+          },
+          {
+            "type": "simple",
+            "field": "provider.specialty",
+            "conditionOperator": "in",
+            "value": "{{procedure.qualifiedSpecialties}}",
+            "dataType": "array"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "validate",
+          "priority": 1,
+          "parameters": {
+            "validationResult": "in_network",
+            "reimbursementRate": "{{provider.contractedRate}}",
+            "message": "Provider verified as in-network and qualified"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pn_002",
+      "name": "Out-of-Network Prior Authorization",
+      "category": "provider_network",
+      "priority": 80,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Handle out-of-network provider requests",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "provider.networkStatus",
+            "conditionOperator": "equals",
+            "value": "out_of_network",
+            "dataType": "string"
+          },
+          {
+            "type": "composite",
+            "operator": "OR",
+            "conditions": [
+              {
+                "type": "simple",
+                "field": "authorization.emergencyService",
+                "conditionOperator": "equals",
+                "value": true,
+                "dataType": "boolean"
+              },
+              {
+                "type": "simple",
+                "field": "authorization.noInNetworkProvider",
+                "conditionOperator": "equals",
+                "value": true,
+                "dataType": "boolean"
+              },
+              {
+                "type": "simple",
+                "field": "authorization.continuityOfCare",
+                "conditionOperator": "equals",
+                "value": true,
+                "dataType": "boolean"
+              }
+            ]
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "escalate",
+          "priority": 1,
+          "parameters": {
+            "escalationType": "out_of_network_review",
+            "assignTo": "network_management_team",
+            "notes": "Out-of-network request requires manual review"
+          }
+        }
+      ]
+    }
+  ],
+  "fraudDetectionRules": [
+    {
+      "id": "fd_001",
+      "name": "Duplicate Authorization Request",
+      "category": "fraud_detection",
+      "priority": 5,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Detect duplicate authorization requests",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "authorization.duplicateCount",
+            "conditionOperator": "greater_than",
+            "value": 1,
+            "dataType": "number"
+          },
+          {
+            "type": "simple",
+            "field": "authorization.timeSinceLastRequest",
+            "conditionOperator": "less_than",
+            "value": 24,
+            "dataType": "number"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "pend",
+          "priority": 1,
+          "parameters": {
+            "reason": "duplicate_request",
+            "flagType": "potential_fraud",
+            "investigationRequired": true,
+            "notes": "Multiple authorization requests for same procedure detected"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fd_002",
+      "name": "Unusual Provider Pattern",
+      "category": "fraud_detection",
+      "priority": 40,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Detect unusual patterns in provider authorization requests",
+      "conditions": {
+        "type": "composite",
+        "operator": "OR",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "provider.monthlyRequestVolume",
+            "conditionOperator": "greater_than",
+            "value": "{{provider.averageMonthlyVolume * 3}}",
+            "dataType": "number"
+          },
+          {
+            "type": "simple",
+            "field": "provider.highCostProcedureRate",
+            "conditionOperator": "greater_than",
+            "value": 80,
+            "dataType": "number"
+          },
+          {
+            "type": "simple",
+            "field": "provider.weekendRequestRate",
+            "conditionOperator": "greater_than",
+            "value": 50,
+            "dataType": "number"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "escalate",
+          "priority": 1,
+          "parameters": {
+            "escalationType": "fraud_investigation",
+            "assignTo": "fraud_detection_team",
+            "investigationType": "provider_pattern_analysis",
+            "notes": "Unusual provider request pattern detected"
+          }
+        }
+      ]
+    }
+  ],
+  "costManagementRules": [
+    {
+      "id": "cm_001",
+      "name": "High Cost Procedure Review",
+      "category": "cost_management",
+      "priority": 60,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Review procedures exceeding cost thresholds",
+      "conditions": {
+        "type": "simple",
+        "field": "procedure.estimatedCost",
+        "conditionOperator": "greater_than",
+        "value": 25000,
+        "dataType": "number"
+      },
+      "actions": [
+        {
+          "type": "escalate",
+          "priority": 1,
+          "parameters": {
+            "escalationType": "cost_review",
+            "assignTo": "medical_director",
+            "reviewType": "high_cost_authorization",
+            "notes": "High cost procedure requires medical director approval"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cm_002",
+      "name": "Alternative Treatment Available",
+      "category": "cost_management",
+      "priority": 70,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Suggest alternative treatments when available",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "procedure.hasAlternatives",
+            "conditionOperator": "equals",
+            "value": true,
+            "dataType": "boolean"
+          },
+          {
+            "type": "simple",
+            "field": "procedure.costDifferential",
+            "conditionOperator": "greater_than",
+            "value": 5000,
+            "dataType": "number"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "request_info",
+          "priority": 1,
+          "parameters": {
+            "requestType": "alternative_consideration",
+            "alternatives": "{{procedure.alternativeTreatments}}",
+            "message": "Please consider alternative treatments with lower cost and equivalent outcomes",
+            "allowOverride": true
+          }
+        }
+      ]
+    }
+  ],
+  "complianceRules": [
+    {
+      "id": "cp_001",
+      "name": "HIPAA Minimum Necessary",
+      "category": "compliance",
+      "priority": 1,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Ensure minimum necessary PHI disclosure",
+      "conditions": {
+        "type": "simple",
+        "field": "authorization.requestType",
+        "conditionOperator": "in",
+        "value": ["information_disclosure", "records_request"],
+        "dataType": "array"
+      },
+      "actions": [
+        {
+          "type": "validate",
+          "priority": 1,
+          "parameters": {
+            "validationType": "hipaa_minimum_necessary",
+            "requiredFields": ["purpose", "recipient", "expiration"],
+            "auditRequired": true,
+            "notes": "HIPAA minimum necessary validation applied"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cp_002",
+      "name": "State Prior Authorization Requirements",
+      "category": "compliance",
+      "priority": 15,
+      "status": "active",
+      "effectiveDate": "2024-01-01",
+      "version": "1.0",
+      "description": "Comply with state-specific prior authorization requirements",
+      "conditions": {
+        "type": "composite",
+        "operator": "AND",
+        "conditions": [
+          {
+            "type": "simple",
+            "field": "patient.state",
+            "conditionOperator": "in",
+            "value": ["CA", "NY", "TX", "FL"],
+            "dataType": "array"
+          },
+          {
+            "type": "simple",
+            "field": "procedure.requiresStateApproval",
+            "conditionOperator": "equals",
+            "value": true,
+            "dataType": "boolean"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "integrate",
+          "priority": 1,
+          "parameters": {
+            "integrationType": "state_system_notification",
+            "targetSystem": "{{patient.state}}_health_department",
+            "notificationRequired": true,
+            "timeframe": "24 hours"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CSVLink } from 'react-csv';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { format } from 'date-fns';
 import { ExportOptions } from '../../types/analytics';
 
@@ -110,11 +110,12 @@ const ExportControls: React.FC<ExportControlsProps> = () => {
     setShowExportMenu(false);
   };
 
-  const handleExportExcel = () => {
-    const wb = XLSX.utils.book_new();
+  const handleExportExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
     
     // Summary sheet
-    const summaryData = [
+    const summarySheet = workbook.addWorksheet('Resumo');
+    summarySheet.addRows([
       ['AUSTA Cockpit - Relatório Analítico'],
       [`Período: ${format(exportOptions.dateRange.start, 'dd/MM/yyyy')} - ${format(exportOptions.dateRange.end, 'dd/MM/yyyy')}`],
       [],
@@ -126,21 +127,44 @@ const ExportControls: React.FC<ExportControlsProps> = () => {
       ['Tempo Médio de Processamento (min)', mockExportData.summary.avgProcessingTime],
       ['Taxa de Detecção de Fraudes (%)', mockExportData.summary.fraudDetectionRate],
       ['Score de Confiança IA (%)', mockExportData.summary.aiConfidenceScore]
-    ];
+    ]);
     
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, summarySheet, 'Resumo');
+    // Style the header
+    summarySheet.getRow(1).font = { bold: true, size: 16 };
+    summarySheet.getRow(4).font = { bold: true, size: 14 };
+    summarySheet.getRow(5).font = { bold: true };
     
     // Auditor performance sheet
-    const auditorSheet = XLSX.utils.json_to_sheet(mockExportData.auditors);
-    XLSX.utils.book_append_sheet(wb, auditorSheet, 'Auditores');
+    const auditorSheet = workbook.addWorksheet('Auditores');
+    auditorSheet.columns = [
+      { header: 'Nome', key: 'name', width: 20 },
+      { header: 'Casos', key: 'cases', width: 10 },
+      { header: 'Precisão', key: 'accuracy', width: 10 },
+      { header: 'Tempo Médio', key: 'avgTime', width: 15 }
+    ];
+    auditorSheet.addRows(mockExportData.auditors);
+    auditorSheet.getRow(1).font = { bold: true };
     
     // Daily metrics sheet
-    const dailySheet = XLSX.utils.json_to_sheet(mockExportData.dailyMetrics);
-    XLSX.utils.book_append_sheet(wb, dailySheet, 'Métricas Diárias');
+    const dailySheet = workbook.addWorksheet('Métricas Diárias');
+    dailySheet.columns = [
+      { header: 'Data', key: 'date', width: 15 },
+      { header: 'Casos', key: 'cases', width: 10 },
+      { header: 'Taxa de Aprovação', key: 'approvalRate', width: 20 },
+      { header: 'Tempo Médio', key: 'avgTime', width: 15 }
+    ];
+    dailySheet.addRows(mockExportData.dailyMetrics);
+    dailySheet.getRow(1).font = { bold: true };
     
-    // Save the Excel file
-    XLSX.writeFile(wb, `austa-analytics-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    // Generate Excel file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `austa-analytics-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    link.click();
+    window.URL.revokeObjectURL(url);
     setShowExportMenu(false);
   };
 
