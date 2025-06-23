@@ -19,22 +19,28 @@ export default {
     '^@prisma/client$': '<rootDir>/tests/mocks/prisma.js',
   },
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: {
-        jsx: 'react-jsx',
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true,
-        moduleResolution: 'node',
-        strict: false,
-        skipLibCheck: true,
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          jsx: 'react-jsx',
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true,
+          moduleResolution: 'node',
+          strict: false,
+          skipLibCheck: true,
+        },
       },
-    }],
-    '^.+\\.(js|jsx)$': ['babel-jest', {
-      presets: [
-        ['@babel/preset-env', { targets: { node: 'current' } }],
-        ['@babel/preset-react', { runtime: 'automatic' }],
-      ],
-    }],
+    ],
+    '^.+\\.(js|jsx)$': [
+      'babel-jest',
+      {
+        presets: [
+          ['@babel/preset-env', { targets: { node: 'current' } }],
+          ['@babel/preset-react', { runtime: 'automatic' }],
+        ],
+      },
+    ],
   },
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
@@ -44,7 +50,7 @@ export default {
     '!src/main.tsx',
     '!src/vite-env.d.ts',
     '!**/node_modules/**',
-    '!**/dist/**',  
+    '!**/dist/**',
     '!**/coverage/**',
     '!**/frontend/**',
     '!**/backend/**',
@@ -58,57 +64,51 @@ export default {
       statements: 70,
     },
   },
-  
+
   // Use centralized test timeout configuration
   testTimeout: 10000,
-  
+
   // Enhanced reporting for production readiness
   reporters: [
     'default',
-    ['jest-junit', {
-      outputDirectory: 'test-results',
-      outputName: 'frontend-junit.xml',
-    }],
+    [
+      'jest-junit',
+      {
+        outputDirectory: 'test-results',
+        outputName: 'frontend-junit.xml',
+      },
+    ],
   ],
-  
+
   // Coverage reporting
   coverageReporters: ['text', 'lcov', 'html', 'json'],
   coverageDirectory: '<rootDir>/coverage',
-  
+
   // Test execution optimization
   maxWorkers: '50%',
-  
+
   // Clear mocks between tests for isolation
   clearMocks: true,
   restoreMocks: true,
   resetMocks: true,
-  
+
   // Global test environment setup
   testEnvironmentOptions: {
     url: 'http://localhost:3000',
   },
-  
+
   // Error handling
   bail: false,
   verbose: true,
-  
+
   // Ignore patterns
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/dist/',
-    '/coverage/',
-    '/frontend/',
-    '\\.snap$',
-  ],
-  
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/', '/frontend/', '\\.snap$'],
+
   // Transform ES modules in node_modules
   transformIgnorePatterns: [
-    'node_modules/(?!(jose|openid-client|@paralleldrive|msgpackr|bull|uuid|@prisma)/)',
+    'node_modules/(?!(jose|openid-client|@paralleldrive|msgpackr|bull|uuid|@prisma|bson|mongodb|ioredis)/)',
   ],
 
   // Watch plugins
-  watchPlugins: [
-    'jest-watch-typeahead/filename',
-    'jest-watch-typeahead/testname',
-  ],
+  watchPlugins: ['jest-watch-typeahead/filename', 'jest-watch-typeahead/testname'],
 };
